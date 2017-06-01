@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-.. $Id: course_export_views.py 113824 2017-05-31 03:05:15Z carlos.sanchez $
+.. $Id$
 """
 
 from __future__ import print_function, absolute_import, division
