@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-.. $Id: importer.py 112089 2017-05-04 18:26:44Z carlos.sanchez $
+.. $Id$
 """
 
 from __future__ import print_function, absolute_import, division

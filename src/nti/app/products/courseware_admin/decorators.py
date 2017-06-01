@@ -12,18 +12,25 @@ logger = __import__('logging').getLogger(__name__)
 from zope import component
 from zope import interface
 
+from zope.cachedescriptors.property import Lazy
+
 from zope.location.interfaces import ILocation
+
+from nti.app.products.courseware.interfaces import ICoursesWorkspace
 
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
+from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 
 from nti.app.renderers.decorators import AbstractAuthenticatedRequestAwareDecorator
 
 from nti.appserver.pyramid_authorization import has_permission
 
+from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
+from nti.dataserver.authorization import ACT_NTI_ADMIN
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
 from nti.externalization.interfaces import StandardExternalFields
@@ -50,9 +57,38 @@ class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])
         for name, method in ((VIEW_EXPORT_COURSE, 'GET'), (VIEW_IMPORT_COURSE, 'POST')):
-            link = Link(context, 
-						rel=name, elements=('@@%s' % name,), 
-						method=method)
+            link = Link(context,
+                        rel=name, elements=('@@%s' % name,),
+                        method=method)
+            interface.alsoProvides(link, ILocation)
+            link.__name__ = ''
+            link.__parent__ = context
+            _links.append(link)
+
+
+@component.adapter(ICoursesWorkspace)
+@interface.implementer(IExternalObjectDecorator)
+class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    A decorator that provides links for course management.
+
+    Note, we actually decorate and check access on the ICourseCatalog.
+    """
+
+    @Lazy
+    def catalog(self):
+        return component.queryUtility(ICourseCatalog)
+
+    def _predicate(self, context, result):
+        # Currently only NTI admins can access the admin level views.
+        return has_permission(ACT_NTI_ADMIN, self.catalog, self.request)
+
+    def _do_decorate_external(self, context, result):
+        if self.catalog is not None:
+            _links = result.setdefault(LINKS, [])
+            link = Link(self.catalog,
+                        rel=VIEW_COURSE_ADMIN_LEVELS,
+                        elements=('@@%s' % VIEW_COURSE_ADMIN_LEVELS,))
             interface.alsoProvides(link, ILocation)
             link.__name__ = ''
             link.__parent__ = context

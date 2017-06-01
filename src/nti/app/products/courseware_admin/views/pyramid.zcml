@@ -8,5 +8,6 @@
 
 	<pyramid:scan package=".export_views" />
 	<pyramid:scan package=".import_views" />
+	<pyramid:scan package=".management_views" />
 
 </configure>
