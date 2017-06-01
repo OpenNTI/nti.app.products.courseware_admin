@@ -20,7 +20,11 @@ from nti.app.products.courseware.interfaces import ICoursesWorkspace
 
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
+from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
+from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
+from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
+from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
 from nti.app.renderers.decorators import AbstractAuthenticatedRequestAwareDecorator
 
@@ -89,6 +93,30 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
             link = Link(self.catalog,
                         rel=VIEW_COURSE_ADMIN_LEVELS,
                         elements=('@@%s' % VIEW_COURSE_ADMIN_LEVELS,))
+            interface.alsoProvides(link, ILocation)
+            link.__name__ = ''
+            link.__parent__ = context
+            _links.append(link)
+
+
+@component.adapter(ICourseInstance)
+@interface.implementer(IExternalObjectDecorator)
+class _CourseRoleManagementLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    A decorator that provides links for course role management.
+    """
+
+    def _predicate(self, context, result):
+        # Currently only NTI admins can manage course roles.
+        return has_permission(ACT_NTI_ADMIN, context, self.request)
+
+    def _do_decorate_external(self, context, result):
+        for rel in (VIEW_COURSE_EDITORS,
+                    VIEW_COURSE_INSTRUCTORS,
+                    VIEW_COURSE_REMOVE_EDITORS,
+                    VIEW_COURSE_REMOVE_INSTRUCTORS):
+            _links = result.setdefault(LINKS, [])
+            link = Link(context, rel=rel, elements=('@@%s' % rel,))
             interface.alsoProvides(link, ILocation)
             link.__name__ = ''
             link.__parent__ = context

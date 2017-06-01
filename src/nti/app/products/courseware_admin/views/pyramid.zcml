@@ -6,6 +6,7 @@
 
 	<include package="pyramid_zcml" />
 
+	<pyramid:scan package=".role_views" />
 	<pyramid:scan package=".export_views" />
 	<pyramid:scan package=".import_views" />
 	<pyramid:scan package=".management_views" />
