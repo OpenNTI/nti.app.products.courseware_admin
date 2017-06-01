@@ -22,7 +22,7 @@ setup(
     version=_read('version.txt').strip(),
     author='Jason Madden',
     author_email='jason@nextthought.com',
-    description="NTI IMS Application",
+    description="NTI Course Administration",
     long_description=(_read('README.rst') + '\n\n' + _read("CHANGES.rst")),
     license='Apache',
     keywords='pyramid courseware admin',

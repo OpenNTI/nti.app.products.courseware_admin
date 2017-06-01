@@ -15,6 +15,7 @@ from zope import interface
 from zope.location.interfaces import ILocation
 
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
+from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 
 from nti.app.renderers.decorators import AbstractAuthenticatedRequestAwareDecorator
 
@@ -48,7 +49,7 @@ class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
 
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])
-        for name, method in ((VIEW_EXPORT_COURSE, 'GET'), ):
+        for name, method in ((VIEW_EXPORT_COURSE, 'GET'), (VIEW_IMPORT_COURSE, 'POST')):
             link = Link(context, 
 						rel=name, elements=('@@%s' % name,), 
 						method=method)
