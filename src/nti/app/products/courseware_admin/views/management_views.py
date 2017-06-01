@@ -24,6 +24,8 @@ from nti.app.externalization.internalization import read_body_as_external_object
 
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
+from nti.app.products.courseware.views import raise_error
+
 from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
@@ -95,18 +97,23 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
     def _get_admin_key(self):
         values = self.readInput()
         result = values.get('name') \
-            or values.get('level') \
-            or values.get('key')
+              or values.get('level') \
+              or values.get('key')
         if not result:
-            raise hexc.HTTPUnprocessableEntity(
-                _(u'Must supply admin level key.'))
+            raise_error({
+                'message': _(u'Must supply admin level key.'),
+                'code': 'InvalidAdminKey',
+            })
         return result
 
     def _insert(self, admin_key):
         # Do not allow children levels to mask parent levels.
         admin_levels = self.context.get_admin_levels()
         if admin_key in admin_levels:
-            raise hexc.HTTPUnprocessableEntity(_(u'Admin key already exists.'))
+            raise_error({
+                'message': _(u'Admin key already exists.'),
+                'code': 'DuplicateAdminKey',
+            })
         result = install_admin_level(admin_key, catalog=self.context)
         return result
 
@@ -133,8 +140,10 @@ class AdminLevelsDeleteView(UGDDeleteView):
 
     def __call__(self):
         if len(self.context):
-            raise hexc.HTTPUnprocessableEntity(
-                _(u'Cannot delete admin level with underlying objects.'))
+            raise_error({
+                'message': _(u'Cannot delete admin level with underlying objects.'),
+                'code': 'CannotDeleteAdminLevel',
+            })
         result = super(AdminLevelsDeleteView, self).__call__()
         logger.info('Deleted %s', self.context)
         return result
@@ -158,8 +167,8 @@ class CreateCourseView(AbstractAuthenticatedView,
 
     def _get_course_key(self, values):
         result = values.get('key') \
-            or values.get('name') \
-            or values.get('course')
+              or values.get('name') \
+              or values.get('course')
         return result
 
     def __call__(self):
