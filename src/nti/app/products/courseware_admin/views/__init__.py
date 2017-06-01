@@ -9,4 +9,4 @@ __docformat__ = "restructuredtext en"
 
 logger = __import__('logging').getLogger(__name__)
 
-VIEW_EXPORT_COURSE = 'Export'
+from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
