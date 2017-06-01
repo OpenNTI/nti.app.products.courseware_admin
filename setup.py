@@ -2,6 +2,10 @@ import codecs
 from setuptools import setup, find_packages
 
 entry_points = {
+    'console_scripts': [
+        "nti_course_exporter = nti.app.products.courseware_admin.scripts.nti_course_exporter:main",
+        "nti_course_importer = nti.app.products.courseware_admin.scripts.nti_course_importer:main",
+    ],
     "z3c.autoinclude.plugin": [
         'target = nti.app.products',
     ],
@@ -18,7 +22,7 @@ setup(
     version=_read('version.txt').strip(),
     author='Jason Madden',
     author_email='jason@nextthought.com',
-    description="NTI IMS Application",
+    description="NTI Course Administration",
     long_description=(_read('README.rst') + '\n\n' + _read("CHANGES.rst")),
     license='Apache',
     keywords='pyramid courseware admin',
