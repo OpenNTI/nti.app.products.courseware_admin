@@ -23,4 +23,16 @@
 				for="nti.contenttypes.courses.interfaces.ICourseInstance
 					 pyramid.interfaces.IRequest" />
 
+	<subscriber factory=".decorators._CourseWorkspaceDecorator"
+                provides="nti.externalization.interfaces.IExternalObjectDecorator"
+                for="nti.app.products.courseware.interfaces.ICoursesWorkspace
+                     pyramid.interfaces.IRequest" />
+
+	<!--
+    <subscriber factory=".decorators._CourseRoleManagementLinkDecorator"
+                provides="nti.externalization.interfaces.IExternalMappingDecorator"
+                for="nti.contenttypes.courses.interfaces.ICourseInstance
+                     pyramid.interfaces.IRequest" />
+	-->
+
 </configure>

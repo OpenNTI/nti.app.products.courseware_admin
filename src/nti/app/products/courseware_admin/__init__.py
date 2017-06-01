@@ -13,3 +13,4 @@ from nti.app.products.courseware import MessageFactory
 
 VIEW_EXPORT_COURSE = 'Export'
 VIEW_IMPORT_COURSE = 'Import'
+VIEW_COURSE_ADMIN_LEVELS = 'AdminLevels'

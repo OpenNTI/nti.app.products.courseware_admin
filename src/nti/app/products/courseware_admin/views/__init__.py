@@ -11,3 +11,4 @@ logger = __import__('logging').getLogger(__name__)
 
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
+from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
