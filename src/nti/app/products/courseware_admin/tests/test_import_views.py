@@ -59,8 +59,8 @@ class TestCourseImport(ApplicationLayerTest):
         assert_that('888:Course_Discussions', is_in(sections))
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
-    @fudge.patch('nti.app.products.courseware.views.course_import_views.create_course',
-                 'nti.app.products.courseware.views.course_import_views.import_course')
+    @fudge.patch('nti.app.products.courseware_admin.views.import_views.create_course',
+                 'nti.app.products.courseware_admin.views.import_views.import_course')
     def test_fake_imports(self, mock_create, mock_import):
         mock_create.is_callable().with_args().returns(False)
         mock_import.is_callable().with_args().returns(False)
