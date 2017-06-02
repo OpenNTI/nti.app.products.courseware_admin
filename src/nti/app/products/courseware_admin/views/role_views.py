@@ -333,7 +333,7 @@ class CourseRolesView(AbstractAuthenticatedView):
                 continue
             seen = set()
             users = user_idx.documents_to_values.get(uid)
-            for username in users:
+            for username in users or ():
                 user = User.get_user(username)
                 seen.add(user)
             seen.discard(None)
