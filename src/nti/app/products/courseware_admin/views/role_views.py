@@ -308,11 +308,13 @@ class CourseEditorsRemovalView(AbstractCourseDenyView):
                request_method='GET',
                permission=nauth.ACT_NTI_ADMIN)
 class CourseRolesView(AbstractAuthenticatedView):
+    """
+    Return a CSV with current course roles.
+    """
 
     def __call__(self):
         bio = BytesIO()
         csv_writer = csv.writer(bio)
-
         header = ['user', 'email', 'title', 'ntiid']
         csv_writer.writerow(header)
 
@@ -327,9 +329,8 @@ class CourseRolesView(AbstractAuthenticatedView):
         for uid in catalog.apply(query) or ():
             context = intids.queryObject(uid)
             entry = ICourseCatalogEntry(context, None)
-            if context is None or entry is None:
+            if entry is None:
                 continue
-
             seen = set()
             users = user_idx.documents_to_values.get(uid)
             for username in users:
