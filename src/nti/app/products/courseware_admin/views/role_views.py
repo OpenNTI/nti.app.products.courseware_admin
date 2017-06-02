@@ -9,19 +9,27 @@ __docformat__ = "restructuredtext en"
 
 logger = __import__('logging').getLogger(__name__)
 
+import csv
+from io import BytesIO
+
 from requests.structures import CaseInsensitiveDict
 
-from pyramid import httpexceptions as hexc
-
-from pyramid.view import view_config
+from zope import component
 
 from zope.cachedescriptors.property import Lazy
 
 from zope.event import notify
 
+from zope.intid.interfaces import IIntIds
+
 from zope.security.interfaces import IPrincipal
 
 from zope.securitypolicy.interfaces import IPrincipalRoleManager
+
+from pyramid import httpexceptions as hexc
+
+from pyramid.view import view_config
+from pyramid.view import view_defaults
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
@@ -30,6 +38,7 @@ from nti.app.externalization.internalization import read_body_as_external_object
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
 from nti.app.products.courseware.views import raise_error
+from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
@@ -38,6 +47,16 @@ from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
+from nti.app.products.courseware_admin.views.utils import tx_string
+
+from nti.contenttypes.courses.index import IX_SITE
+from nti.contenttypes.courses.index import IX_SCOPE
+from nti.contenttypes.courses.index import IX_USERNAME
+
+from nti.contenttypes.courses.index import get_enrollment_catalog
+
+from nti.contenttypes.courses.interfaces import EDITOR
+from nti.contenttypes.courses.interfaces import INSTRUCTOR
 from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
 from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
 
@@ -61,9 +80,12 @@ from nti.dataserver import authorization as nauth
 from nti.dataserver.interfaces import IUser
 
 from nti.dataserver.users import User
+from nti.dataserver.users.interfaces import IUserProfile
 
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
+
+from nti.site.site import get_component_hierarchy_names
 
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
@@ -276,3 +298,52 @@ class CourseEditorsRemovalView(AbstractCourseDenyView):
         super(CourseEditorsRemovalView, self).deny_permission(user)
         remove_principal_from_course_content_roles(user, self.course)
     _edit_permissions = deny_permission
+
+
+@view_config(name='CourseRoles')
+@view_config(name='course_roles')
+@view_defaults(route_name='objects.generic.traversal',
+               renderer='rest',
+               context=CourseAdminPathAdapter,
+               request_method='GET',
+               permission=nauth.ACT_NTI_ADMIN)
+class CourseRolesView(AbstractAuthenticatedView):
+
+    def __call__(self):
+        bio = BytesIO()
+        csv_writer = csv.writer(bio)
+
+        header = ['user', 'email', 'title', 'ntiid']
+        csv_writer.writerow(header)
+
+        catalog = get_enrollment_catalog()
+        intids = component.getUtility(IIntIds)
+        site_names = get_component_hierarchy_names()
+        query = {
+            IX_SITE: {'any_of': site_names},
+            IX_SCOPE: {'any_of': (INSTRUCTOR, EDITOR)}
+        }
+        user_idx = catalog[IX_USERNAME]
+        for uid in catalog.apply(query) or ():
+            context = intids.queryObject(uid)
+            entry = ICourseCatalogEntry(context, None)
+            if context is None or entry is None:
+                continue
+
+            seen = set()
+            users = user_idx.documents_to_values.get(uid)
+            for username in users:
+                user = User.get_user(username)
+                seen.add(user)
+            seen.discard(None)
+            for user in seen:
+                profile = IUserProfile(user, None)
+                email = getattr(profile, 'email', None)
+                # write data
+                row_data = [user.username, email, entry.title, entry.ntiid]
+                csv_writer.writerow([tx_string(x) for x in row_data])
+
+        response = self.request.response
+        response.body = bio.getvalue()
+        response.content_disposition = 'attachment; filename="CourseRoles.csv"'
+        return response

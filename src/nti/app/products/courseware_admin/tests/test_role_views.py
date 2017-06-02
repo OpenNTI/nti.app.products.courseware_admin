@@ -10,6 +10,7 @@ __docformat__ = "restructuredtext en"
 from hamcrest import is_not
 from hamcrest import has_length
 from hamcrest import assert_that
+from hamcrest import contains_string
 from hamcrest import contains_inanyorder
 does_not = is_not
 
@@ -226,6 +227,14 @@ class TestRoleViews(ApplicationLayerTest):
                                               extra_environ=env)
             enroll_courses = enroll_courses.json_body
             assert_that(enroll_courses[ITEMS], has_length(0))
+
+        # Get all roles
+        href = '/dataserver2/CourseAdmin/@@course_roles'
+        res = self.testapp.get(href)
+        assert_that(res.body,
+                    contains_string('three-fifty-five,,Law and Justice'))
+        assert_that(res.body,
+                    contains_string('ampersand,,Law and Justice'))
 
         # Remove instructor
         self.testapp.post_json(remove_instructor_href, {'user': 'ampersand'})
