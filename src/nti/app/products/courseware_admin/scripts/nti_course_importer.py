@@ -15,8 +15,8 @@ import argparse
 
 from zope import component
 
-from nti.app.products.courseware.importer import create_course
-from nti.app.products.courseware.importer import import_course
+from nti.app.products.courseware_admin.importer import create_course
+from nti.app.products.courseware_admin.importer import import_course
 
 from nti.base._compat import text_
 
