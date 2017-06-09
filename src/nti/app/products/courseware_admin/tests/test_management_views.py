@@ -201,7 +201,7 @@ class TestCourseManagement(ApplicationLayerTest):
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_course_views(self):
         """
-        Validate basic course managment.
+        Validate basic course management.
         """
         admin_href = self._get_admin_href()
         # Create admin level
