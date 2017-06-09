@@ -109,7 +109,7 @@ class AdminExportCourseView(AbstractAuthenticatedView,
 
     def __call__(self):
         values = self.readInput()
-        context = parse_course(values)
+        context = parse_course(values, self.request)
         backup = is_true(values.get('backup'))
         salt = values.get('salt')
         if not backup and not salt:
