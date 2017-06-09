@@ -43,6 +43,5 @@ setup(
         'setuptools',
         'nti.contenttypes.courses',
     ],
-    entry_points=entry_points,
-    test_suite="nti.app.products.courseware_admin.tests",
+    entry_points=entry_points
 )
