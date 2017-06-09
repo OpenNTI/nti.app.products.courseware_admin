@@ -13,6 +13,10 @@ import six
 
 from pyramid import httpexceptions as hexc
 
+from pyramid.threadlocal import get_current_request
+
+from nti.app.externalization.error import raise_json_error
+
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
 from nti.contenttypes.courses.legacy_catalog import ILegacyCourseInstance
@@ -30,23 +34,39 @@ def tx_string(s):
     return s
 
 
-def parse_user(values):
+def parse_user(values, request=None):
+    request = request or get_current_request()
     username = values.get('username') or values.get('user')
     if not username:
-        raise hexc.HTTPUnprocessableEntity(detail='No username')
+        raise_json_error(request,
+                         hexc.HTTPUnprocessableEntity,
+                         {
+                             'message': "No username.",
+                         },
+                         None)
 
     user = User.get_user(username)
     if not user or not IUser.providedBy(user):
-        raise hexc.HTTPUnprocessableEntity(detail='User not found')
+        raise_json_error(request,
+                         hexc.HTTPUnprocessableEntity,
+                         {
+                             'message': "User not found.",
+                         },
+                         None)
 
     return username, user
 
 
-def parse_courses(values):
-    # get validate course entry
+def parse_courses(values, request=None):
+    request = request or get_current_request()
     ntiids = values.get('ntiid') or values.get('ntiids')
     if not ntiids:
-        raise hexc.HTTPUnprocessableEntity(detail='No course entry identifier')
+        raise_json_error(request,
+                         hexc.HTTPUnprocessableEntity,
+                         {
+                             'message': "No course entry identifier.",
+                         },
+                         None)
 
     if isinstance(ntiids, six.string_types):
         ntiids = ntiids.split()
@@ -61,8 +81,14 @@ def parse_courses(values):
     return result
 
 
-def parse_course(values):
-    result = parse_courses(values)
+def parse_course(values, request=None):
+    request = request or get_current_request()
+    result = parse_courses(values, request)
     if not result:
-        raise hexc.HTTPUnprocessableEntity(detail='Course not found')
+        raise_json_error(request,
+                         hexc.HTTPUnprocessableEntity,
+                         {
+                             'message': "Course not found.",
+                         },
+                         None)
     return result[0]
