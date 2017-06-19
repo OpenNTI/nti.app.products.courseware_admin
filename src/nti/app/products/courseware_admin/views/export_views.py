@@ -28,7 +28,7 @@ from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin.views import VIEW_EXPORT_COURSE
 
-from nti.app.products.courseware_admin.views.utils import parse_course
+from nti.app.products.courseware_admin.views.view_mixins import parse_course
 
 from nti.common.string import is_true
 
