@@ -36,11 +36,11 @@ from nti.dataserver import authorization as nauth
 from nti.externalization.interfaces import LocatedExternalDict
 
 
-@view_config(context=ICourseInstance)
-@view_config(context=ICourseCatalogEntry)
+@view_config(name='Sync')
+@view_config(name='SyncCourse')
 @view_defaults(route_name='objects.generic.traversal',
                renderer='rest',
-               name='SyncCourse',
+               context=ICourseInstance,
                permission=nauth.ACT_SYNC_LIBRARY)
 class SyncCourseView(_SyncAllLibrariesView):
 
@@ -71,3 +71,14 @@ class SyncCourseView(_SyncAllLibrariesView):
             result['Transaction'] = self._txn_id()
             result['SyncTime'] = time.time() - now
         return result
+
+
+@view_config(name='Sync')
+@view_config(name='SyncCourse')
+@view_defaults(route_name='objects.generic.traversal',
+               renderer='rest',
+               name='SyncCourse',
+               context=ICourseCatalogEntry,
+               permission=nauth.ACT_SYNC_LIBRARY)
+class SyncEntryView(SyncCourseView):
+    pass
