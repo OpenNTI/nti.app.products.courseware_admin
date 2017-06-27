@@ -34,10 +34,6 @@ from nti.contenttypes.courses.utils import get_course_subinstances
 from nti.dataserver import authorization as nauth
 
 from nti.externalization.interfaces import LocatedExternalDict
-from nti.externalization.interfaces import StandardExternalFields
-
-ITEMS = StandardExternalFields.ITEMS
-ITEM_COUNT = StandardExternalFields.ITEM_COUNT
 
 
 @view_config(context=ICourseInstance)
