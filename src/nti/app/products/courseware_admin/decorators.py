@@ -26,6 +26,9 @@ from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
+from nti.app.products.courseware_admin.mixins import EditorManageMixin
+from nti.app.products.courseware_admin.mixins import InstructorManageMixin
+
 from nti.app.renderers.decorators import AbstractAuthenticatedRequestAwareDecorator
 
 from nti.appserver.pyramid_authorization import has_permission
@@ -101,20 +104,40 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
 
 @component.adapter(ICourseInstance)
 @interface.implementer(IExternalObjectDecorator)
-class _CourseRoleManagementLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
+class _CourseInstructorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDecorator,
+                                               InstructorManageMixin):
     """
     A decorator that provides links for course role management.
     """
 
     def _predicate(self, context, result):
-        # Currently only NTI admins can manage course roles.
-        return has_permission(ACT_NTI_ADMIN, context, self.request)
+        return self.has_access(self.remoteUser, context)
+
+    def _do_decorate_external(self, context, result):
+        for rel in (VIEW_COURSE_INSTRUCTORS,
+                    VIEW_COURSE_REMOVE_INSTRUCTORS):
+            _links = result.setdefault(LINKS, [])
+            link = Link(context, rel=rel, elements=('@@%s' % rel,))
+            interface.alsoProvides(link, ILocation)
+            link.__name__ = ''
+            link.__parent__ = context
+            _links.append(link)
+
+
+@component.adapter(ICourseInstance)
+@interface.implementer(IExternalObjectDecorator)
+class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDecorator,
+                                           EditorManageMixin):
+    """
+    A decorator that provides links for course role management.
+    """
+
+    def _predicate(self, context, result):
+        return self.has_access(self.remoteUser, context)
 
     def _do_decorate_external(self, context, result):
         for rel in (VIEW_COURSE_EDITORS,
-                    VIEW_COURSE_INSTRUCTORS,
-                    VIEW_COURSE_REMOVE_EDITORS,
-                    VIEW_COURSE_REMOVE_INSTRUCTORS):
+                    VIEW_COURSE_REMOVE_EDITORS):
             _links = result.setdefault(LINKS, [])
             link = Link(context, rel=rel, elements=('@@%s' % rel,))
             interface.alsoProvides(link, ILocation)

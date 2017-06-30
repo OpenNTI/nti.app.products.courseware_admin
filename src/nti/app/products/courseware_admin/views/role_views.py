@@ -47,6 +47,9 @@ from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
+from nti.app.products.courseware_admin.mixins import EditorManageMixin
+from nti.app.products.courseware_admin.mixins import InstructorManageMixin
+
 from nti.app.products.courseware_admin.views.view_mixins import tx_string
 
 from nti.contenttypes.courses.index import IX_SITE
@@ -75,8 +78,6 @@ from nti.contenttypes.courses.utils import get_course_instructors
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
 
-from nti.dataserver import authorization as nauth
-
 from nti.dataserver.interfaces import IUser
 
 from nti.dataserver.users import User
@@ -95,14 +96,14 @@ ITEM_COUNT = StandardExternalFields.ITEM_COUNT
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_INSTRUCTORS,
-             request_method='GET',
-             permission=nauth.ACT_NTI_ADMIN)
-class CourseInstructorsView(AbstractAuthenticatedView):
+             request_method='GET')
+class CourseInstructorsView(AbstractAuthenticatedView, InstructorManageMixin):
     """
     Fetch all instructors for the given course.
     """
 
     def __call__(self):
+        self.require_access(self.remoteUser, self.context)
         instructors = get_course_instructors(self.context)
         result = LocatedExternalDict()
         result[ITEM_COUNT] = len(instructors)
@@ -114,14 +115,14 @@ class CourseInstructorsView(AbstractAuthenticatedView):
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_EDITORS,
-             request_method='GET',
-             permission=nauth.ACT_NTI_ADMIN)
-class CourseEditorsView(AbstractAuthenticatedView):
+             request_method='GET')
+class CourseEditorsView(AbstractAuthenticatedView, EditorManageMixin):
     """
     Fetch all editors for the given course.
     """
 
     def __call__(self):
+        self.require_access(self.remoteUser, self.context)
         editors = get_course_editors(self.context)
         result = LocatedExternalDict()
         result[ITEM_COUNT] = len(editors)
@@ -178,6 +179,7 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         return IPrincipalRoleManager(self.course)
 
     def __call__(self):
+        self.require_access(self.remoteUser, self.context)
         usernames = self._get_users()
         for username in usernames:
             user = User.get_user(username)
@@ -204,9 +206,8 @@ class AbstractCourseGrantView(AbstractRoleManagerView):
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_INSTRUCTORS,
-             request_method='POST',
-             permission=nauth.ACT_NTI_ADMIN)
-class CourseInstructorsInsertView(AbstractCourseGrantView):
+             request_method='POST')
+class CourseInstructorsInsertView(AbstractCourseGrantView, InstructorManageMixin):
     """
     Insert new instructors for the given course. We do not accept
     TAs at this point.
@@ -229,9 +230,8 @@ class CourseInstructorsInsertView(AbstractCourseGrantView):
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_EDITORS,
-             request_method='POST',
-             permission=nauth.ACT_NTI_ADMIN)
-class CourseEditorsInsertView(AbstractCourseGrantView):
+             request_method='POST')
+class CourseEditorsInsertView(AbstractCourseGrantView, EditorManageMixin):
     """
     Insert new editors for the given course.
     """
@@ -259,9 +259,8 @@ class AbstractCourseDenyView(AbstractRoleManagerView):
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_REMOVE_INSTRUCTORS,
-             request_method='POST',
-             permission=nauth.ACT_NTI_ADMIN)
-class CourseInstructorsRemovalView(AbstractCourseDenyView):
+             request_method='POST')
+class CourseInstructorsRemovalView(AbstractCourseDenyView, InstructorManageMixin):
     """
     Remove instructor(s) for the given course.
     """
@@ -284,9 +283,8 @@ class CourseInstructorsRemovalView(AbstractCourseDenyView):
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_REMOVE_EDITORS,
-             request_method='POST',
-             permission=nauth.ACT_NTI_ADMIN)
-class CourseEditorsRemovalView(AbstractCourseDenyView):
+             request_method='POST')
+class CourseEditorsRemovalView(AbstractCourseDenyView, EditorManageMixin):
     """
     Remove editor(s) for the given course.
     """
@@ -305,8 +303,7 @@ class CourseEditorsRemovalView(AbstractCourseDenyView):
 @view_defaults(route_name='objects.generic.traversal',
                renderer='rest',
                context=CourseAdminPathAdapter,
-               request_method='GET',
-               permission=nauth.ACT_NTI_ADMIN)
+               request_method='GET')
 class CourseRolesView(AbstractAuthenticatedView):
     """
     Return a CSV with current course roles.
