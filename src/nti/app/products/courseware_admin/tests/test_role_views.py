@@ -101,6 +101,18 @@ class TestRoleViews(ApplicationLayerTest):
             ntiids = (x.ntiid for x in packages)
             return ['/dataserver2/Objects/%s' % x for x in ntiids]
 
+    def _validate_manage_links(self, env=None, has_instructor_links=False, has_editor_links=False):
+        inst_test = self.require_link_href_with_rel if has_instructor_links \
+                    else self.forbid_link_with_rel
+        editor_test = self.require_link_href_with_rel if has_editor_links \
+                    else self.forbid_link_with_rel
+        course_ext = self._get_course_ext(env)
+        for rel in (VIEW_COURSE_INSTRUCTORS, VIEW_COURSE_REMOVE_INSTRUCTORS):
+            inst_test(course_ext, rel)
+
+        for rel in (VIEW_COURSE_EDITORS, VIEW_COURSE_EDITORS):
+            editor_test(course_ext, rel)
+
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_roles(self):
         """
@@ -114,13 +126,17 @@ class TestRoleViews(ApplicationLayerTest):
         self.testapp.post_json(self.enrolled_courses_href % 'ampersand',
                                self.course_ntiid,
                                extra_environ=amp_environ)
+        self._validate_manage_links(amp_environ)
+
         # Editor
         self.create_user(u'three-fifty-five')
         three_environ = self._make_extra_environ('three-fifty-five')
+        self._validate_manage_links(three_environ)
 
         # Neither
         self.create_user(u'hero.brown')
         hero_environ = self._make_extra_environ('hero.brown')
+        self._validate_manage_links(hero_environ)
 
         package_hrefs = self._get_course_package_hrefs()
 
@@ -165,8 +181,8 @@ class TestRoleViews(ApplicationLayerTest):
             else:
                 assert_that(enroll_courses[ITEMS], has_length(0))
                 for package_href in package_hrefs:
-                    self.testapp.get(package_href, 
-                                     extra_environ=env, 
+                    self.testapp.get(package_href,
+                                     extra_environ=env,
                                      status=403)
 
         def _get_names(href):
@@ -181,10 +197,10 @@ class TestRoleViews(ApplicationLayerTest):
         def _editor_names():
             return _get_names(editor_href)
 
-        # Error handling; bad input, non-existant user
+        # Error handling; bad input, non-existent user
         self.testapp.post_json(instructor_href, status=422)
-        self.testapp.post_json(instructor_href, 
-                               {'user': 'does-not-exist'}, 
+        self.testapp.post_json(instructor_href,
+                               {'user': 'does-not-exist'},
                                status=422)
 
         # Add instructor (twice is ok)
@@ -194,8 +210,9 @@ class TestRoleViews(ApplicationLayerTest):
         self.testapp.post_json(instructor_href, {'user': 'ampersand'})
         instructors = _instructor_names()
         assert_that(instructors, has_length(3))
-        assert_that(instructors, 
+        assert_that(instructors,
                     contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
+        self._validate_manage_links(amp_environ, has_instructor_links=True)
 
         # Add editor (twice is ok)
         editors = _editor_names()
@@ -206,6 +223,7 @@ class TestRoleViews(ApplicationLayerTest):
         assert_that(editors, has_length(3))
         assert_that(editors,
                     contains_inanyorder('jmadden', 'harp4162', 'three-fifty-five'))
+        self._validate_manage_links(three_environ, has_editor_links=True)
 
         for username, env in (('ampersand', amp_environ),
                               ('hero.brown', hero_environ),
@@ -242,17 +260,19 @@ class TestRoleViews(ApplicationLayerTest):
         instructors = _instructor_names()
         assert_that(instructors, has_length(2))
         assert_that(instructors, contains_inanyorder('jmadden', 'harp4162'))
+        self._validate_manage_links(amp_environ)
 
         # Remove editor
-        self.testapp.post_json(remove_editor_href, 
+        self.testapp.post_json(remove_editor_href,
                                {'user': 'three-fifty-five'})
 
-        self.testapp.post_json(remove_editor_href, 
+        self.testapp.post_json(remove_editor_href,
                                {'user': 'three-fifty-five'})
         editors = _editor_names()
         assert_that(instructors, has_length(2))
-        assert_that(instructors, 
+        assert_that(instructors,
                     contains_inanyorder('jmadden', 'harp4162'))
+        self._validate_manage_links(three_environ)
 
         # Everything is gone
         for username, env in (('ampersand', amp_environ),
