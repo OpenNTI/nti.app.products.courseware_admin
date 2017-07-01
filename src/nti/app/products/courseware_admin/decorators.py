@@ -111,7 +111,8 @@ class _CourseInstructorManagementLinkDecorator(AbstractAuthenticatedRequestAware
     """
 
     def _predicate(self, context, result):
-        return self.has_access(self.remoteUser, context)
+        return  self._is_authenticated \
+            and self.has_access(self.remoteUser, context)
 
     def _do_decorate_external(self, context, result):
         for rel in (VIEW_COURSE_INSTRUCTORS,
@@ -133,7 +134,8 @@ class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDeco
     """
 
     def _predicate(self, context, result):
-        return self.has_access(self.remoteUser, context)
+        return  self._is_authenticated \
+            and self.has_access(self.remoteUser, context)
 
     def _do_decorate_external(self, context, result):
         for rel in (VIEW_COURSE_EDITORS,
