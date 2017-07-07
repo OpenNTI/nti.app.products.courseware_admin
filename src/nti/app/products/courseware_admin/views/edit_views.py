@@ -56,7 +56,7 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
         values = self.readInput()
         
         # If invalid duration (number followed by work), bad request
-        if len(values["duration"].split()) != 2:
+        if values["duration"] is None or len(values["duration"].split()) != 2:
             return hexc.HTTPBadRequest()
         
         # Not allowed to edit these courses
