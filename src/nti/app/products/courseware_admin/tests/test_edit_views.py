@@ -1,26 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-.. $Id:
-"""
 
-from __future__ import print_function, unicode_literals, absolute_import, division
+from __future__ import print_function, absolute_import, division
 __docformat__ = "restructuredtext en"
 
 # disable: accessing protected members, too many methods
 # pylint: disable=W0212,R0904
 
+from hamcrest import is_
 from hamcrest import has_entries
 from hamcrest import assert_that
-from hamcrest import has_entry
 
-import json
+from nti.ntiids.ntiids import find_object_with_ntiid
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
 from nti.app.testing.application_webtest import ApplicationLayerTest
 
 from nti.app.testing.decorators import WithSharedApplicationMockDS
+
+from nti.dataserver.tests import mock_dataserver
 
 
 class TestCourseEdits(ApplicationLayerTest):
@@ -30,7 +29,7 @@ class TestCourseEdits(ApplicationLayerTest):
 
     layer = PersistentInstructedCourseApplicationTestLayer
 
-    default_origin = str('http://janux.ou.edu')
+    default_origin = 'http://janux.ou.edu'
 
     course_path = '/dataserver2/%2B%2Betc%2B%2Bhostsites/platform.ou.edu/%2B%2Betc%2B%2Bsite/Courses/Fall2015/CS%201323/CourseCatalogEntry'
 
@@ -40,36 +39,32 @@ class TestCourseEdits(ApplicationLayerTest):
     def test_course_edit(self):
         instructor_environ = self._make_extra_environ()
 
-        res = self.testapp.get(
-            '/dataserver2/Objects/' + self.entry_ntiid,
-            extra_environ=instructor_environ)
-        res_dict = json.loads(res.body)
-
-        # Set new info for the course
+        res_dict = {}
         res_dict["title"] = "Another Course"
         res_dict["ProviderDepartmentTitle"] = "Department of Austin Graham"
         res_dict["description"] = "Yet another course"
 
         # Edit the course with the new information,
-        # but since this duration is invalid should raise bad request
-        self.testapp.put(self.course_path,
-                         json.dumps(res_dict),
-                         extra_environ=instructor_environ,
-                         status=400)
+        res = self.testapp.put_json(self.course_path,
+                                    res_dict,
+                                    extra_environ=instructor_environ,
+                                    status=200)
 
-        # Give valid duration and try again
-        res_dict["duration"] = "16 weeks"
-        self.testapp.put(self.course_path,
-                         json.dumps(res_dict),
-                         extra_environ=instructor_environ)
+        assert_that(res.json_body,
+                    has_entries("title", "Another Course",
+                                "ProviderDepartmentTitle", "Department of Austin Graham",
+                                "description", "Yet another course"))
 
-        res = self.testapp.get(
-            self.course_path,
-            extra_environ=instructor_environ)
-
-        res_dict = json.loads(res.body)
+        # valid duration and try again
+        res_dict["Duration"] = "16 weeks"
+        res = self.testapp.put_json(self.course_path,
+                                    res_dict,
+                                    extra_environ=instructor_environ)
 
         # Be sure the new information is contained in the course
-        assert_that(res_dict, has_entries("title", "Another Course",
-                                          "ProviderDepartmentTitle", "Department of Austin Graham",
-                                          "description", "Yet another course"))
+        assert_that(res.json_body,
+                    has_entries("Duration", 'P112D'))
+        
+        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+            entry = find_object_with_ntiid(self.entry_ntiid)
+            assert_that(entry.is_locked(), is_(True))
