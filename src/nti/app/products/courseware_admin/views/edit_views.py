@@ -28,7 +28,6 @@ from nti.dataserver import authorization as nauth
 
 @view_config(route_name='objects.generic.traversal',
              request_method='PUT',
-             name="edit",
              context=ICourseCatalogEntry,
              permission=nauth.ACT_CONTENT_EDIT)
 class EditCatalogEntryView(AbstractAuthenticatedView,

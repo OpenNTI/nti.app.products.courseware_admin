@@ -50,18 +50,16 @@ class TestCourseEdits(ApplicationLayerTest):
         res_dict["ProviderDepartmentTitle"] = "Department of Austin Graham"
         res_dict["description"] = "Yet another course"
 
-        edit_path = self.course_path + "/edit"
-
         # Edit the course with the new information,
         # but since this duration is invalid should raise bad request
-        self.testapp.put(edit_path,
+        self.testapp.put(self.course_path,
                          json.dumps(res_dict),
                          extra_environ=instructor_environ,
                          status=400)
 
         # Give valid duration and try again
         res_dict["duration"] = "16 weeks"
-        self.testapp.put(edit_path,
+        self.testapp.put(self.course_path,
                          json.dumps(res_dict),
                          extra_environ=instructor_environ)
 
