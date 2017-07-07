@@ -58,13 +58,12 @@ class TestCourseEdits(ApplicationLayerTest):
                          json.dumps(res_dict),
                          extra_environ=instructor_environ,
                          status=400)
-        
+
         # Give valid duration and try again
         res_dict["duration"] = "16 weeks"
         self.testapp.put(edit_path,
                          json.dumps(res_dict),
                          extra_environ=instructor_environ)
-        
 
         res = self.testapp.get(
             self.course_path,
