@@ -158,6 +158,8 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         result = values.get('name') \
               or values.get('user') \
               or values.get('users')
+        if not result and self.request.subpath:
+            result = self.request.subpath[0]
         if not result:
             raise_error({
                 'message': _(u"No users given."),
@@ -259,7 +261,7 @@ class AbstractCourseDenyView(AbstractRoleManagerView):
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_REMOVE_INSTRUCTORS,
-             request_method='POST')
+             request_method='DELETE')
 class CourseInstructorsRemovalView(AbstractCourseDenyView, InstructorManageMixin):
     """
     Remove instructor(s) for the given course.
@@ -283,7 +285,7 @@ class CourseInstructorsRemovalView(AbstractCourseDenyView, InstructorManageMixin
              renderer='rest',
              context=ICourseInstance,
              name=VIEW_COURSE_REMOVE_EDITORS,
-             request_method='POST')
+             request_method='DELETE')
 class CourseEditorsRemovalView(AbstractCourseDenyView, EditorManageMixin):
     """
     Remove editor(s) for the given course.

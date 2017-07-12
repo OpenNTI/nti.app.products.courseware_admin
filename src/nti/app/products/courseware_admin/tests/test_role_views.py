@@ -255,19 +255,31 @@ class TestRoleViews(ApplicationLayerTest):
                     contains_string('ampersand,,Law and Justice'))
 
         # Remove instructor
-        self.testapp.post_json(remove_instructor_href, {'user': 'ampersand'})
-        self.testapp.post_json(remove_instructor_href, {'user': 'ampersand'})
+        self.testapp.delete_json(remove_instructor_href, {'user': 'ampersand'})
+        self.testapp.delete_json(remove_instructor_href, {'user': 'ampersand'})
+        instructors = _instructor_names()
+        assert_that(instructors, has_length(2))
+        assert_that(instructors, contains_inanyorder('jmadden', 'harp4162'))
+        self._validate_manage_links(amp_environ)
+
+        # Remove instructor via subpath
+        self.testapp.post_json(instructor_href, {'user': 'ampersand'})
+        instructors = _instructor_names()
+        assert_that(instructors, has_length(3))
+        assert_that(instructors,
+                    contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
+        self.testapp.delete( '%s/%s' % (remove_instructor_href, 'ampersand'))
         instructors = _instructor_names()
         assert_that(instructors, has_length(2))
         assert_that(instructors, contains_inanyorder('jmadden', 'harp4162'))
         self._validate_manage_links(amp_environ)
 
         # Remove editor
-        self.testapp.post_json(remove_editor_href,
-                               {'user': 'three-fifty-five'})
+        self.testapp.delete_json(remove_editor_href,
+                                {'user': 'three-fifty-five'})
 
-        self.testapp.post_json(remove_editor_href,
-                               {'user': 'three-fifty-five'})
+        self.testapp.delete_json(remove_editor_href,
+                                {'user': 'three-fifty-five'})
         editors = _editor_names()
         assert_that(instructors, has_length(2))
         assert_that(instructors,
