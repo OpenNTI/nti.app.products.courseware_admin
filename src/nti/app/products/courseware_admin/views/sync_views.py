@@ -54,9 +54,9 @@ class SyncCourseView(_SyncAllLibrariesView):
             ntiids = [entry.ntiid]
             ntiids.extend(p.ntiid for p in get_course_packages(course)
                           if not IEditableContentPackage.providedBy(p))
-            ntiids.extend([
+            ntiids.extend(
                 ICourseCatalogEntry(s).ntiid for s in get_course_subinstances(course)
-            ])
+            )
             # do sync
             result = self._do_sync(site=get_course_site_name(course),
                                    ntiids=ntiids,
