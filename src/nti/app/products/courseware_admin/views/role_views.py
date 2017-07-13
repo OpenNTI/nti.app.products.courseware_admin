@@ -257,11 +257,12 @@ class AbstractCourseDenyView(AbstractRoleManagerView):
                     user.username, self.ROLE_ID, self.entry_ntiid)
 
 
-@view_config(route_name='objects.generic.traversal',
-             renderer='rest',
-             context=ICourseInstance,
-             name=VIEW_COURSE_REMOVE_INSTRUCTORS,
-             request_method='DELETE')
+@view_config(name=VIEW_COURSE_INSTRUCTORS)
+@view_config(name=VIEW_COURSE_REMOVE_INSTRUCTORS)
+@view_defaults(route_name='objects.generic.traversal',
+               renderer='rest',
+               context=ICourseInstance,
+               request_method='DELETE')
 class CourseInstructorsRemovalView(AbstractCourseDenyView, InstructorManageMixin):
     """
     Remove instructor(s) for the given course.
@@ -281,11 +282,12 @@ class CourseInstructorsRemovalView(AbstractCourseDenyView, InstructorManageMixin
     _edit_permissions = deny_permission
 
 
-@view_config(route_name='objects.generic.traversal',
-             renderer='rest',
-             context=ICourseInstance,
-             name=VIEW_COURSE_REMOVE_EDITORS,
-             request_method='DELETE')
+@view_config(name=VIEW_COURSE_EDITORS)
+@view_config(name=VIEW_COURSE_REMOVE_EDITORS)
+@view_defaults(route_name='objects.generic.traversal',
+               renderer='rest',
+               context=ICourseInstance,
+               request_method='DELETE')
 class CourseEditorsRemovalView(AbstractCourseDenyView, EditorManageMixin):
     """
     Remove editor(s) for the given course.
