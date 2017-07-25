@@ -84,7 +84,7 @@ class RebuildCourseOutlineCatalogView(AbstractAuthenticatedView):
     def _index_nodes(self, course, catalog, intids):
 
         def recur(node):
-            if node is node:
+            if node is None:
                 return
             doc_id = intids.queryId(node)
             if doc_id is not None:
