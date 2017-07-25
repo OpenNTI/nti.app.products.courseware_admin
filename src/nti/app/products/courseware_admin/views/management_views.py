@@ -11,16 +11,14 @@ logger = __import__('logging').getLogger(__name__)
 
 from requests.structures import CaseInsensitiveDict
 
+from zope.event import notify
+
 from pyramid import httpexceptions as hexc
 
 from pyramid.view import view_config
 from pyramid.view import view_defaults
 
-from zope.event import notify
-
 from nti.app.base.abstract_views import AbstractAuthenticatedView
-
-from nti.app.externalization.internalization import read_body_as_external_object
 
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
@@ -86,9 +84,9 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
     a 'key' param.
     """
 
-    def readInput(self):
+    def readInput(self, value=None):
         if self.request.body:
-            values = read_body_as_external_object(self.request)
+            values = super(AdminLevelsPostView, self).readInput(value)
         else:
             values = self.request.params
         result = CaseInsensitiveDict(values)
@@ -157,9 +155,9 @@ class AdminLevelsDeleteView(UGDDeleteView):
 class CreateCourseView(AbstractAuthenticatedView,
                        ModeledContentUploadRequestUtilsMixin):
 
-    def readInput(self):
+    def readInput(self, value=None):
         if self.request.body:
-            values = read_body_as_external_object(self.request)
+            values = super(CreateCourseView, self).readInput(value)
         else:
             values = self.request.params
         result = CaseInsensitiveDict(values)
