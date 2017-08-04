@@ -246,11 +246,13 @@ class TestCourseManagement(ApplicationLayerTest):
             course_object = find_object_with_ntiid(new_course_ntiid)
             assert_that(INonPublicCourseInstance.providedBy(course_object))
             catalog_entry = ICourseCatalogEntry(course_object)
+            assert_that(INonPublicCourseInstance.providedBy(catalog_entry))
             catalog_entry_ntiid = catalog_entry.ntiid
 
         catalog_entry_res = self.testapp.get(
             '/dataserver2/Objects/' + catalog_entry_ntiid)
-        assert_that(catalog_entry_ext.json, has_entry('is_non_public', True))
+        assert_that(catalog_entry_res.json, has_entry('is_non_public', True))
+        assert_that(new_course, has_entry('is_non_public', True))
 
         # Idempotent
         self.testapp.post_json(new_admin_href,
