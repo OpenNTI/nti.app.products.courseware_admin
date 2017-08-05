@@ -83,6 +83,8 @@ from nti.dataserver.interfaces import IUser
 from nti.dataserver.users import User
 from nti.dataserver.users.interfaces import IUserProfile
 
+from nti.externalization.externalization import to_external_object
+
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
 
@@ -90,6 +92,14 @@ from nti.site.site import get_component_hierarchy_names
 
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
+
+
+def _get_external_users(users):
+    """
+    For these admin views, we'll want to return information about these users
+    available to admins.
+    """
+    return [to_external_object(x, name='admin-summary') for x in users]
 
 
 @view_config(route_name='objects.generic.traversal',
@@ -107,7 +117,8 @@ class CourseInstructorsView(AbstractAuthenticatedView, InstructorManageMixin):
         instructors = get_course_instructors(self.context)
         result = LocatedExternalDict()
         result[ITEM_COUNT] = len(instructors)
-        result[ITEMS] = [User.get_user(x) for x in instructors]
+        users = (User.get_user(x) for x in instructors)
+        result[ITEMS] = _get_external_users(users)
         return result
 
 
@@ -126,7 +137,8 @@ class CourseEditorsView(AbstractAuthenticatedView, EditorManageMixin):
         editors = get_course_editors(self.context)
         result = LocatedExternalDict()
         result[ITEM_COUNT] = len(editors)
-        result[ITEMS] = [IUser(x) for x in editors]
+        users = (IUser(x) for x in editors)
+        result[ITEMS] = _get_external_users(users)
         return result
 
 
