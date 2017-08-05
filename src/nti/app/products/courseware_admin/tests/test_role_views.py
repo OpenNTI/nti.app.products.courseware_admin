@@ -8,6 +8,7 @@ __docformat__ = "restructuredtext en"
 # pylint: disable=W0212,R0904
 
 from hamcrest import is_not
+from hamcrest import has_entry
 from hamcrest import has_length
 from hamcrest import assert_that
 from hamcrest import contains_string
@@ -32,6 +33,8 @@ from nti.contenttypes.courses.common import get_course_packages
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
+
+from nti.dataserver.users.interfaces import IUserProfile
 
 from nti.externalization.externalization import to_external_ntiid_oid
 
@@ -92,7 +95,8 @@ class TestRoleViews(ApplicationLayerTest):
 
     def create_user(self, username):
         with mock_dataserver.mock_db_trans(self.ds):
-            self._create_user(username)
+            user = self._create_user(username)
+            IUserProfile(user).email = '%s@gmail.com' % username
 
     def _get_course_package_hrefs(self):
         with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
@@ -101,7 +105,10 @@ class TestRoleViews(ApplicationLayerTest):
             ntiids = (x.ntiid for x in packages)
             return ['/dataserver2/Objects/%s' % x for x in ntiids]
 
-    def _validate_manage_links(self, env=None, has_instructor_links=False, has_editor_links=False):
+    def _validate_manage_links(self,
+                               env=None,
+                               has_instructor_links=False,
+                               has_editor_links=False):
         inst_test = self.require_link_href_with_rel if has_instructor_links \
                     else self.forbid_link_with_rel
         editor_test = self.require_link_href_with_rel if has_editor_links \
@@ -188,8 +195,14 @@ class TestRoleViews(ApplicationLayerTest):
         def _get_names(href):
             result = self.testapp.get(href)
             result = result.json_body
-            result = [x['Username'] for x in result[ITEMS]]
-            return result
+            usernames = []
+            for ext_user in result[ITEMS]:
+                username = ext_user['Username']
+                if username in ('ampersand', 'hero.brown', 'three-fifty-five'):
+                    user_email = '%s@gmail.com' % username
+                    assert_that(ext_user, has_entry('email', user_email))
+                usernames.append(username)
+            return usernames
 
         def _instructor_names():
             return _get_names(instructor_href)
@@ -250,9 +263,9 @@ class TestRoleViews(ApplicationLayerTest):
         href = '/dataserver2/CourseAdmin/@@course_roles'
         res = self.testapp.get(href)
         assert_that(res.body,
-                    contains_string('three-fifty-five,,Law and Justice'))
+                    contains_string('three-fifty-five,three-fifty-five@gmail.com,Law and Justice'))
         assert_that(res.body,
-                    contains_string('ampersand,,Law and Justice'))
+                    contains_string('ampersand,ampersand@gmail.com,Law and Justice'))
 
         # Remove instructor
         self.testapp.delete_json(remove_instructor_href, {'user': 'ampersand'})
