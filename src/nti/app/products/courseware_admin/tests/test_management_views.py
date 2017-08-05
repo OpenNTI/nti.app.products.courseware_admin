@@ -11,6 +11,7 @@ from hamcrest import is_
 from hamcrest import is_not
 from hamcrest import not_none
 from hamcrest import has_item
+from hamcrest import has_entry
 from hamcrest import assert_that
 from hamcrest import contains_inanyorder
 does_not = is_not
@@ -27,6 +28,8 @@ from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnume
 from nti.contenttypes.courses._synchronize import synchronize_catalog_from_root
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
+from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 
 from nti.externalization.interfaces import StandardExternalFields
 
@@ -37,6 +40,8 @@ from nti.app.testing.application_webtest import ApplicationLayerTest
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.dataserver.tests import mock_dataserver
+
+from nti.ntiids.ntiids import find_object_with_ntiid
 
 ITEMS = StandardExternalFields.ITEMS
 CLASS = StandardExternalFields.CLASS
@@ -220,6 +225,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # Create course
         new_course = self.testapp.post_json(new_admin_href,
                                             {'course': new_course_key})
+
         new_course = new_course.json_body
         new_course_href = new_course['href']
         assert_that(new_course_href, not_none())
@@ -233,6 +239,20 @@ class TestCourseManagement(ApplicationLayerTest):
         catalog = catalog.json_body
         assert_that(catalog['NTIID'],
                     is_('tag:nextthought.com,2011-10:NTI-CourseInfo-TheLastMan_Yorick'))
+
+        # Verify that this course is non-public.
+        new_course_ntiid = new_course['NTIID']
+        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+            course_object = find_object_with_ntiid(new_course_ntiid)
+            assert_that(INonPublicCourseInstance.providedBy(course_object))
+            catalog_entry = ICourseCatalogEntry(course_object)
+            assert_that(INonPublicCourseInstance.providedBy(catalog_entry))
+            catalog_entry_ntiid = catalog_entry.ntiid
+
+        catalog_entry_res = self.testapp.get(
+            '/dataserver2/Objects/' + catalog_entry_ntiid)
+        assert_that(catalog_entry_res.json, has_entry('is_non_public', True))
+        assert_that(new_course, has_entry('is_non_public', True))
 
         # Idempotent
         self.testapp.post_json(new_admin_href,
