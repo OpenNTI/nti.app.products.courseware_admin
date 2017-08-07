@@ -13,6 +13,7 @@ from hamcrest import not_none
 from hamcrest import has_item
 from hamcrest import has_entry
 from hamcrest import assert_that
+from hamcrest import contains_string
 from hamcrest import contains_inanyorder
 does_not = is_not
 
@@ -254,9 +255,13 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(catalog_entry_res.json, has_entry('is_non_public', True))
         assert_that(new_course, has_entry('is_non_public', True))
 
-        # Idempotent
-        self.testapp.post_json(new_admin_href,
-                               {'course': new_course_key})
+        # While we can be more lenient when creating courses from an import, we
+        # are always strict when letting users create courses. Thus, we don't
+        # allow creating a course with a key that already exists.
+        res = self.testapp.post_json(new_admin_href,
+                                     {'course': new_course_key}, status=422)
+        assert_that(res.body, contains_string(
+            'Course with key Yorick already exists'))
 
         # XXX: Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)
