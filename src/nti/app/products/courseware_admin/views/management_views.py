@@ -177,7 +177,7 @@ class CreateCourseView(AbstractAuthenticatedView,
         key = self._get_course_key(params)
         admin_level = self.context.__name__
         logger.info('Creating course (%s) (admin=%s)', key, admin_level)
-        course = create_course(admin_level, key, writeout=False)
+        course = create_course(admin_level, key, writeout=False, strict=True)
         # create non-public by default for both the course
         # and its catalog entry
         interface.alsoProvides(course, INonPublicCourseInstance)
