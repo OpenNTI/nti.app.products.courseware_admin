@@ -261,12 +261,10 @@ class TestCourseManagement(ApplicationLayerTest):
         # While we can be more lenient when creating courses from an import, we
         # are always strict when letting users create courses. Thus, we don't
         # allow creating a course with a key that already exists.
-
-        with assert_raises(CourseAlreadyExistsException):
-            res = self.testapp.post_json(new_admin_href,
-                                         {'course': new_course_key})
-            assert_that(res.body, contains_string(
-                'Course with key Yorick already exists'))
+        res = self.testapp.post_json(new_admin_href,
+                                     {'course': new_course_key}, status=422)
+        assert_that(res.body, contains_string(
+            'Course with key Yorick already exists'))
 
         # XXX: Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)
