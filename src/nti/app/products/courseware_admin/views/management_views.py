@@ -201,7 +201,7 @@ class CreateCourseView(AbstractAuthenticatedView,
         NTIID of type:
             - NTI-CourseInfo-<intid>.<timestamp>
         """
-        # Give our catalog entry an intid and set an intid
+        # Give our catalog entry an intid and set an NTIID
         addIntId(entry)
         intids = component.getUtility(IIntIds)
         entry_id = intids.getId(entry)
@@ -228,7 +228,7 @@ class CreateCourseView(AbstractAuthenticatedView,
         key = self._get_course_key(params)
         admin_level = self.context.__name__
         try:
-            course = create_course(admin_level, key, 
+            course = create_course(admin_level, key,
                                    writeout=False, strict=True)
         except CourseAlreadyExistsException as e:
             raise_error({
