@@ -17,6 +17,8 @@ from hamcrest import contains_string
 from hamcrest import contains_inanyorder
 does_not = is_not
 
+from nose.tools import assert_raises
+
 import shutil
 
 from zope import component
@@ -31,6 +33,7 @@ from nti.contenttypes.courses._synchronize import synchronize_catalog_from_root
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
+from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
 from nti.externalization.interfaces import StandardExternalFields
 
@@ -258,10 +261,12 @@ class TestCourseManagement(ApplicationLayerTest):
         # While we can be more lenient when creating courses from an import, we
         # are always strict when letting users create courses. Thus, we don't
         # allow creating a course with a key that already exists.
-        res = self.testapp.post_json(new_admin_href,
-                                     {'course': new_course_key}, status=422)
-        assert_that(res.body, contains_string(
-            'Course with key Yorick already exists'))
+
+        with assert_raises(CourseAlreadyExistsException):
+            res = self.testapp.post_json(new_admin_href,
+                                         {'course': new_course_key})
+            assert_that(res.body, contains_string(
+                'Course with key Yorick already exists'))
 
         # XXX: Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)
