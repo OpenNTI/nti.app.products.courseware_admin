@@ -219,8 +219,8 @@ class CreateCourseView(AbstractAuthenticatedView,
         interface.alsoProvides(course, INonPublicCourseInstance)
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
 
-        notify(CourseInstanceAvailableEvent(course))
         self._set_entry_ntiid(catalog_entry)
+        notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
 
     def __call__(self):
