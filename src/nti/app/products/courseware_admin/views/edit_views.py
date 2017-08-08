@@ -47,6 +47,8 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
         values.pop("PlatformPresentationResources", None)
         if "Duration" in values:
             values[u"duration"] = values["Duration"]
+        values.pop('ntiid', None)
+        values.pop('NTIID', None)
         return values
 
     def __call__(self):
@@ -60,7 +62,7 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
                              None)
         # Get the new course info as input data
         values = self.readInput()
-        fill_entry_from_legacy_json(self.context, values, 
+        fill_entry_from_legacy_json(self.context, values,
                                     notify=True, delete=False)
         # Return new catalog entry object
         return self.context

@@ -238,17 +238,25 @@ class TestCourseManagement(ApplicationLayerTest):
 
         catalog = self.testapp.get('%s/CourseCatalogEntry' % new_course_href)
         catalog = catalog.json_body
-        assert_that(catalog['NTIID'],
-                    is_('tag:nextthought.com,2011-10:NTI-CourseInfo-TheLastMan_Yorick'))
+        entry_ntiid = catalog['NTIID']
+        assert_that(entry_ntiid, not_none())
+        # GUID NTIID
+        assert_that(entry_ntiid,
+                    is_not('tag:nextthought.com,2011-10:NTI-CourseInfo-TheLastMan_Yorick'))
 
         # Verify that this course is non-public.
         new_course_ntiid = new_course['NTIID']
-        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+        with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
             course_object = find_object_with_ntiid(new_course_ntiid)
             assert_that(INonPublicCourseInstance.providedBy(course_object))
             catalog_entry = ICourseCatalogEntry(course_object)
             assert_that(INonPublicCourseInstance.providedBy(catalog_entry))
             catalog_entry_ntiid = catalog_entry.ntiid
+            # Entry is set up correctly
+            entry = find_object_with_ntiid(entry_ntiid)
+            assert_that(entry, not_none())
+            assert_that(entry.ntiid, is_(entry_ntiid))
+            assert_that(entry, is_(catalog_entry))
 
         catalog_entry_res = self.testapp.get(
             '/dataserver2/Objects/' + catalog_entry_ntiid)
