@@ -182,7 +182,10 @@ class CreateCourseView(AbstractAuthenticatedView,
             course = create_course(
                 admin_level, key, writeout=False, strict=True)
         except CourseAlreadyExistsException as e:
-            raise hexc.HTTPUnprocessableEntity(e.message)
+            raise_error({
+                'message': e.message,
+                'code': 'CourseAlreadyExists'
+            })
         # create non-public by default for both the course
         # and its catalog entry
         interface.alsoProvides(course, INonPublicCourseInstance)
