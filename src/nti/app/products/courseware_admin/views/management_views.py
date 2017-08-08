@@ -48,6 +48,7 @@ from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
+from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 
@@ -113,8 +114,8 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
     def _get_admin_key(self):
         values = self.readInput()
         result = values.get('name') \
-            or values.get('level') \
-            or values.get('key')
+              or values.get('level') \
+              or values.get('key')
         if not result:
             raise_error({
                 'message': _(u'Must supply admin level key.'),
@@ -226,7 +227,14 @@ class CreateCourseView(AbstractAuthenticatedView,
         params = self.readInput()
         key = self._get_course_key(params)
         admin_level = self.context.__name__
-        course = create_course(admin_level, key, writeout=False, strict=True)
+        try:
+            course = create_course(admin_level, key, 
+                                   writeout=False, strict=True)
+        except CourseAlreadyExistsException as e:
+            raise_error({
+                'message': e.message,
+                'code': 'CourseAlreadyExists'
+            })
         entry = self._post_create(course)
         logger.info('Creating course (%s) (admin=%s) (ntiid=%s)',
                     key, admin_level, entry.ntiid)
