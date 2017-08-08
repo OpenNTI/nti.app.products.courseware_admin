@@ -17,8 +17,6 @@ from hamcrest import contains_string
 from hamcrest import contains_inanyorder
 does_not = is_not
 
-from nose.tools import assert_raises
-
 import shutil
 
 from zope import component
@@ -33,7 +31,6 @@ from nti.contenttypes.courses._synchronize import synchronize_catalog_from_root
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
-from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
 from nti.externalization.interfaces import StandardExternalFields
 
