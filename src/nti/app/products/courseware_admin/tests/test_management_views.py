@@ -9,8 +9,8 @@ __docformat__ = "restructuredtext en"
 
 from hamcrest import is_
 from hamcrest import is_not
-from hamcrest import not_none
 from hamcrest import has_item
+from hamcrest import not_none
 from hamcrest import has_entry
 from hamcrest import assert_that
 from hamcrest import contains_string
@@ -250,8 +250,8 @@ class TestCourseManagement(ApplicationLayerTest):
             assert_that(INonPublicCourseInstance.providedBy(catalog_entry))
             catalog_entry_ntiid = catalog_entry.ntiid
 
-        catalog_entry_res = self.testapp.get(
-            '/dataserver2/Objects/' + catalog_entry_ntiid)
+        href = '/dataserver2/Objects/' + catalog_entry_ntiid
+        catalog_entry_res = self.testapp.get(href)
         assert_that(catalog_entry_res.json, has_entry('is_non_public', True))
         assert_that(new_course, has_entry('is_non_public', True))
 
@@ -260,8 +260,8 @@ class TestCourseManagement(ApplicationLayerTest):
         # allow creating a course with a key that already exists.
         res = self.testapp.post_json(new_admin_href,
                                      {'course': new_course_key}, status=422)
-        assert_that(res.body, contains_string(
-            'Course with key Yorick already exists'))
+        assert_that(res.body, 
+                    contains_string('Course with key Yorick already exists'))
 
         # XXX: Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)

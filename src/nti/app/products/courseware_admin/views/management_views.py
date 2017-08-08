@@ -98,8 +98,8 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
     def _get_admin_key(self):
         values = self.readInput()
         result = values.get('name') \
-            or values.get('level') \
-            or values.get('key')
+              or values.get('level') \
+              or values.get('key')
         if not result:
             raise_error({
                 'message': _(u'Must supply admin level key.'),
@@ -168,8 +168,8 @@ class CreateCourseView(AbstractAuthenticatedView,
 
     def _get_course_key(self, values):
         result = values.get('key') \
-            or values.get('name') \
-            or values.get('course')
+              or values.get('name') \
+              or values.get('course')
         return result
 
     def __call__(self):
@@ -179,8 +179,8 @@ class CreateCourseView(AbstractAuthenticatedView,
         admin_level = self.context.__name__
         logger.info('Creating course (%s) (admin=%s)', key, admin_level)
         try:
-            course = create_course(
-                admin_level, key, writeout=False, strict=True)
+            course = create_course(admin_level, key, 
+                                   writeout=False, strict=True)
         except CourseAlreadyExistsException as e:
             raise_error({
                 'message': e.message,
