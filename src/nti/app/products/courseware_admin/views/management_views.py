@@ -9,10 +9,16 @@ __docformat__ = "restructuredtext en"
 
 logger = __import__('logging').getLogger(__name__)
 
+import time
+
 from requests.structures import CaseInsensitiveDict
 
-from zope.event import notify
+from zope import component
 from zope import interface
+
+from zope.event import notify
+
+from zope.intid.interfaces import IIntIds
 
 from pyramid import httpexceptions as hexc
 
@@ -34,6 +40,9 @@ from nti.appserver.ugd_edit_views import UGDDeleteView
 from nti.contenttypes.courses.creator import create_course
 from nti.contenttypes.courses.creator import install_admin_level
 
+from nti.contenttypes.courses.interfaces import NTIID_ENTRY_TYPE
+from nti.contenttypes.courses.interfaces import NTIID_ENTRY_PROVIDER
+
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
@@ -49,6 +58,13 @@ from nti.externalization.externalization import to_external_object
 
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
+
+from nti.intid.common import addIntId
+
+from nti.ntiids.ntiids import make_ntiid
+from nti.ntiids.ntiids import make_specific_safe
+
+from nti.zodb.containers import time_to_64bit_int
 
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
@@ -157,6 +173,10 @@ class AdminLevelsDeleteView(UGDDeleteView):
              permission=nauth.ACT_NTI_ADMIN)
 class CreateCourseView(AbstractAuthenticatedView,
                        ModeledContentUploadRequestUtilsMixin):
+    """
+    Creates a basic course. The finished product will be in preview mode and
+    non-public. We'll have a GUID for the course catalog entry NTIID.
+    """
 
     def readInput(self, value=None):
         if self.request.body:
@@ -167,31 +187,57 @@ class CreateCourseView(AbstractAuthenticatedView,
         return result
 
     def _get_course_key(self, values):
-        result = values.get('key') \
-              or values.get('name') \
-              or values.get('course')
+        result =   values.get('key') \
+                or values.get('name') \
+                or values.get('course')
         return result
 
+    def _set_entry_ntiid(self, entry):
+        """
+        We want a unique/GUID for these entry NTIIDs. We want to be able to
+        have the flexibility to move these entries/courses between admin levels
+        without being tied to an admin-level path.
+
+        NTIID of type:
+            - NTI-CourseInfo-<intid>.<timestamp>
+        """
+        # Give our catalog entry an intid and set an NTIID
+        addIntId(entry)
+        intids = component.getUtility(IIntIds)
+        entry_id = intids.getId(entry)
+        current_time = time_to_64bit_int(time.time())
+        specific_base = '%s.%s' % (entry_id, current_time)
+        specific = make_specific_safe(specific_base)
+        ntiid = make_ntiid(nttype=NTIID_ENTRY_TYPE,
+                           provider=NTIID_ENTRY_PROVIDER,
+                           specific=specific)
+        entry.ntiid = ntiid
+
+    def _post_create(self, course):
+        catalog_entry = ICourseCatalogEntry(course)
+        catalog_entry.Preview = True
+        interface.alsoProvides(course, INonPublicCourseInstance)
+        interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
+
+        notify(CourseInstanceAvailableEvent(course))
+        self._set_entry_ntiid(catalog_entry)
+        return catalog_entry
+
     def __call__(self):
-        # TODO: Do we need to create this in preview mode by default?
         params = self.readInput()
         key = self._get_course_key(params)
         admin_level = self.context.__name__
-        logger.info('Creating course (%s) (admin=%s)', key, admin_level)
         try:
-            course = create_course(admin_level, key, 
+            course = create_course(admin_level, key,
                                    writeout=False, strict=True)
         except CourseAlreadyExistsException as e:
             raise_error({
                 'message': e.message,
                 'code': 'CourseAlreadyExists'
             })
-        # create non-public by default for both the course
-        # and its catalog entry
-        interface.alsoProvides(course, INonPublicCourseInstance)
-        catalog_entry = ICourseCatalogEntry(course)
-        interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
-        notify(CourseInstanceAvailableEvent(course))
+        entry = self._post_create(course)
+        logger.info('Creating course (%s) (admin=%s) (ntiid=%s)',
+                    key, admin_level, entry.ntiid)
         return course
 
 
