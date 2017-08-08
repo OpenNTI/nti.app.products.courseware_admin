@@ -39,6 +39,7 @@ from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
+from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 
@@ -177,7 +178,11 @@ class CreateCourseView(AbstractAuthenticatedView,
         key = self._get_course_key(params)
         admin_level = self.context.__name__
         logger.info('Creating course (%s) (admin=%s)', key, admin_level)
-        course = create_course(admin_level, key, writeout=False, strict=True)
+        try:
+            course = create_course(
+                admin_level, key, writeout=False, strict=True)
+        except CourseAlreadyExistsException as e:
+            raise hexc.HTTPUnprocessableEntity(e.message)
         # create non-public by default for both the course
         # and its catalog entry
         interface.alsoProvides(course, INonPublicCourseInstance)
