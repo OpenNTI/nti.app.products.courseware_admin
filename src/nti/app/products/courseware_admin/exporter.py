@@ -9,6 +9,7 @@ __docformat__ = "restructuredtext en"
 
 logger = __import__('logging').getLogger(__name__)
 
+import time
 import tempfile
 
 from zope import component
@@ -25,6 +26,8 @@ def export_course(context, backup=True, salt=None, path=None):
         # prepare filer
         filer.prepare()
         # export course
+        if not backup and not salt:
+            salt = str(time.time())
         exporter = component.getUtility(ICourseExporter)
         exporter.export(course, filer, backup, salt)
         # zip contents
