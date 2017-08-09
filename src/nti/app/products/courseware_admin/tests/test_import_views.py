@@ -17,6 +17,7 @@ does_not = is_not
 
 import os
 import shutil
+import tempfile
 
 import fudge
 
@@ -84,14 +85,14 @@ class TestCourseImport(ApplicationLayerTest):
 
     @WithSharedApplicationMockDS(testapp=False, users=True)
     def test_import_export(self):
-        path = None
+        path = tempfile.mkdtemp()
         try:
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
                 entry = find_object_with_ntiid(self.entry_ntiid)
-                path = export_course(entry, False)
+                archive = export_course(entry, False, None, path)
             
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
-                course = create_course(u"Anime", u"Bleach", path, 
+                course = create_course(u"Anime", u"Bleach", archive, 
                                        writeout=False, lockout=True)
                 assert_that(course, is_not(none()))
         finally:
