@@ -7,6 +7,7 @@ __docformat__ = "restructuredtext en"
 # disable: accessing protected members, too many methods
 # pylint: disable=W0212,R0904
 
+from hamcrest import none
 from hamcrest import is_in
 from hamcrest import is_not
 from hamcrest import has_length
@@ -15,9 +16,15 @@ from hamcrest import greater_than_or_equal_to
 does_not = is_not
 
 import os
+import shutil
+
 import fudge
 
 from zope import component
+
+from nti.app.products.courseware_admin.exporter import export_course
+
+from nti.app.products.courseware_admin.importer import create_course
 
 from nti.contenttypes.courses.interfaces import ICourseSectionImporter
 
@@ -28,6 +35,8 @@ from nti.app.products.courseware.tests import PersistentInstructedCourseApplicat
 from nti.app.testing.application_webtest import ApplicationLayerTest
 
 from nti.app.testing.decorators import WithSharedApplicationMockDS
+
+from nti.dataserver.tests import mock_dataserver
 
 
 class TestCourseImport(ApplicationLayerTest):
@@ -72,3 +81,19 @@ class TestCourseImport(ApplicationLayerTest):
 
         data = {'admin': 'Fall2015', 'key': 'Bleach', 'path': path}
         self.testapp.post_json(href, data, status=200)
+
+    @WithSharedApplicationMockDS(testapp=False, users=True)
+    def test_import_export(self):
+        path = None
+        try:
+            with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+                entry = find_object_with_ntiid(self.entry_ntiid)
+                path = export_course(entry, False)
+            
+            with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+                course = create_course(u"Anime", u"Bleach", path, 
+                                       writeout=False, lockout=True)
+                assert_that(course, is_not(none()))
+        finally:
+            if path:
+                shutil.rmtree(path, True)
