@@ -11,11 +11,8 @@ logger = __import__('logging').getLogger(__name__)
 
 import os
 import time
-import tempfile
 
 from requests.structures import CaseInsensitiveDict
-
-from zope import component
 
 from pyramid.view import view_config
 from pyramid.view import view_defaults
@@ -26,34 +23,18 @@ from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtils
 
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
+from nti.app.products.courseware_admin.exporter import export_course
+
 from nti.app.products.courseware_admin.views import VIEW_EXPORT_COURSE
 
 from nti.app.products.courseware_admin.views.view_mixins import parse_course
 
 from nti.common.string import is_true
 
-from nti.contenttypes.courses.interfaces import ICourseExporter
 from nti.contenttypes.courses.interfaces import ICourseInstance
-from nti.contenttypes.courses.interfaces import ICourseExportFiler
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
 from nti.dataserver import authorization as nauth
-
-
-def export_course(context, backup=True, salt=None):
-    course = ICourseInstance(context)
-    filer = ICourseExportFiler(course)
-    try:
-        # prepare filer
-        filer.prepare()
-        # export course
-        exporter = component.getUtility(ICourseExporter)
-        exporter.export(course, filer, backup, salt)
-        # zip contents
-        zip_file = filer.asZip(path=tempfile.mkdtemp())
-        return zip_file
-    finally:
-        filer.reset()
 
 
 def _export_course_response(context, backup, salt, response):
