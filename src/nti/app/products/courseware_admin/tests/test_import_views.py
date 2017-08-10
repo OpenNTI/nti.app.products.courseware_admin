@@ -22,12 +22,24 @@ import tempfile
 import fudge
 
 from zope import component
+from zope import interface
+
+from nti.app.products.courseware.resources.interfaces import ICourseRootFolder
+
+from nti.app.products.courseware.resources.model import CourseContentFile
 
 from nti.app.products.courseware_admin.exporter import export_course
 
 from nti.app.products.courseware_admin.importer import create_course
 
+from nti.app.contentfolder.utils import to_external_cf_io_href
+
+from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseSectionImporter
+
+from nti.contenttypes.presentation.interfaces import IContentBackedPresentationAsset
+
+from nti.externalization.oids import to_external_ntiid_oid
 
 from nti.ntiids.ntiids import find_object_with_ntiid
 
@@ -46,7 +58,8 @@ class TestCourseImport(ApplicationLayerTest):
 
     default_origin = 'http://janux.ou.edu'
     entry_ntiid = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2015_CS_1323'
-
+    ref_ntiid = u'tag:nextthought.com,2011-10:OU-RelatedWorkRef-CS1323_F_2015_Intro_to_Computer_Programming.relatedworkref.relwk:syllabus'
+ 
     @classmethod
     def catalog_entry(cls):
         return find_object_with_ntiid(cls.entry_ntiid)
@@ -83,18 +96,36 @@ class TestCourseImport(ApplicationLayerTest):
         data = {'admin': 'Fall2015', 'key': 'Bleach', 'path': path}
         self.testapp.post_json(href, data, status=200)
 
+    def _add_file(self, context):
+        course = ICourseInstance(context)
+        folder = ICourseRootFolder(course)
+        syllabus = CourseContentFile()
+        syllabus.filename = syllabus.name = u"syllabus.pdf"
+        syllabus.data = b'pdftext'
+        syllabus.contentType = 'application/pdf'
+        folder.add(syllabus)
+        ref = find_object_with_ntiid(self.ref_ntiid)
+        ref.href = to_external_cf_io_href(syllabus)
+        ref.target = to_external_ntiid_oid(syllabus)
+        ref.type = u'application/pdf'
+        interface.noLongerProvides(ref, IContentBackedPresentationAsset)
+
     @WithSharedApplicationMockDS(testapp=False, users=True)
     def test_import_export(self):
         path = tempfile.mkdtemp()
         try:
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
                 entry = find_object_with_ntiid(self.entry_ntiid)
+                self._add_file(entry)
+                course = ICourseInstance(entry)
                 archive = export_course(entry, False, None, path)
             
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
                 course = create_course(u"Anime", u"Bleach", archive, 
                                        writeout=False, lockout=True)
                 assert_that(course, is_not(none()))
+                folder = ICourseRootFolder(course)
+                assert_that(folder, has_length(1))
         finally:
             if path:
                 shutil.rmtree(path, True)
