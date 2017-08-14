@@ -59,7 +59,7 @@ class TestCourseImport(ApplicationLayerTest):
     default_origin = 'http://janux.ou.edu'
     entry_ntiid = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2015_CS_1323'
     ref_ntiid = u'tag:nextthought.com,2011-10:OU-RelatedWorkRef-CS1323_F_2015_Intro_to_Computer_Programming.relatedworkref.relwk:syllabus'
- 
+
     @classmethod
     def catalog_entry(cls):
         return find_object_with_ntiid(cls.entry_ntiid)
@@ -75,6 +75,7 @@ class TestCourseImport(ApplicationLayerTest):
         assert_that('008:Course_Outline', is_in(sections))
         assert_that('010:Assessments', is_in(sections))
         assert_that('012:Evaluations', is_in(sections))
+        assert_that('014:User_Assets', is_in(sections))
         assert_that('015:Lesson_Overviews', is_in(sections))
         assert_that('100:Assignment_Policies', is_in(sections))
         assert_that('666:Role_Info', is_in(sections))
@@ -119,9 +120,9 @@ class TestCourseImport(ApplicationLayerTest):
                 self._add_file(entry)
                 course = ICourseInstance(entry)
                 archive = export_course(entry, False, None, path)
-            
+
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
-                course = create_course(u"Anime", u"Bleach", archive, 
+                course = create_course(u"Anime", u"Bleach", archive,
                                        writeout=False, lockout=True)
                 assert_that(course, is_not(none()))
                 folder = ICourseRootFolder(course)
