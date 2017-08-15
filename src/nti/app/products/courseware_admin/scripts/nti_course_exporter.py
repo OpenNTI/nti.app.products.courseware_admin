@@ -19,6 +19,8 @@ from zope import component
 
 from nti.base._compat import text_
 
+from nti.contentlibrary.interfaces import IContentPackageLibrary
+
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseExporter
 from nti.contenttypes.courses.interfaces import ICourseInstance
@@ -32,6 +34,14 @@ from nti.dataserver.utils.base_script import create_context
 from nti.ntiids.ntiids import find_object_with_ntiid
 
 
+def _sync_library():
+    try:
+        library = component.queryUtility(IContentPackageLibrary)
+        library.syncContentPackages()
+    except AttributeError:
+        pass
+
+
 def _list(site):
     set_site(site)
     catalog = component.getUtility(ICourseCatalog)
@@ -42,6 +52,7 @@ def _list(site):
 
 
 def _export(ntiid, site, backup, salt=None, path=None):
+    _sync_library()
     set_site(site)
     course = find_object_with_ntiid(ntiid)
     course = ICourseInstance(course, None)
