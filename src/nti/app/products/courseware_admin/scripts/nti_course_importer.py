@@ -28,20 +28,27 @@ from nti.dataserver.utils.base_script import set_site
 from nti.dataserver.utils.base_script import create_context
 
 
+def _sync_library():
+    try:
+        library = component.queryUtility(IContentPackageLibrary)
+        library.syncContentPackages()
+    except AttributeError:
+        pass
+
+
 def _process(args):
-    library = component.getUtility(IContentPackageLibrary)
-    library.syncContentPackages()
+    _sync_library()
     set_site(args.site)
     path = os.path.expanduser(args.path or os.getcwd())
     path = os.path.abspath(path)
     if hasattr(args, 'ntiid'):
-        import_course(text_(args.ntiid), 
+        import_course(text_(args.ntiid),
                       text_(path),
                       writeout=args.writeout,
                       lockout=args.lockout,
                       clear=args.clear)
     else:
-        create_course(text_(args.admin), 
+        create_course(text_(args.admin),
                       text_(args.key),
                       archive_path=text_(path),
                       writeout=args.writeout,
