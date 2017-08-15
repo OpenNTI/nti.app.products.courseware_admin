@@ -10,6 +10,7 @@ __docformat__ = "restructuredtext en"
 logger = __import__('logging').getLogger(__name__)
 
 import time
+import shutil
 
 from requests.structures import CaseInsensitiveDict
 
@@ -252,5 +253,10 @@ class DeleteCourseView(AbstractAuthenticatedView):
     def __call__(self):
         course = ICourseInstance(self.context)
         logger.info('Deleting course (%s)', ICourseCatalogEntry(course).ntiid)
+        try:
+            shutil.rmtree(course.root.absolute_path, ignore_errors=True)
+            logger.info('Deleting path (%s)', course.root.absolute_path)
+        except AttributeError:
+            pass
         del course.__parent__[course.__name__]
         return hexc.HTTPNoContent()
