@@ -33,7 +33,7 @@ class InstructorManageMixin(object):
     def require_access(self, user, course):
         if not self.has_access(user, course):
             raise hexc.HTTPForbidden(
-                    _("Do not have permission to manage instructors."))
+                    _(u"Do not have permission to manage instructors."))
 
 
 class EditorManageMixin(object):
@@ -49,5 +49,5 @@ class EditorManageMixin(object):
     def require_access(self, user, course):
         if not self.has_access(user, course):
             raise hexc.HTTPForbidden(
-                    _("Do not have permission to manage editors."))
+                    _(u"Do not have permission to manage editors."))
 
