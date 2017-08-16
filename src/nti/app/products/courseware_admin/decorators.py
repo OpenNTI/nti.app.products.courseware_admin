@@ -40,6 +40,8 @@ from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.dataserver.authorization import ACT_NTI_ADMIN
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
+from nti.dataserver.authorization import is_admin
+
 from nti.externalization.interfaces import StandardExternalFields
 from nti.externalization.interfaces import IExternalObjectDecorator
 
@@ -63,7 +65,8 @@ class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
 
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])
-        for name, method in ((VIEW_EXPORT_COURSE, 'GET'), (VIEW_IMPORT_COURSE, 'POST')):
+        for name, method in ((VIEW_EXPORT_COURSE, 'GET'),
+                             (VIEW_IMPORT_COURSE, 'POST')):
             link = Link(context,
                         rel=name, elements=('@@%s' % name,),
                         method=method)
@@ -146,3 +149,22 @@ class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDeco
             link.__name__ = ''
             link.__parent__ = context
             _links.append(link)
+
+
+@component.adapter(ICourseInstance)
+@interface.implementer(IExternalObjectDecorator)
+class _AdminCourseLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    A decorator that provides admin course links.
+    """
+
+    def _predicate(self, context, result):
+        return is_admin(self.remoteUser)
+
+    def _do_decorate_external(self, context, result):
+        _links = result.setdefault(LINKS, [])
+        link = Link(context, rel='delete', method='DELETE')
+        interface.alsoProvides(link, ILocation)
+        link.__name__ = ''
+        link.__parent__ = context
+        _links.append(link)
