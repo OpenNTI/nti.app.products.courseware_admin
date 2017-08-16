@@ -229,6 +229,7 @@ class TestCourseManagement(ApplicationLayerTest):
 
         new_course = new_course.json_body
         new_course_href = new_course['href']
+        course_delete_href = self.require_link_href_with_rel(new_course, 'delete')
         assert_that(new_course_href, not_none())
         assert_that(new_course[CLASS], is_('CourseInstance'))
         assert_that(new_course[MIMETYPE],
@@ -268,7 +269,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # allow creating a course with a key that already exists.
         res = self.testapp.post_json(new_admin_href,
                                      {'course': new_course_key}, status=422)
-        assert_that(res.body, 
+        assert_that(res.body,
                     contains_string('Course with key Yorick already exists'))
 
         # XXX: Not sure this is externalized like we want.
@@ -276,7 +277,7 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(courses.json_body, has_item(new_course_key))
 
         # Delete
-        self.testapp.delete(new_course['href'])
+        self.testapp.delete(course_delete_href)
         self.testapp.get(new_course_href, status=404)
         courses = self.testapp.get(new_admin_href)
         assert_that(courses.json_body, does_not(has_item(new_course_key)))
