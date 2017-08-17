@@ -152,6 +152,7 @@ class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDeco
 
 
 @component.adapter(ICourseInstance)
+@component.adapter(ICourseCatalogEntry)
 @interface.implementer(IExternalObjectDecorator)
 class _AdminCourseLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
