@@ -116,7 +116,7 @@ def import_course(ntiid, archive_path, writeout=True, lockout=False, clear=False
 
 
 def create_course(admin, key, archive_path, catalog=None, writeout=True,
-                  lockout=False, clear=False):
+                  lockout=False, clear=False, creator=None):
     """
     Creates a course from a file archive
 
@@ -125,7 +125,7 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
     :param archive_path archive path
     """
     tmp_path = None
-    course = course_creator(admin, key, catalog=catalog, writeout=writeout)
+    course = course_creator(admin, key, catalog, writeout, creator=creator)
     try:
         tmp_path = check_archive(archive_path)
         archive_sec_path = os.path.expanduser(tmp_path or archive_path)
@@ -136,7 +136,7 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
                 ipath = os.path.join(archive_sec_path, name)
                 if not os.path.isdir(ipath):
                     continue
-                create_course_subinstance(course, name, writeout=writeout)
+                create_course_subinstance(course, name, writeout, creator=creator)
         # process
         _execute(course, tmp_path or archive_path, writeout, lockout, clear)
         return course

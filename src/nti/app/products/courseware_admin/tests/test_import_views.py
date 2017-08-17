@@ -7,13 +7,17 @@ __docformat__ = "restructuredtext en"
 # disable: accessing protected members, too many methods
 # pylint: disable=W0212,R0904
 
+from hamcrest import is_
 from hamcrest import none
 from hamcrest import is_in
 from hamcrest import is_not
 from hamcrest import has_length
 from hamcrest import assert_that
+from hamcrest import has_property
 from hamcrest import greater_than_or_equal_to
 does_not = is_not
+
+from nti.testing.matchers import validly_provides
 
 import os
 import shutil
@@ -35,6 +39,7 @@ from nti.app.products.courseware_admin.importer import create_course
 from nti.app.contentfolder.utils import to_external_cf_io_href
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
+from nti.contenttypes.courses.interfaces import ICreatedCourse
 from nti.contenttypes.courses.interfaces import ICourseSectionImporter
 
 from nti.contenttypes.presentation.interfaces import IContentBackedPresentationAsset
@@ -124,10 +129,14 @@ class TestCourseImport(ApplicationLayerTest):
 
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
                 course = create_course(u"Anime", u"Bleach", archive,
-                                       writeout=False, lockout=True)
+                                       writeout=False, lockout=True, 
+                                       creator=self.default_username)
                 assert_that(course, is_not(none()))
                 folder = ICourseRootFolder(course)
                 assert_that(folder, has_length(1))
+                assert_that(course, 
+                            has_property('creator', is_(self.default_username)))
+                assert_that(course, validly_provides(ICreatedCourse))
         finally:
             if path:
                 shutil.rmtree(path, True)
