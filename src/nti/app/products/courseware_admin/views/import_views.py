@@ -202,8 +202,8 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
             })
         logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s)',
                     key, admin, path, lockout, clear)
-        return create_course(admin, key, path, catalog=catalog,
-                             writeout=writeout, lockout=lockout, clear=clear)
+        return create_course(admin, key, path, catalog, writeout, 
+                             lockout, clear, self.remoteUser.username)
 
     def _do_call(self):
         tmp_path = None

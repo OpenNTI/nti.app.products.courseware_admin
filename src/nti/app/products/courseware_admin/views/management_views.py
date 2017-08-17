@@ -230,7 +230,8 @@ class CreateCourseView(AbstractAuthenticatedView,
         admin_level = self.context.__name__
         try:
             course = create_course(admin_level, key,
-                                   writeout=False, strict=True)
+                                   writeout=False, strict=True,
+                                   creator=self.remoteUser.username)
         except CourseAlreadyExistsException as e:
             raise_error({
                 'message': e.message,
