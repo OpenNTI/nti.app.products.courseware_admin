@@ -70,7 +70,7 @@ class TestCourseExport(ApplicationLayerTest):
         href = '/dataserver2/CourseAdmin/@@ExportCourse'
         data = {'ntiid': self.entry_ntiid}
         res = self.testapp.post_json(href, data)
-        tmp_dir = tempfile.mkdtemp(dir="/tmp")
+        tmp_dir = tempfile.mkdtemp()
         try:
             path = tmp_dir + "/exported.zip"
             with open(path, "wb") as fp:
