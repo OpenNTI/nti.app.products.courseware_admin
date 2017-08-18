@@ -10,6 +10,8 @@ __docformat__ = "restructuredtext en"
 logger = __import__('logging').getLogger(__name__)
 
 import os
+import shutil
+import tempfile
 
 from requests.structures import CaseInsensitiveDict
 
@@ -37,9 +39,9 @@ from nti.dataserver import authorization as nauth
 
 
 def _export_course_response(context, backup, salt, response):
-    zip_file = None
+    path = tempfile.mkdtemp()
     try:
-        zip_file = export_course(context, backup, salt)
+        zip_file = export_course(context, backup, salt, path)
         filename = os.path.split(zip_file)[1]
         response.content_encoding = 'identity'
         response.content_type = 'application/zip; charset=UTF-8'
@@ -48,8 +50,7 @@ def _export_course_response(context, backup, salt, response):
         response.body_file = open(zip_file, "rb")
         return response
     finally:
-        if zip_file:
-            os.remove(zip_file)
+        shutil.rmtree(path, True)
 
 
 @view_config(context=ICourseInstance)
