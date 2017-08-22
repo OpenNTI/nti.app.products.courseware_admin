@@ -15,6 +15,8 @@ from pyramid import httpexceptions as hexc
 
 from pyramid.threadlocal import get_current_request
 
+from nti.app.products.courseware_admin import MessageFactory as _
+
 from nti.app.externalization.error import raise_json_error
 
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
@@ -23,7 +25,7 @@ from nti.contenttypes.courses.legacy_catalog import ILegacyCourseInstance
 
 from nti.dataserver.interfaces import IUser
 
-from nti.dataserver.users import User
+from nti.dataserver.users.users import User
 
 from nti.ntiids.ntiids import find_object_with_ntiid
 
@@ -41,7 +43,7 @@ def parse_user(values, request=None):
         raise_json_error(request,
                          hexc.HTTPUnprocessableEntity,
                          {
-                             'message': "No username.",
+                             'message': _(u"No username."),
                          },
                          None)
 
@@ -50,7 +52,7 @@ def parse_user(values, request=None):
         raise_json_error(request,
                          hexc.HTTPUnprocessableEntity,
                          {
-                             'message': "User not found.",
+                             'message': _(u"User not found."),
                          },
                          None)
 
@@ -64,7 +66,7 @@ def parse_courses(values, request=None):
         raise_json_error(request,
                          hexc.HTTPUnprocessableEntity,
                          {
-                             'message': "No course entry identifier.",
+                             'message': _(u"No course entry identifier."),
                          },
                          None)
 
@@ -88,7 +90,7 @@ def parse_course(values, request=None):
         raise_json_error(request,
                          hexc.HTTPUnprocessableEntity,
                          {
-                             'message': "Course not found.",
+                             'message': _(u"Course not found."),
                          },
                          None)
     return result[0]
