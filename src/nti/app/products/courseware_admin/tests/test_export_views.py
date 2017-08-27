@@ -49,7 +49,9 @@ class TestCourseExport(ApplicationLayerTest):
     @WithSharedApplicationMockDS(testapp=False, users=False)
     def test_get_exporters(self):
         exporters = component.getUtilitiesFor(ICourseSectionExporter)
-        sections = tuple(x for x, _ in exporters)
+        sections = sorted(x for x, _ in exporters)
+        import pprint
+        pprint.pprint(sections)
         assert_that(sections, has_length(greater_than_or_equal_to(12)))
         assert_that('001:Bundle_Metainfo', is_in(sections))
         assert_that('002:Bundle_DC_Metadata', is_in(sections))
@@ -58,8 +60,9 @@ class TestCourseExport(ApplicationLayerTest):
         assert_that('005:Vendor_Info', is_in(sections))
         assert_that('006:Role_Info', is_in(sections))
         assert_that('008:Course_Outline', is_in(sections))
-        assert_that('010:Assessments', is_in(sections))
+        assert_that('011:Assessments', is_in(sections))
         assert_that('012:Evaluations', is_in(sections))
+        assert_that('014:ContentPackages', is_in(sections))
         assert_that('017:User_Assets', is_in(sections))
         assert_that('018:Lesson_Overviews', is_in(sections))
         assert_that('020:Course_Discussions', is_in(sections))
