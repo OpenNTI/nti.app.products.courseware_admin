@@ -50,8 +50,6 @@ class TestCourseExport(ApplicationLayerTest):
     def test_get_exporters(self):
         exporters = component.getUtilitiesFor(ICourseSectionExporter)
         sections = sorted(x for x, _ in exporters)
-        import pprint
-        pprint.pprint(sections)
         assert_that(sections, has_length(greater_than_or_equal_to(12)))
         assert_that('001:Bundle_Metainfo', is_in(sections))
         assert_that('002:Bundle_DC_Metadata', is_in(sections))
