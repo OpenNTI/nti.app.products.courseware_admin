@@ -259,10 +259,16 @@ class TestCourseManagement(ApplicationLayerTest):
             assert_that(entry.ntiid, is_(entry_ntiid))
             assert_that(entry, is_(catalog_entry))
 
-        href = '/dataserver2/Objects/' + catalog_entry_ntiid
-        catalog_entry_res = self.testapp.get(href)
+        catalog_href = '/dataserver2/Objects/' + catalog_entry_ntiid
+        catalog_entry_res = self.testapp.get(catalog_href)
         assert_that(catalog_entry_res.json, has_entry('is_non_public', True))
         assert_that(new_course, has_entry('is_non_public', True))
+
+        # Edit catalog entry
+        catalog_entry_res = self.testapp.put_json(catalog_href, {'title': 'new_title'})
+        catalog_entry_res = catalog_entry_res.json_body
+        assert_that(catalog_entry_res, has_entry('is_non_public', True))
+        assert_that(catalog_entry_res, has_entry('title', 'new_title'))
 
         # While we can be more lenient when creating courses from an import, we
         # are always strict when letting users create courses. Thus, we don't

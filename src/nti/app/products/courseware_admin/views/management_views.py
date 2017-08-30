@@ -214,9 +214,10 @@ class CreateCourseView(AbstractAuthenticatedView,
                            specific=specific)
         entry.ntiid = ntiid
 
-    def _post_create(self, course):
+    def _post_create(self, course, key):
         catalog_entry = ICourseCatalogEntry(course)
         catalog_entry.Preview = True
+        catalog_entry.ProviderUniqueID = key
         interface.alsoProvides(course, INonPublicCourseInstance)
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
 
@@ -237,7 +238,7 @@ class CreateCourseView(AbstractAuthenticatedView,
                 'message': e.message,
                 'code': 'CourseAlreadyExists'
             })
-        entry = self._post_create(course)
+        entry = self._post_create(course, key)
         logger.info('Creating course (%s) (admin=%s) (ntiid=%s)',
                     key, admin_level, entry.ntiid)
         return course
