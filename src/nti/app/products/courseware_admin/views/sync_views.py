@@ -18,7 +18,7 @@ from pyramid.view import view_defaults
 
 from nti.app.contentlibrary.views.sync_views import _SyncAllLibrariesView
 
-from nti.common.string import is_true
+from nti.common.string import is_false
 
 from nti.contentlibrary.interfaces import IEditableContentPackage
 
@@ -43,13 +43,19 @@ from nti.externalization.interfaces import LocatedExternalDict
                context=ICourseInstance,
                permission=nauth.ACT_SYNC_LIBRARY)
 class SyncCourseView(_SyncAllLibrariesView):
+    """
+    Sync the course.
+
+    params:
+        packages - (default True) sync the underlying course packages
+    """
 
     def _do_call(self):
         values = self.readInput()
-        packages = is_true(values.get('packages'))
+        sync_packages = not is_false(values.get('packages'))
         course = ICourseInstance(self.context)
         entry = ICourseCatalogEntry(self.context)
-        if packages:  # legacy
+        if sync_packages:  # legacy
             # collect all course associated ntiids
             ntiids = [entry.ntiid]
             ntiids.extend(p.ntiid for p in get_course_packages(course)
