@@ -184,8 +184,9 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 'message': _(u"No course key specified."),
                 'code': 'MissingCourseKey',
             })
-
         catalog = None
+        # we give preference to higher sites since this is the way
+        # it has been laid out in our servers
         for name in get_component_hierarchy_names(reverse=True):
             site = get_host_site(name)
             with current_site(site):
