@@ -34,6 +34,8 @@ from nti.app.products.courseware.views import raise_error
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
+from nti.app.products.courseware_admin.hostpolicy import get_site_provider
+
 from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
 
 from nti.appserver.ugd_edit_views import UGDDeleteView
@@ -42,7 +44,6 @@ from nti.contenttypes.courses.creator import create_course
 from nti.contenttypes.courses.creator import install_admin_level
 
 from nti.contenttypes.courses.interfaces import NTIID_ENTRY_TYPE
-from nti.contenttypes.courses.interfaces import NTIID_ENTRY_PROVIDER
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
@@ -210,7 +211,7 @@ class CreateCourseView(AbstractAuthenticatedView,
         specific_base = '%s.%s' % (entry_id, current_time)
         specific = make_specific_safe(specific_base)
         ntiid = make_ntiid(nttype=NTIID_ENTRY_TYPE,
-                           provider=NTIID_ENTRY_PROVIDER,
+                           provider=get_site_provider(),
                            specific=specific)
         entry.ntiid = ntiid
 
