@@ -34,6 +34,8 @@ from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 
 from nti.externalization.interfaces import StandardExternalFields
 
+from nti.ntiids.ntiids import find_object_with_ntiid
+
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
 from nti.app.testing.application_webtest import ApplicationLayerTest
@@ -41,8 +43,6 @@ from nti.app.testing.application_webtest import ApplicationLayerTest
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.dataserver.tests import mock_dataserver
-
-from nti.ntiids.ntiids import find_object_with_ntiid
 
 ITEMS = StandardExternalFields.ITEMS
 CLASS = StandardExternalFields.CLASS
