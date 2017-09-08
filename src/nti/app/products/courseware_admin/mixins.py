@@ -11,6 +11,10 @@ logger = __import__('logging').getLogger(__name__)
 
 from pyramid import httpexceptions as hexc
 
+from pyramid.threadlocal import get_current_request
+
+from nti.app.externalization.error import raise_json_error
+
 from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.contenttypes.courses.utils import is_course_editor
@@ -32,8 +36,12 @@ class InstructorManageMixin(object):
 
     def require_access(self, user, course):
         if not self.has_access(user, course):
-            raise hexc.HTTPForbidden(
-                    _(u"Do not have permission to manage instructors."))
+            raise_json_error(get_current_request(),
+                             hexc.HTTPForbidden,
+                             {
+                                 'message': _(u"Do not have permission to manage instructors."),
+                             },
+                             None)
 
 
 class EditorManageMixin(object):
@@ -48,6 +56,9 @@ class EditorManageMixin(object):
 
     def require_access(self, user, course):
         if not self.has_access(user, course):
-            raise hexc.HTTPForbidden(
-                    _(u"Do not have permission to manage editors."))
-
+            raise_json_error(get_current_request(),
+                             hexc.HTTPForbidden,
+                             {
+                                 'message': _(u"Do not have permission to manage editors."),
+                             },
+                             None)
