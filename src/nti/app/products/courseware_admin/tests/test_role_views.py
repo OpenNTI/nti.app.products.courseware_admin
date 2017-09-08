@@ -145,6 +145,11 @@ class TestRoleViews(ApplicationLayerTest):
         hero_environ = self._make_extra_environ('hero.brown')
         self._validate_manage_links(hero_environ)
 
+        # Both
+        self.create_user(u'yorick.brown')
+        yorick_environ = self._make_extra_environ('yorick.brown')
+        self._validate_manage_links(yorick_environ)
+
         package_hrefs = self._get_course_package_hrefs()
 
         # Admin links
@@ -164,6 +169,7 @@ class TestRoleViews(ApplicationLayerTest):
         # Validate base state (no admin courses/enrollment)
         for username, env in (('ampersand', amp_environ),
                               ('hero.brown', hero_environ),
+                              ('yorick.brown', yorick_environ),
                               ('three-fifty-five', three_environ)):
 
             for rel in (VIEW_COURSE_EDITORS,
@@ -198,7 +204,8 @@ class TestRoleViews(ApplicationLayerTest):
             usernames = []
             for ext_user in result[ITEMS]:
                 username = ext_user['Username']
-                if username in ('ampersand', 'hero.brown', 'three-fifty-five'):
+                if username in ('ampersand', 'hero.brown',
+                                'yorick.brown', 'three-fifty-five'):
                     user_email = '%s@gmail.com' % username
                     assert_that(ext_user, has_entry('email', user_email))
                 usernames.append(username)
@@ -238,8 +245,26 @@ class TestRoleViews(ApplicationLayerTest):
                     contains_inanyorder('jmadden', 'harp4162', 'three-fifty-five'))
         self._validate_manage_links(three_environ, has_editor_links=True)
 
+        # Add instructor/editor user
+        self.testapp.post_json(instructor_href, {'user': 'yorick.brown'})
+        self.testapp.post_json(editor_href, {'user': 'yorick.brown'})
+        instructors = _instructor_names()
+        assert_that(instructors, has_length(4))
+        assert_that(instructors,
+                    contains_inanyorder('jmadden', 'harp4162',
+                                        'yorick.brown', 'ampersand'))
+        editors = _editor_names()
+        assert_that(editors, has_length(4))
+        assert_that(editors,
+                    contains_inanyorder('jmadden', 'harp4162',
+                                        'yorick.brown', 'three-fifty-five'))
+        self._validate_manage_links(yorick_environ,
+                                    has_instructor_links=True,
+                                    has_editor_links=True)
+
         for username, env in (('ampersand', amp_environ),
                               ('hero.brown', hero_environ),
+                              ('yorick.brown', yorick_environ),
                               ('three-fifty-five', three_environ)):
             admin_courses = self.testapp.get(self.admin_courses_href % username,
                                              extra_environ=env)
@@ -266,6 +291,30 @@ class TestRoleViews(ApplicationLayerTest):
                     contains_string('three-fifty-five,three-fifty-five@gmail.com,Law and Justice'))
         assert_that(res.body,
                     contains_string('ampersand,ampersand@gmail.com,Law and Justice'))
+
+        # Remove instructor/editor
+        self.testapp.delete_json(remove_instructor_href, {'user': 'yorick.brown'})
+        instructors = _instructor_names()
+        assert_that(instructors, has_length(3))
+        assert_that(instructors, contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
+        editors = _editor_names()
+        assert_that(editors, has_length(4))
+        assert_that(editors,
+                    contains_inanyorder('jmadden', 'harp4162',
+                                        'yorick.brown', 'three-fifty-five'))
+        self._validate_manage_links(yorick_environ, has_editor_links=True)
+        # Still an editor; so retain package access.
+        for package_href in package_hrefs:
+            self.testapp.get(package_href, extra_environ=env)
+        self.testapp.delete_json(remove_editor_href, {'user': 'yorick.brown'})
+        self._validate_manage_links(yorick_environ)
+        # Re-add instructor and now remove editor (still have package access)
+        self.testapp.post_json(instructor_href, {'user': 'yorick.brown'})
+        self.testapp.delete_json(remove_editor_href, {'user': 'yorick.brown'})
+        self._validate_manage_links(yorick_environ, has_instructor_links=True)
+        for package_href in package_hrefs:
+            self.testapp.get(package_href, extra_environ=env)
+        self.testapp.delete_json(remove_instructor_href, {'user': 'yorick.brown'})
 
         # Remove instructor
         self.testapp.delete_json(remove_instructor_href, {'user': 'ampersand'})
@@ -302,6 +351,7 @@ class TestRoleViews(ApplicationLayerTest):
         # Everything is gone
         for username, env in (('ampersand', amp_environ),
                               ('hero.brown', hero_environ),
+                              ('yorick.brown', yorick_environ),
                               ('three-fifty-five', three_environ)):
             admin_courses = self.testapp.get(self.admin_courses_href % username,
                                              extra_environ=env)

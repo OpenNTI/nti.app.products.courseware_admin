@@ -311,7 +311,8 @@ class CourseEditorsRemovalView(AbstractCourseDenyView, EditorManageMixin):
 
     def deny_permission(self, user):
         super(CourseEditorsRemovalView, self).deny_permission(user)
-        remove_principal_from_course_content_roles(user, self.course)
+        if IPrincipal(user) not in self.course.instructors:
+            remove_principal_from_course_content_roles(user, self.course, unenroll=True)
     _edit_permissions = deny_permission
 
 
