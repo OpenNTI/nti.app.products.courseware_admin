@@ -51,6 +51,7 @@ setup(
     tests_require=TESTS_REQUIRE,
     install_requires=[
         'setuptools',
+        'nti.app.products.courseware',
         'nti.contenttypes.courses',
     ],
     extras_require={
