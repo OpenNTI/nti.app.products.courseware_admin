@@ -7,6 +7,7 @@ __docformat__ = "restructuredtext en"
 # disable: accessing protected members, too many methods
 # pylint: disable=W0212,R0904
 
+from hamcrest import is_
 from hamcrest import is_not
 from hamcrest import has_entry
 from hamcrest import has_length
@@ -26,6 +27,10 @@ from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
 from nti.contentlibrary.interfaces import IContentPackageLibrary
 from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnumeration
+
+from nti.contenttypes.courses import ROLE_INFO_NAME
+
+from nti.contenttypes.courses._role_parser import fill_roles_from_key
 
 from nti.contenttypes.courses._synchronize import synchronize_catalog_from_root
 
@@ -120,12 +125,17 @@ class TestRoleViews(ApplicationLayerTest):
         for rel in (VIEW_COURSE_EDITORS, VIEW_COURSE_EDITORS):
             editor_test(course_ext, rel)
 
+    def _sync_instructors(self):
+        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+            course = find_object_with_ntiid(self.course_oid)
+            role_json_key = course.root.getChildNamed(ROLE_INFO_NAME)
+            result = fill_roles_from_key(course, role_json_key, force=True)
+            assert_that( result, is_(True), 'Instructors did not sync')
+
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_roles(self):
         """
         Validate basic course role management: adding, removing, syncing.
-
-        TODO: Test sync
         """
         # Instructor (was enrolled)
         self.create_user(u'ampersand')
@@ -291,6 +301,19 @@ class TestRoleViews(ApplicationLayerTest):
                     contains_string('three-fifty-five,three-fifty-five@gmail.com,Law and Justice'))
         assert_that(res.body,
                     contains_string('ampersand,ampersand@gmail.com,Law and Justice'))
+
+        # Syncing does not change state
+        self._sync_instructors()
+        instructors = _instructor_names()
+        assert_that(instructors, has_length(4))
+        assert_that(instructors,
+                    contains_inanyorder('jmadden', 'harp4162',
+                                        'yorick.brown', 'ampersand'))
+        editors = _editor_names()
+        assert_that(editors, has_length(4))
+        assert_that(editors,
+                    contains_inanyorder('jmadden', 'harp4162',
+                                        'yorick.brown', 'three-fifty-five'))
 
         # Remove instructor/editor
         self.testapp.delete_json(remove_instructor_href, {'user': 'yorick.brown'})
