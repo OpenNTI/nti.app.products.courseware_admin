@@ -33,6 +33,8 @@ from nti.dataserver import authorization as nauth
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
 
+from nti.metadata import queue_add as metadata_queue_add
+
 from nti.site.hostpolicy import get_all_host_sites
 
 ITEMS = StandardExternalFields.ITEMS
@@ -56,19 +58,25 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
             index.clear()
         # reindex
         seen = set()
+        items = dict()
         for host_site in get_all_host_sites():  # check all sites
             with current_site(host_site):
                 library = component.queryUtility(ICourseCatalog)
                 if library is None or library.isEmpty():
                     continue
+                count = 0
                 for entry in library.iterCatalogEntries():
                     course = ICourseInstance(entry)
                     doc_id = intids.queryId(course)
                     if doc_id is None or doc_id in seen:
                         continue
+                    count += 1
                     seen.add(doc_id)
                     catalog.index_doc(doc_id, course)
+                    metadata_queue_add(course)
+                items[host_site.__name__] = count
         result = LocatedExternalDict()
+        result[ITEMS] = items
         result[ITEM_COUNT] = result[TOTAL] = len(seen)
         return result
 
@@ -89,6 +97,7 @@ class RebuildCourseOutlineCatalogView(AbstractAuthenticatedView):
             doc_id = intids.queryId(node)
             if doc_id is not None:
                 catalog.index_doc(doc_id, node)
+                metadata_queue_add(node)
             for child in node.values():
                 recur(child)
 
@@ -102,18 +111,23 @@ class RebuildCourseOutlineCatalogView(AbstractAuthenticatedView):
             index.clear()
         # reindex
         seen = set()
+        items = dict()
         for host_site in get_all_host_sites():  # check all sites
             with current_site(host_site):
                 library = component.queryUtility(ICourseCatalog)
                 if library is None or library.isEmpty():
                     continue
+                count = 0
                 for entry in library.iterCatalogEntries():
                     course = ICourseInstance(entry)
                     doc_id = intids.queryId(course)
                     if doc_id is None or doc_id in seen:
                         continue
+                    count += 1 
                     seen.add(doc_id)
                     self._index_nodes(course, catalog, intids)
+                items[host_site.__name__] = count
         result = LocatedExternalDict()
+        result[ITEMS] = items
         result[ITEM_COUNT] = result[TOTAL] = len(seen)
         return result
