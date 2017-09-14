@@ -39,6 +39,7 @@ from nti.app.products.courseware_admin.importer import create_course
 from nti.app.products.courseware_admin.importer import import_course
 
 from nti.app.products.courseware_admin.views import VIEW_IMPORT_COURSE
+from nti.app.products.courseware_admin.views import VIEW_ADMIN_IMPORT_COURSE
 
 from nti.cabinet.filer import transfer_to_native_file
 
@@ -152,8 +153,8 @@ class CourseImportView(AbstractAuthenticatedView, CourseImportMixin):
 @view_config(context=CourseAdminPathAdapter)
 @view_defaults(route_name='objects.generic.traversal',
                renderer='rest',
-               name='ImportCourse',
                request_method='POST',
+               name=VIEW_ADMIN_IMPORT_COURSE,
                permission=nauth.ACT_CONTENT_EDIT)
 class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
 

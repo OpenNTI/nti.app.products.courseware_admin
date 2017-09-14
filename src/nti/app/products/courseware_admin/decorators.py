@@ -16,12 +16,15 @@ from zope.cachedescriptors.property import Lazy
 
 from zope.location.interfaces import ILocation
 
+from pyramid.threadlocal import get_current_request
+
 from nti.app.products.courseware.interfaces import ICoursesWorkspace
 
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
+from nti.app.products.courseware_admin import VIEW_ADMIN_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
@@ -41,6 +44,9 @@ from nti.dataserver.authorization import ACT_NTI_ADMIN
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
 from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_admin_or_content_admin
+
+from nti.dataserver.interfaces import IUser
 
 from nti.externalization.interfaces import StandardExternalFields
 from nti.externalization.interfaces import IExternalObjectDecorator
@@ -50,18 +56,56 @@ from nti.links.links import Link
 LINKS = StandardExternalFields.LINKS
 
 
+def get_ds2(request=None):
+    request = request if request else get_current_request()
+    try:
+        # e.g. /dataserver2
+        result = request.path_info_peek() if request else None
+    except AttributeError:  # in unit test we may see this
+        result = None
+    return result or "dataserver2"
+
+
+def course_admin_adapter_path(request=None):
+    path = '/%s/CourseAdmin' % get_ds2(request)
+    return path
+
+
+@component.adapter(IUser)
+@interface.implementer(IExternalObjectDecorator)
+class _UserImportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    Decorate the import links on the given user
+    """
+
+    def _predicate(self, unused_context, unused_result):
+        return  self._is_authenticated \
+            and is_admin_or_content_admin(self.remoteUser)
+
+    def _do_decorate_external(self, context, result):
+        _links = result.setdefault(LINKS, [])
+        path = course_admin_adapter_path(self.request)
+        link = Link(path,
+                    rel=VIEW_ADMIN_IMPORT_COURSE,
+                    elements=('@@' + VIEW_ADMIN_IMPORT_COURSE,),
+                    ignore_properties_of_target=True)
+        link.__name__ = ''
+        link.__parent__ = context
+        _links.append(link)
+
+
 @component.adapter(ICourseInstance)
 @component.adapter(ICourseCatalogEntry)
 @interface.implementer(IExternalObjectDecorator)
 class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
-    Decorate the import/export  links on the given context if the
+    Decorate the import/export links on the given context if the
     remote user has edit permissions.
     """
 
     def _predicate(self, context, unused_result):
-        return self._is_authenticated \
-           and has_permission(ACT_CONTENT_EDIT, context, self.request)
+        return  self._is_authenticated \
+            and has_permission(ACT_CONTENT_EDIT, context, self.request)
 
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])

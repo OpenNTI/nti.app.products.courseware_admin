@@ -90,6 +90,12 @@ class TestCourseImport(ApplicationLayerTest):
         assert_that('100:Assignment_Policies', is_in(sections))
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_links(self):
+        res = self.testapp.get('/dataserver2/users/%s' % self.default_username, 
+                               status=200)
+        self.require_link_href_with_rel(res.json_body, 'ImportCourse')
+        
+    @WithSharedApplicationMockDS(testapp=True, users=True)
     @fudge.patch('nti.app.products.courseware_admin.views.import_views.create_course',
                  'nti.app.products.courseware_admin.views.import_views.import_course')
     def test_fake_imports(self, mock_create, mock_import):
