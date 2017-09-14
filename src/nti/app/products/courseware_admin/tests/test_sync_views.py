@@ -17,9 +17,9 @@ does_not = is_not
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
 
-from nti.externalization.oids import to_external_ntiid_oid
-
 from nti.ntiids.ntiids import find_object_with_ntiid
+
+from nti.ntiids.oids import to_external_ntiid_oid
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 

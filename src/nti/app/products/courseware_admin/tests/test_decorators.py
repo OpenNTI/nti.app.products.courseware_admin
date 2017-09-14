@@ -14,9 +14,9 @@ from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
 
-from nti.externalization.externalization import to_external_ntiid_oid
-
 from nti.ntiids.ntiids import find_object_with_ntiid
+
+from nti.ntiids.oids import to_external_ntiid_oid
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
