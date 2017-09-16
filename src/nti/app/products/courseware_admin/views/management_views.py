@@ -49,6 +49,8 @@ from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
+
+from nti.contenttypes.courses.interfaces import CourseInstanceRemovedEvent
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
 from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
@@ -65,6 +67,8 @@ from nti.intid.common import addIntId
 
 from nti.ntiids.ntiids import make_ntiid
 from nti.ntiids.ntiids import make_specific_safe
+
+from nti.site.interfaces import IHostPolicyFolder
 
 from nti.zodb.containers import time_to_64bit_int
 
@@ -255,11 +259,14 @@ class DeleteCourseView(AbstractAuthenticatedView):
 
     def __call__(self):
         course = ICourseInstance(self.context)
-        logger.info('Deleting course (%s)', ICourseCatalogEntry(course).ntiid)
+        entry = ICourseCatalogEntry(self.context)
+        folder = IHostPolicyFolder(course)
+        logger.info('Deleting course (%s)', entry.ntiid)
         try:
             shutil.rmtree(course.root.absolute_path, ignore_errors=True)
             logger.info('Deleting path (%s)', course.root.absolute_path)
         except AttributeError:
             pass
         del course.__parent__[course.__name__]
+        notify(CourseInstanceRemovedEvent(course, entry, folder))
         return hexc.HTTPNoContent()
