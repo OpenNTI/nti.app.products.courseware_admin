@@ -13,11 +13,6 @@
 	<include package="nti.contenttypes.courses" />
 
 	<!-- Decorators -->
-	<subscriber factory=".decorators._UserImportLinkDecorator"
-				provides="nti.externalization.interfaces.IExternalMappingDecorator"
-				for="nti.dataserver.interfaces.IUser
-					 pyramid.interfaces.IRequest" />
-
 	<subscriber factory=".decorators._ImportExportLinkDecorator"
 				provides="nti.externalization.interfaces.IExternalMappingDecorator"
 				for="nti.contenttypes.courses.interfaces.ICourseCatalogEntry
@@ -52,5 +47,9 @@
                 provides="nti.externalization.interfaces.IExternalMappingDecorator"
                 for="nti.contenttypes.courses.interfaces.ICourseCatalogEntry
                      pyramid.interfaces.IRequest" />
+
+	<!-- workspace -->
+	<subscriber	factory=".providers._CourseImportLinkProvider"
+				provides="nti.appserver.workspaces.interfaces.IUserWorkspaceLinkProvider"/>
 
 </configure>

@@ -38,6 +38,8 @@ from nti.app.products.courseware_admin.importer import create_course
 
 from nti.app.contentfolder.utils import to_external_cf_io_href
 
+from nti.appserver.workspaces import UserEnumerationWorkspace 
+            
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICreatedCourse
 from nti.contenttypes.courses.interfaces import ICourseSectionImporter
@@ -91,9 +93,11 @@ class TestCourseImport(ApplicationLayerTest):
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_links(self):
-        res = self.testapp.get('/dataserver2/users/%s' % self.default_username, 
-                               status=200)
-        self.require_link_href_with_rel(res.json_body, 'ImportCourse')
+        with mock_dataserver.mock_db_trans(self.ds):
+            user = self._get_user(self.default_username)
+            worspace = UserEnumerationWorkspace(user)
+            names = set(x.rel for x in worspace.links or ())
+            assert_that('ImportCourse', is_in(names))
         
     @WithSharedApplicationMockDS(testapp=True, users=True)
     @fudge.patch('nti.app.products.courseware_admin.views.import_views.create_course',

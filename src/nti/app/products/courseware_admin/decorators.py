@@ -24,7 +24,6 @@ from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
-from nti.app.products.courseware_admin import VIEW_ADMIN_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
@@ -44,9 +43,6 @@ from nti.dataserver.authorization import ACT_NTI_ADMIN
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
 from nti.dataserver.authorization import is_admin
-from nti.dataserver.authorization import is_admin_or_content_admin
-
-from nti.dataserver.interfaces import IUser
 
 from nti.externalization.interfaces import StandardExternalFields
 from nti.externalization.interfaces import IExternalObjectDecorator
@@ -69,29 +65,6 @@ def get_ds2(request=None):
 def course_admin_adapter_path(request=None):
     path = '/%s/CourseAdmin' % get_ds2(request)
     return path
-
-
-@component.adapter(IUser)
-@interface.implementer(IExternalObjectDecorator)
-class _UserImportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
-    """
-    Decorate the import links on the given user
-    """
-
-    def _predicate(self, unused_context, unused_result):
-        return  self._is_authenticated \
-            and is_admin_or_content_admin(self.remoteUser)
-
-    def _do_decorate_external(self, context, result):
-        _links = result.setdefault(LINKS, [])
-        path = course_admin_adapter_path(self.request)
-        link = Link(path,
-                    rel=VIEW_ADMIN_IMPORT_COURSE,
-                    elements=('@@' + VIEW_ADMIN_IMPORT_COURSE,),
-                    ignore_properties_of_target=True)
-        link.__name__ = ''
-        link.__parent__ = context
-        _links.append(link)
 
 
 @component.adapter(ICourseInstance)
