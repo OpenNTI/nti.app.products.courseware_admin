@@ -40,6 +40,8 @@ from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
 
 from nti.appserver.ugd_edit_views import UGDDeleteView
 
+from nti.contenttypes.courses.courses import ContentCourseInstance
+
 from nti.contenttypes.courses.creator import create_course
 from nti.contenttypes.courses.creator import install_admin_level
 
@@ -184,6 +186,8 @@ class CreateCourseView(AbstractAuthenticatedView,
     non-public. We'll have a GUID for the course catalog entry NTIID.
     """
 
+    _COURSE_INSTANCE_FACTORY = ContentCourseInstance
+
     def readInput(self, value=None):
         if self.request.body:
             values = super(CreateCourseView, self).readInput(value)
@@ -230,14 +234,19 @@ class CreateCourseView(AbstractAuthenticatedView,
         notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
 
+    def _create_course(self, admin_level, key):
+        course = create_course(admin_level, key,
+                               writeout=False, strict=True,
+                               creator=self.remoteUser.username,
+                               factory=self._COURSE_INSTANCE_FACTORY)
+        return course
+
     def __call__(self):
         params = self.readInput()
         key = self._get_course_key(params)
         admin_level = self.context.__name__
         try:
-            course = create_course(admin_level, key,
-                                   writeout=False, strict=True,
-                                   creator=self.remoteUser.username)
+            course = self._create_course(admin_level, key)
         except CourseAlreadyExistsException as e:
             raise_error({
                 'message': e.message,
