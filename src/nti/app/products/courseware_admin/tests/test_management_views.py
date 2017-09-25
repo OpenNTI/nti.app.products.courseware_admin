@@ -13,7 +13,6 @@ from hamcrest import has_item
 from hamcrest import not_none
 from hamcrest import has_entry
 from hamcrest import assert_that
-from hamcrest import contains_string
 from hamcrest import contains_inanyorder
 does_not = is_not
 
@@ -244,6 +243,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # GUID NTIID
         assert_that(entry_ntiid,
                     is_not('tag:nextthought.com,2011-10:NTI-CourseInfo-TheLastMan_Yorick'))
+        assert_that(catalog['ProviderUniqueID'], is_(new_course_key))
 
         # Verify that this course is non-public.
         new_course_ntiid = new_course['NTIID']
@@ -270,13 +270,20 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(catalog_entry_res, has_entry('is_non_public', True))
         assert_that(catalog_entry_res, has_entry('title', 'new_title'))
 
-        # While we can be more lenient when creating courses from an import, we
-        # are always strict when letting users create courses. Thus, we don't
-        # allow creating a course with a key that already exists.
+        # This view will create the course no matter what, in this case by
+        # toggling the key.
         res = self.testapp.post_json(new_admin_href,
-                                     {'course': new_course_key}, status=422)
-        assert_that(res.body,
-                    contains_string('Course with key Yorick already exists'))
+                                     {'course': new_course_key})
+        res = res.json_body
+        new_course_href2 = res['href']
+        assert_that(new_course_href2, is_not(new_course_href))
+        course_delete_href2 = self.require_link_href_with_rel(res, 'delete')
+
+        catalog = self.testapp.get('%s/CourseCatalogEntry' % new_course_href2)
+        catalog = catalog.json_body
+        entry_ntiid2 = catalog['NTIID']
+        assert_that(entry_ntiid, is_not(entry_ntiid2))
+        assert_that(catalog['ProviderUniqueID'], is_(catalog['ProviderUniqueID']))
 
         # XXX: Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)
@@ -287,4 +294,6 @@ class TestCourseManagement(ApplicationLayerTest):
         self.testapp.get(new_course_href, status=404)
         courses = self.testapp.get(new_admin_href)
         assert_that(courses.json_body, does_not(has_item(new_course_key)))
+        self.testapp.delete(course_delete_href2)
+        self.testapp.get(new_course_href2, status=404)
         self.testapp.delete(new_admin_href)
