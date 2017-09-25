@@ -17,6 +17,8 @@ from requests.structures import CaseInsensitiveDict
 from zope import component
 from zope import interface
 
+from zope.cachedescriptors.property import Lazy
+
 from zope.event import notify
 
 from zope.intid.interfaces import IIntIds
@@ -184,6 +186,12 @@ class CreateCourseView(AbstractAuthenticatedView,
     """
     Creates a basic course. The finished product will be in preview mode and
     non-public. We'll have a GUID for the course catalog entry NTIID.
+
+    The course name/key/ProviderUniqueId is essentially an additional
+    classifier for the course (e.g. UCOL 1002). We also happened to use this
+    as a the course key within the admin level. This is not especially
+    useful for the end-user to have to worry about. In this view, we'll
+    continue creating our course until it succeeds.
     """
 
     _COURSE_INSTANCE_FACTORY = ContentCourseInstance
@@ -196,10 +204,17 @@ class CreateCourseView(AbstractAuthenticatedView,
         result = CaseInsensitiveDict(values)
         return result
 
-    def _get_course_key(self, values):
+    @Lazy
+    def _params(self):
+        return self.readInput()
+
+    @Lazy
+    def _course_classifier(self):
+        values = self._params
         result =   values.get('key') \
                 or values.get('name') \
-                or values.get('course')
+                or values.get('course') \
+                or values.get('ProviderUniqueId')
         return result
 
     def _set_entry_ntiid(self, entry):
@@ -223,10 +238,10 @@ class CreateCourseView(AbstractAuthenticatedView,
                            specific=specific)
         entry.ntiid = ntiid
 
-    def _post_create(self, course, key):
+    def _post_create(self, course):
         catalog_entry = ICourseCatalogEntry(course)
         catalog_entry.Preview = True
-        catalog_entry.ProviderUniqueID = key
+        catalog_entry.ProviderUniqueID = self._course_classifier
         interface.alsoProvides(course, INonPublicCourseInstance)
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
 
@@ -234,27 +249,40 @@ class CreateCourseView(AbstractAuthenticatedView,
         notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
 
-    def _create_course(self, admin_level, key):
-        course = create_course(admin_level, key,
-                               writeout=False, strict=True,
-                               creator=self.remoteUser.username,
-                               factory=self._COURSE_INSTANCE_FACTORY)
+    def _get_course_key_iter(self):
+        base_key = self._course_classifier
+        yield base_key
+        idx = 0
+        while True:
+            yield '%s.%s' % (base_key, idx)
+            idx += 1
+
+    def _create_course(self, admin_level):
+        """
+        Iterating over our ``_get_course_key_iter`` until we have
+        successfully created a course.
+        """
+        course = None
+        course_key_iter = self._get_course_key_iter()
+        for key in course_key_iter:
+            try:
+                course = create_course(admin_level,
+                                       key,
+                                       writeout=False,
+                                       strict=True,
+                                       creator=self.remoteUser.username,
+                                       factory=self._COURSE_INSTANCE_FACTORY)
+                break
+            except CourseAlreadyExistsException:
+                pass
         return course
 
     def __call__(self):
-        params = self.readInput()
-        key = self._get_course_key(params)
         admin_level = self.context.__name__
-        try:
-            course = self._create_course(admin_level, key)
-        except CourseAlreadyExistsException as e:
-            raise_error({
-                'message': e.message,
-                'code': 'CourseAlreadyExists'
-            })
-        entry = self._post_create(course, key)
+        course = self._create_course(admin_level)
+        entry = self._post_create(course)
         logger.info('Creating course (%s) (admin=%s) (ntiid=%s)',
-                    key, admin_level, entry.ntiid)
+                    self._course_classifier, admin_level, entry.ntiid)
         return course
 
 
