@@ -4,10 +4,9 @@
 .. $Id: course_import_views.py 113825 2017-05-31 03:08:26Z carlos.sanchez $
 """
 
-from __future__ import print_function, absolute_import, division
-__docformat__ = "restructuredtext en"
-
-logger = __import__('logging').getLogger(__name__)
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
 
 import os
 import time
@@ -17,6 +16,7 @@ from requests.structures import CaseInsensitiveDict
 
 from zope import component
 
+from zope.component.hooks import getSite
 from zope.component.hooks import site as current_site
 
 from zope.security.management import endInteraction
@@ -66,6 +66,8 @@ from nti.site.hostpolicy import get_host_site
 from nti.site.site import get_component_hierarchy_names
 
 NTIID = StandardExternalFields.NTIID
+
+logger = __import__('logging').getLogger(__name__)
 
 
 class CourseImportMixin(ModeledContentUploadRequestUtilsMixin):
@@ -174,7 +176,7 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                              clear=clear)
 
     def _create_course(self, admin, key, path, writeout=True,
-                       lockout=False, clear=False):
+                       lockout=False, clear=False, site=None):
         if not admin:
             raise_error({
                 'message': _(u"No administrative level specified."),
@@ -185,18 +187,26 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 'message': _(u"No course key specified."),
                 'code': 'MissingCourseKey',
             })
+            
+        sites = get_component_hierarchy_names()
+        if site and site not in sites:
+            raise_error({
+                'message': _(u"Invalid site."),
+                'code': 'InvalidSite',
+            })
+        elif not site:
+            site = getSite().__name__
+        
         catalog = None
-        # we give preference to higher sites since this is the way
-        # it has been laid out in our servers
-        for name in get_component_hierarchy_names(reverse=True):
-            site = get_host_site(name)
-            with current_site(site):
-                adm_levels = component.queryUtility(ICourseCatalog)
-                if adm_levels is not None:
-                    if admin not in adm_levels:
-                        install_admin_level(admin, adm_levels, site, writeout)
-                    catalog = adm_levels
-                    break
+        site = get_host_site(site)
+        with current_site(site):
+            adm_levels = component.queryUtility(ICourseCatalog)
+            if adm_levels is not None:
+                if admin not in adm_levels:
+                    from IPython.terminal.debugger import set_trace;set_trace()
+                    install_admin_level(admin, adm_levels, site, writeout, False)
+                catalog = adm_levels
+
         if catalog is None:
             raise_error({
                 'message': _(u"Invalid administrative level."),
@@ -227,10 +237,11 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 course = self._import_course(ntiid, path, writeout,
                                              lockout, clear=clear)
             else:
+                site = values.get('site')
                 params['Key'] = key = values.get('key')
                 params['Admin'] = admin = values.get('admin')
                 course = self._create_course(admin, key, path, writeout,
-                                             lockout, clear=clear)
+                                             lockout, clear, site)
             result['Course'] = course
             result['Elapsed'] = time.time() - now
         except Exception as e:
