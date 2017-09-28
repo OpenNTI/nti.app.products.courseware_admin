@@ -108,7 +108,7 @@ class TestCourseImport(ApplicationLayerTest):
 
         path = os.getcwd()
         href = '/dataserver2/CourseAdmin/@@ImportCourse'
-        data = {'ntiid': self.entry_ntiid, 'path': path}
+        data = {'ntiid': self.entry_ntiid, 'path': path, 'site': 'platform.ou.edu'}
         self.testapp.post_json(href, data, status=200)
 
         data = {'admin': 'Fall2015', 'key': 'Bleach', 'path': path}
