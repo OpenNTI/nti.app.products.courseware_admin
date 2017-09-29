@@ -203,7 +203,6 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
             adm_levels = component.queryUtility(ICourseCatalog)
             if adm_levels is not None:
                 if admin not in adm_levels:
-                    from IPython.terminal.debugger import set_trace;set_trace()
                     install_admin_level(admin, adm_levels, site, writeout, False)
                 catalog = adm_levels
 
