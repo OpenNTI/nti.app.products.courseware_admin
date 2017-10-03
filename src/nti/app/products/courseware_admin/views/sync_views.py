@@ -18,6 +18,7 @@ from pyramid.view import view_defaults
 
 from nti.app.contentlibrary.views.sync_views import _SyncAllLibrariesView
 
+from nti.common.string import is_true
 from nti.common.string import is_false
 
 from nti.contentlibrary.interfaces import IEditableContentPackage
@@ -53,6 +54,8 @@ class SyncCourseView(_SyncAllLibrariesView):
     def _do_call(self):
         values = self.readInput()
         sync_packages = not is_false(values.get('packages'))
+        allowRemoval = values.get('allowRemoval') or u''
+        allowRemoval = is_true(allowRemoval)
         course = ICourseInstance(self.context)
         entry = ICourseCatalogEntry(self.context)
         if sync_packages:  # legacy
@@ -66,7 +69,7 @@ class SyncCourseView(_SyncAllLibrariesView):
             # do sync
             result = self._do_sync(site=get_course_site_name(course),
                                    ntiids=ntiids,
-                                   allowRemoval=True)
+                                   allowRemoval=allowRemoval)
         else:
             now = time.time()
             sync = component.getMultiAdapter((course, course.root),
