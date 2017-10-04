@@ -150,7 +150,7 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
         admin_key = self._get_admin_key()
         new_level = self._insert(admin_key)
         logger.info("Created new admin level (%s)", admin_key)
-        return new_level
+        return to_external_object(new_level, name="summary")
 
 
 @view_config(route_name='objects.generic.traversal',

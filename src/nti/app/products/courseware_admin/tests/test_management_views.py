@@ -100,7 +100,9 @@ class TestCourseManagement(ApplicationLayerTest):
 
         # Create
         test_admin_key = 'TestAdminKey'
-        self.testapp.post_json(admin_href, {'key': test_admin_key})
+        res = self.testapp.post_json(admin_href, {'key': test_admin_key})
+        res = res.json_body
+        assert_that(res['href'], not_none())
         admin_levels = self.testapp.get(admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(3))
