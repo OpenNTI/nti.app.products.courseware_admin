@@ -7,8 +7,6 @@
 from __future__ import print_function, absolute_import, division
 __docformat__ = "restructuredtext en"
 
-logger = __import__('logging').getLogger(__name__)
-
 import time
 import shutil
 
@@ -31,6 +29,8 @@ from pyramid.view import view_defaults
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
+
+from nti.app.products.courseware.invitations.utils import create_course_invitation
 
 from nti.app.products.courseware.views import raise_error
 
@@ -78,6 +78,8 @@ from nti.zodb.containers import time_to_64bit_int
 
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
+
+logger = __import__('logging').getLogger(__name__)
 
 
 @view_config(route_name='objects.generic.traversal',
@@ -246,6 +248,7 @@ class CreateCourseView(AbstractAuthenticatedView,
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
 
         self._set_entry_ntiid(catalog_entry)
+        create_course_invitation(course, is_generic=True)
         notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
 
