@@ -12,6 +12,7 @@ from hamcrest import is_not
 from hamcrest import has_item
 from hamcrest import not_none
 from hamcrest import has_entry
+from hamcrest import has_length
 from hamcrest import assert_that
 from hamcrest import contains_inanyorder
 does_not = is_not
@@ -21,6 +22,8 @@ import shutil
 from zope import component
 
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
+
+from nti.app.products.courseware.views import VIEW_COURSE_ACCESS_TOKENS
 
 from nti.contentlibrary.interfaces import IContentPackageLibrary
 from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnumeration
@@ -230,6 +233,7 @@ class TestCourseManagement(ApplicationLayerTest):
 
         new_course = new_course.json_body
         new_course_href = new_course['href']
+        course_token_href = self.require_link_href_with_rel(new_course, VIEW_COURSE_ACCESS_TOKENS)
         course_delete_href = self.require_link_href_with_rel(new_course, 'delete')
         assert_that(new_course_href, not_none())
         assert_that(new_course[CLASS], is_('CourseInstance'))
@@ -237,6 +241,16 @@ class TestCourseManagement(ApplicationLayerTest):
                     is_('application/vnd.nextthought.courses.courseinstance'))
         assert_that(new_course['NTIID'], not_none())
         assert_that(new_course['TotalEnrolledCount'], is_(0))
+
+        # Has an invitation
+        tokens = self.testapp.get(course_token_href)
+        tokens = tokens.json_body
+        tokens = tokens[ITEMS]
+        assert_that(tokens, has_length(1))
+        token = tokens[0]
+        assert_that(token.get('Code'), not_none())
+        assert_that(token.get('MimeType'), not_none())
+        assert_that(token.get('Scope'), not_none())
 
         catalog = self.testapp.get('%s/CourseCatalogEntry' % new_course_href)
         catalog = catalog.json_body
