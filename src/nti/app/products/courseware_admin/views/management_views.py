@@ -18,6 +18,8 @@ from zope import interface
 
 from zope.cachedescriptors.property import Lazy
 
+from zope.component.hooks import site as current_site
+
 from zope.event import notify
 
 from zope.intid.interfaces import IIntIds
@@ -156,13 +158,37 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
         result = install_admin_level(admin_key, catalog=self.context)
         return result
 
+    @property
+    def _catalog(self):
+        return self.context
+
     def __call__(self):
         values = self.readInput()
         parents = is_true(values.get('parents', 'true'))
         admin_key = self._get_admin_key(values)
-        new_level = self._insert(self.context, admin_key, parents)
+        new_level = self._insert(self._catalog, admin_key, parents)
         logger.info("Created new admin level (%s)", admin_key)
         return to_external_object(new_level, name="summary")
+
+
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             context=IHostPolicyFolder,
+             name=VIEW_COURSE_ADMIN_LEVELS,
+             request_method='POST',
+             permission=nauth.ACT_NTI_ADMIN)
+class SiteAdminLevelsPostView(AdminLevelsPostView):
+    
+    @Lazy
+    def _catalog(self):
+        with current_site(self.context):
+            catalog = component.queryUtility(ICourseCatalog)
+            if catalog is None:
+                raise_error({
+                    'message': _(u'Course catalog is missing.'),
+                    'code': 'MissingCourseCatalog',
+                })
+            return catalog
 
 
 @view_config(route_name='objects.generic.traversal',
