@@ -4,8 +4,9 @@
 .. $Id$
 """
 
-from __future__ import print_function, absolute_import, division
-__docformat__ = "restructuredtext en"
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
 
 import time
 import shutil
@@ -42,6 +43,8 @@ from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
 
 from nti.appserver.ugd_edit_views import UGDDeleteView
 
+from nti.common.string import is_true
+
 from nti.contenttypes.courses.courses import ContentCourseInstance
 
 from nti.contenttypes.courses.creator import create_course
@@ -77,6 +80,7 @@ from nti.site.interfaces import IHostPolicyFolder
 from nti.zodb.containers import time_to_64bit_int
 
 ITEMS = StandardExternalFields.ITEMS
+TOTAL = StandardExternalFields.TOTAL
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
 
 logger = __import__('logging').getLogger(__name__)
@@ -93,12 +97,19 @@ class AdminLevelsGetView(AbstractAuthenticatedView):
     Fetch the administrative levels under the course catalog.
     """
 
+    def readInput(self):
+        return CaseInsensitiveDict(self.request.params)
+
     def __call__(self):
+        data = self.readInput()
+        parents = is_true(data.get('parents', 'true'))
         result = LocatedExternalDict()
-        admin_levels = self.context.get_admin_levels()
-        result[ITEMS] = {x: to_external_object(y, name='summary')
-                         for x, y in admin_levels.items()}
-        result[ITEM_COUNT] = len(admin_levels)
+        admin_levels = self.context.get_admin_levels(parents)
+        result[ITEMS] = {
+            x: to_external_object(y, name='summary')
+            for x, y in admin_levels.items()
+        }
+        result[ITEM_COUNT] = result[TOTAL] = len(admin_levels)
         return result
 
 
@@ -123,8 +134,7 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
         result = CaseInsensitiveDict(values)
         return result
 
-    def _get_admin_key(self):
-        values = self.readInput()
+    def _get_admin_key(self, values):
         result = values.get('name') \
               or values.get('level') \
               or values.get('key')
@@ -135,9 +145,9 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
             })
         return result
 
-    def _insert(self, admin_key):
+    def _insert(self, context, admin_key, parents=True):
         # Do not allow children levels to mask parent levels.
-        admin_levels = self.context.get_admin_levels()
+        admin_levels = context.get_admin_levels(parents)
         if admin_key in admin_levels:
             raise_error({
                 'message': _(u'Admin key already exists.'),
@@ -147,8 +157,10 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
         return result
 
     def __call__(self):
-        admin_key = self._get_admin_key()
-        new_level = self._insert(admin_key)
+        values = self.readInput()
+        parents = is_true(values.get('parents', 'true'))
+        admin_key = self._get_admin_key(values)
+        new_level = self._insert(self.context, admin_key, parents)
         logger.info("Created new admin level (%s)", admin_key)
         return to_external_object(new_level, name="summary")
 
@@ -213,10 +225,10 @@ class CreateCourseView(AbstractAuthenticatedView,
     @Lazy
     def _course_classifier(self):
         values = self._params
-        result =   values.get('key') \
-                or values.get('name') \
-                or values.get('course') \
-                or values.get('ProviderUniqueId')
+        result = values.get('key') \
+              or values.get('name') \
+              or values.get('course') \
+              or values.get('ProviderUniqueId')
         return result
 
     def _set_entry_ntiid(self, entry):
