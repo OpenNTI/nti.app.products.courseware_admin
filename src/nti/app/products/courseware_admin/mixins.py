@@ -4,10 +4,9 @@
 .. $Id$
 """
 
-from __future__ import print_function, absolute_import, division
-__docformat__ = "restructuredtext en"
-
-logger = __import__('logging').getLogger(__name__)
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
 
 from pyramid import httpexceptions as hexc
 
@@ -21,6 +20,8 @@ from nti.contenttypes.courses.utils import is_course_editor
 from nti.contenttypes.courses.utils import is_course_instructor
 
 from nti.dataserver.authorization import is_admin_or_content_admin
+
+logger = __import__('logging').getLogger(__name__)
 
 
 class InstructorManageMixin(object):

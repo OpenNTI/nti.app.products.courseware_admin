@@ -4,10 +4,9 @@
 .. $Id: decorators.py 113814 2017-05-31 02:18:58Z josh.zuech $
 """
 
-from __future__ import print_function, absolute_import, division
-__docformat__ = "restructuredtext en"
-
-logger = __import__('logging').getLogger(__name__)
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
 
 from zope import component
 from zope import interface
@@ -50,6 +49,8 @@ from nti.externalization.interfaces import IExternalObjectDecorator
 from nti.links.links import Link
 
 LINKS = StandardExternalFields.LINKS
+
+logger = __import__('logging').getLogger(__name__)
 
 
 def get_ds2(request=None):

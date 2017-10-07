@@ -4,10 +4,9 @@
 .. $Id: providers.py 121882 2017-09-18 21:28:16Z carlos.sanchez $
 """
 
-from __future__ import print_function, absolute_import, division
-__docformat__ = "restructuredtext en"
-
-logger = __import__('logging').getLogger(__name__)
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
 
 from zope import component
 from zope import interface
@@ -23,6 +22,8 @@ from nti.dataserver.authorization import is_admin_or_site_admin
 from nti.dataserver.interfaces import IUser
 
 from nti.links.links import Link
+
+logger = __import__('logging').getLogger(__name__)
 
 
 @component.adapter(IUser)
