@@ -19,7 +19,7 @@ from nti.app.products.courseware_admin import MessageFactory as _
 from nti.contenttypes.courses.utils import is_course_editor
 from nti.contenttypes.courses.utils import is_course_instructor
 
-from nti.dataserver.authorization import is_admin_or_content_admin
+from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -32,7 +32,7 @@ class InstructorManageMixin(object):
     """
 
     def has_access(self, user, course):
-        return is_admin_or_content_admin(user) \
+        return is_admin_or_content_admin_or_site_admin(user) \
             or is_course_instructor(course, user)
 
     def require_access(self, user, course):
@@ -52,7 +52,7 @@ class EditorManageMixin(object):
     """
 
     def has_access(self, user, course):
-        return is_admin_or_content_admin(user) \
+        return is_admin_or_content_admin_or_site_admin(user) \
             or is_course_editor(course, user)
 
     def require_access(self, user, course):

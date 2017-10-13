@@ -93,7 +93,7 @@ logger = __import__('logging').getLogger(__name__)
              context=ICourseCatalog,
              name=VIEW_COURSE_ADMIN_LEVELS,
              request_method='GET',
-             permission=nauth.ACT_NTI_ADMIN)
+             permission=nauth.ACT_CONTENT_EDIT)
 class AdminLevelsGetView(AbstractAuthenticatedView):
     """
     Fetch the administrative levels under the course catalog.
@@ -120,7 +120,7 @@ class AdminLevelsGetView(AbstractAuthenticatedView):
              context=ICourseCatalog,
              name=VIEW_COURSE_ADMIN_LEVELS,
              request_method='POST',
-             permission=nauth.ACT_NTI_ADMIN)
+             permission=nauth.ACT_CONTENT_EDIT)
 class AdminLevelsPostView(AbstractAuthenticatedView,
                           ModeledContentUploadRequestUtilsMixin):
     """
@@ -176,9 +176,9 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
              context=IHostPolicyFolder,
              name=VIEW_COURSE_ADMIN_LEVELS,
              request_method='POST',
-             permission=nauth.ACT_NTI_ADMIN)
+             permission=nauth.ACT_CONTENT_EDIT)
 class SiteAdminLevelsPostView(AdminLevelsPostView):
-    
+
     @Lazy
     def _catalog(self):
         with current_site(self.context):
@@ -195,7 +195,7 @@ class SiteAdminLevelsPostView(AdminLevelsPostView):
              renderer='rest',
              context=ICourseAdministrativeLevel,
              request_method='DELETE',
-             permission=nauth.ACT_NTI_ADMIN)
+             permission=nauth.ACT_CONTENT_EDIT)
 class AdminLevelsDeleteView(UGDDeleteView):
     """
     Currently only allow deletion of admin levels if it is empty.
@@ -220,7 +220,7 @@ class AdminLevelsDeleteView(UGDDeleteView):
              renderer='rest',
              context=ICourseAdministrativeLevel,
              request_method='POST',
-             permission=nauth.ACT_NTI_ADMIN)
+             permission=nauth.ACT_CONTENT_EDIT)
 class CreateCourseView(AbstractAuthenticatedView,
                        ModeledContentUploadRequestUtilsMixin):
     """

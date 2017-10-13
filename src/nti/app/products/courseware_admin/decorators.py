@@ -38,10 +38,9 @@ from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
-from nti.dataserver.authorization import ACT_NTI_ADMIN
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
-from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.externalization.interfaces import StandardExternalFields
 from nti.externalization.interfaces import IExternalObjectDecorator
@@ -108,8 +107,7 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
         return component.queryUtility(ICourseCatalog)
 
     def _predicate(self, unused_context, unused_result):
-        # Currently only NTI admins can access the admin level views.
-        return has_permission(ACT_NTI_ADMIN, self.catalog, self.request)
+        return is_admin_or_content_admin_or_site_admin(self.remoteUser)
 
     def _do_decorate_external(self, context, result):
         if self.catalog is not None:
@@ -178,7 +176,7 @@ class _AdminCourseLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
 
     def _predicate(self, unused_context, unused_result):
-        return is_admin(self.remoteUser)
+        return is_admin_or_content_admin_or_site_admin(self.remoteUser)
 
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])
