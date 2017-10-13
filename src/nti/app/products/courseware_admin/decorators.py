@@ -43,8 +43,8 @@ from nti.dataserver.authorization import ACT_CONTENT_EDIT
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.externalization.interfaces import StandardExternalFields
-from nti.externalization.interfaces import IExternalMappingDecorator
 from nti.externalization.interfaces import IExternalObjectDecorator
+from nti.externalization.interfaces import IExternalMappingDecorator
 
 from nti.links.links import Link
 
