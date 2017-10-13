@@ -39,8 +39,8 @@ from nti.app.products.courseware_admin.importer import create_course
 
 from nti.app.contentfolder.utils import to_external_cf_io_href
 
-from nti.appserver.workspaces import UserEnumerationWorkspace 
-            
+from nti.appserver.workspaces import UserEnumerationWorkspace
+
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICreatedCourse
 from nti.contenttypes.courses.interfaces import ICourseSectionImporter
@@ -99,7 +99,7 @@ class TestCourseImport(ApplicationLayerTest):
             worspace = UserEnumerationWorkspace(user)
             names = set(x.rel for x in worspace.links or ())
             assert_that('ImportCourse', is_in(names))
-        
+
     @WithSharedApplicationMockDS(testapp=True, users=True)
     @fudge.patch('nti.app.products.courseware_admin.views.import_views.create_course',
                  'nti.app.products.courseware_admin.views.import_views.import_course')
@@ -141,12 +141,12 @@ class TestCourseImport(ApplicationLayerTest):
 
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
                 course = create_course(u"Anime", u"Bleach", archive,
-                                       writeout=False, lockout=True, 
+                                       writeout=False, lockout=True,
                                        creator=self.default_username)
                 assert_that(course, is_not(none()))
                 folder = ICourseRootFolder(course)
                 assert_that(folder, has_length(1))
-                assert_that(course, 
+                assert_that(course,
                             has_property('creator', is_(self.default_username)))
                 assert_that(course, validly_provides(ICreatedCourse))
         finally:
