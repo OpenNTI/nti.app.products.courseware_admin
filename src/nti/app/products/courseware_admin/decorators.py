@@ -43,6 +43,7 @@ from nti.dataserver.authorization import ACT_CONTENT_EDIT
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.externalization.interfaces import StandardExternalFields
+from nti.externalization.interfaces import IExternalMappingDecorator
 from nti.externalization.interfaces import IExternalObjectDecorator
 
 from nti.links.links import Link
@@ -69,7 +70,7 @@ def course_admin_adapter_path(request=None):
 
 @component.adapter(ICourseInstance)
 @component.adapter(ICourseCatalogEntry)
-@interface.implementer(IExternalObjectDecorator)
+@interface.implementer(IExternalMappingDecorator)
 class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
     Decorate the import/export links on the given context if the
@@ -122,7 +123,7 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
 
 
 @component.adapter(ICourseInstance)
-@interface.implementer(IExternalObjectDecorator)
+@interface.implementer(IExternalMappingDecorator)
 class _CourseInstructorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDecorator,
                                                InstructorManageMixin):
     """
@@ -145,7 +146,7 @@ class _CourseInstructorManagementLinkDecorator(AbstractAuthenticatedRequestAware
 
 
 @component.adapter(ICourseInstance)
-@interface.implementer(IExternalObjectDecorator)
+@interface.implementer(IExternalMappingDecorator)
 class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDecorator,
                                            EditorManageMixin):
     """
@@ -169,7 +170,7 @@ class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDeco
 
 @component.adapter(ICourseInstance)
 @component.adapter(ICourseCatalogEntry)
-@interface.implementer(IExternalObjectDecorator)
+@interface.implementer(IExternalMappingDecorator)
 class _AdminCourseLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
     A decorator that provides admin course links.
