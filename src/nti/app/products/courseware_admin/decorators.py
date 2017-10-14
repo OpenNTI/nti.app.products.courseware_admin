@@ -37,6 +37,7 @@ from nti.appserver.pyramid_authorization import has_permission
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
@@ -108,7 +109,10 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
         return component.queryUtility(ICourseCatalog)
 
     def _predicate(self, unused_context, unused_result):
-        return is_admin_or_content_admin_or_site_admin(self.remoteUser)
+        return self.catalog is not None \
+           and not IGlobalCourseCatalog.providedBy(self.catalog) \
+           and is_admin_or_content_admin_or_site_admin(self.remoteUser)
+        
 
     def _do_decorate_external(self, context, result):
         if self.catalog is not None:
