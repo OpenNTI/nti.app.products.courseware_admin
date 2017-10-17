@@ -9,6 +9,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
+import time
 import shutil
 import tempfile
 
@@ -90,6 +91,6 @@ class AdminExportCourseView(AbstractAuthenticatedView,
         values = self.readInput()
         context = parse_course(values, self.request)
         backup = is_true(values.get('backup'))
-        salt = values.get('salt')
+        salt = values.get('salt') or str(time.time())
         return _export_course_response(context, backup, salt,
                                        self.request.response)

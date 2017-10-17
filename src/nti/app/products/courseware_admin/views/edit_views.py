@@ -48,8 +48,7 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
         values.pop("PlatformPresentationResources", None)
         if "Duration" in values:
             values[u"duration"] = values["Duration"]
-        values.pop('ntiid', None)
-        values.pop('NTIID', None)
+        [values.pop(x, None) for x in ('NTIID', 'ntiid')]
         return values
 
     def __call__(self):
