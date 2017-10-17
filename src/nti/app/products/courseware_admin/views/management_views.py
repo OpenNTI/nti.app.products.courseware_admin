@@ -45,6 +45,8 @@ from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
 
 from nti.appserver.ugd_edit_views import UGDDeleteView
 
+from nti.base._compat import text_
+
 from nti.common.string import is_true
 
 from nti.contenttypes.courses.courses import ContentCourseInstance
@@ -229,9 +231,10 @@ class CreateCourseView(AbstractAuthenticatedView,
 
     The course name/key/ProviderUniqueId is essentially an additional
     classifier for the course (e.g. UCOL 1002). We also happened to use this
-    as a the course key within the admin level. This is not especially
-    useful for the end-user to have to worry about. In this view, we'll
-    continue creating our course until it succeeds.
+    as a the course key within the admin level. This is not especially useful
+    for the end-user to have to worry about. Therefore, it is optional in this
+    view (auto-creating a GUID if necessary). We'll also continue creating our
+    course (incrementing the key) until we succeed.
     """
 
     _COURSE_INSTANCE_FACTORY = ContentCourseInstance
@@ -290,8 +293,11 @@ class CreateCourseView(AbstractAuthenticatedView,
         notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
 
+    def _generate_key(self):
+        return text_(time_to_64bit_int(time.time()))
+
     def _get_course_key_iter(self):
-        base_key = self._course_classifier
+        base_key = self._course_classifier or self._generate_key()
         yield base_key
         idx = 0
         while True:
@@ -316,14 +322,14 @@ class CreateCourseView(AbstractAuthenticatedView,
                 break
             except CourseAlreadyExistsException:
                 pass
-        return course
+        return course, key
 
     def __call__(self):
         admin_level = self.context.__name__
-        course = self._create_course(admin_level)
+        course, key = self._create_course(admin_level)
         entry = self._post_create(course)
-        logger.info('Creating course (%s) (admin=%s) (ntiid=%s)',
-                    self._course_classifier, admin_level, entry.ntiid)
+        logger.info('Creating course (%s) (admin=%s) (ntiid=%s) (key=%s)',
+                    self._course_classifier, admin_level, entry.ntiid, key)
         return course
 
 
