@@ -300,6 +300,20 @@ class TestCourseManagement(ApplicationLayerTest):
         catalog = catalog.json_body
         entry_ntiid2 = catalog['NTIID']
         assert_that(entry_ntiid, is_not(entry_ntiid2))
+        assert_that(catalog['ProviderUniqueID'], is_(new_course_key))
+
+        # We can also create a course without providing the key.
+        res = self.testapp.post_json(new_admin_href)
+        res = res.json_body
+        new_course_href3 = res['href']
+        assert_that(new_course_href3, is_not(new_course_href))
+        assert_that(new_course_href3, is_not(new_course_href2))
+        course_delete_href3 = self.require_link_href_with_rel(res, 'delete')
+
+        catalog = self.testapp.get('%s/CourseCatalogEntry' % new_course_href3)
+        catalog = catalog.json_body
+        entry_ntiid3 = catalog['NTIID']
+        assert_that(entry_ntiid, is_not(entry_ntiid3))
         assert_that(catalog['ProviderUniqueID'], is_(catalog['ProviderUniqueID']))
 
         # XXX: Not sure this is externalized like we want.
@@ -313,4 +327,6 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(courses.json_body, does_not(has_item(new_course_key)))
         self.testapp.delete(course_delete_href2)
         self.testapp.get(new_course_href2, status=404)
+        self.testapp.delete(course_delete_href3)
+        self.testapp.get(new_course_href3, status=404)
         self.testapp.delete(new_admin_href)
