@@ -31,6 +31,18 @@ class TestCourseEdits(ApplicationLayerTest):
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_get_catalog_entry(self):
+        href = '/dataserver2/CourseAdmin/@@GetCatalogEntry'
+        self.testapp.get(href, status=422)
+        
+        href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?admin=Fall2015'
+        self.testapp.get(href, status=422)
+        
+        params = urlencode((("admin", 'Fall2015'),
+                            ('key', 'CS 1323'),
+                            ('site', 'bleach.prg')))
+        href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
+        self.testapp.get(href, status=422)
+
         params = urlencode((("admin", 'Fall2015'),
                             ('key', 'CS 1323'),
                             ('site', 'platform.ou.edu')))
