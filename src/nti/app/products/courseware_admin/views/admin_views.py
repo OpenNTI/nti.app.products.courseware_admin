@@ -25,6 +25,8 @@ from nti.app.externalization.error import raise_json_error
 
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
+from nti.app.products.courseware_admin import MessageFactory as _
+
 from nti.contenttypes.courses.common import get_course_packages
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
@@ -89,7 +91,7 @@ class GetCourseView(AbstractAuthenticatedView):
         admin = values.get('admin') or values.get('adminLevel')
         if not admin:
             raise_json_error(self.request,
-                             hexc.HTTPForbidden,
+                             hexc.HTTPUnprocessableEntity,
                              {
                                  'message': _(u"Must provide an admin level."),
                              },
@@ -98,7 +100,7 @@ class GetCourseView(AbstractAuthenticatedView):
         name = values.get('name') or values.get('key')
         if not name:
             raise_json_error(self.request,
-                             hexc.HTTPForbidden,
+                             hexc.HTTPUnprocessableEntity,
                              {
                                  'message': _(u"Must provide a course key/name."),
                              },
@@ -110,7 +112,7 @@ class GetCourseView(AbstractAuthenticatedView):
             site = site.lower()
             if site not in names:
                 raise_json_error(self.request,
-                                 hexc.HTTPForbidden,
+                                 hexc.HTTPUnprocessableEntity,
                                  {
                                      'message': _(u"Invalid site."),
                                  },
