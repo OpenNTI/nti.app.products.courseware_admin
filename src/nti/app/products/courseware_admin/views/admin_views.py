@@ -122,6 +122,7 @@ class GetCourseView(AbstractAuthenticatedView):
         else:
             sites = [get_host_site(x) for x in names]
 
+        section = values.get('section')
         for site in sites:
             with current_site(site):
                 catalog = component.queryUtility(ICourseCatalog)
@@ -129,8 +130,10 @@ class GetCourseView(AbstractAuthenticatedView):
                     continue
                 try:
                     course = catalog[admin][name]
+                    if section:
+                        course = course.SubInstances[section]
                     return course
-                except KeyError:
+                except (AttributeError, KeyError):
                     pass
         raise hexc.HTTPNotFound()
 
