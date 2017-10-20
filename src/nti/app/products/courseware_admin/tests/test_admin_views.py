@@ -33,10 +33,10 @@ class TestCourseEdits(ApplicationLayerTest):
     def test_get_catalog_entry(self):
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry'
         self.testapp.get(href, status=422)
-        
+
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?admin=Fall2015'
         self.testapp.get(href, status=422)
-        
+
         params = urlencode((("admin", 'Fall2015'),
                             ('key', 'CS 1323'),
                             ('site', 'bleach.prg')))
@@ -52,3 +52,17 @@ class TestCourseEdits(ApplicationLayerTest):
 
         assert_that(res.json_body,
                     has_entries('Title', 'Introduction to Computer Programming'))
+
+        params = urlencode((("admin", 'Fall2015'),
+                            ('key', 'CS 1323'),
+                            ('section', '995'),
+                            ('site', 'platform.ou.edu')))
+        href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
+        self.testapp.get(href, status=200)
+
+        params = urlencode((("admin", 'Fall2015'),
+                            ('key', 'CS 1323'),
+                            ('section', 'xxxx'),
+                            ('site', 'platform.ou.edu')))
+        href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
+        self.testapp.get(href, status=404)
