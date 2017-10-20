@@ -270,8 +270,9 @@ class CreateCourseView(AbstractAuthenticatedView,
             - NTI-CourseInfo-<intid>.<timestamp>
         """
         # Give our catalog entry an intid and set an NTIID
-        addIntId(entry)
         intids = component.getUtility(IIntIds)
+        if intids.queryId(entry) is None:
+            addIntId(entry)
         entry_id = intids.getId(entry)
         current_time = time_to_64bit_int(time.time())
         specific_base = '%s.%s' % (entry_id, current_time)
