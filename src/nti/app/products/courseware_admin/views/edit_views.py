@@ -42,14 +42,21 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
     Takes attributes to update as parameters.
     """
 
-    def readInput(self, value=None):
-        values = super(AbstractAuthenticatedView, self).readInput(value)
+    def clean_input(self, values):
         # These won't set properly, so we won't change or delete them
         values.pop("PlatformPresentationResources", None)
         if "Duration" in values:
             values[u"duration"] = values["Duration"]
         [values.pop(x, None) for x in ('NTIID', 'ntiid')]
+        if "tags" in values:
+            # Dedupe and sanitize these.
+            tags = values['tags'] or ()
+            values[u'tags'] = tuple({x.lower() for x in tags})
         return values
+
+    def readInput(self, value=None):
+        values = super(AbstractAuthenticatedView, self).readInput(value)
+        return self.clean_input(values)
 
     def __call__(self):
         # Not allowed to edit these courses
