@@ -31,7 +31,10 @@ from pyramid.view import view_defaults
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
+from nti.app.externalization.view_mixins import BatchingUtilsMixin
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
+
+from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
 
 from nti.app.products.courseware.invitations.utils import create_course_invitation
 
@@ -42,6 +45,7 @@ from nti.app.products.courseware_admin import MessageFactory as _
 from nti.app.products.courseware_admin.hostpolicy import get_site_provider
 
 from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
+from nti.app.products.courseware_admin.views import VIEW_COURSE_SUGGESTED_TAGS
 
 from nti.appserver.ugd_edit_views import UGDDeleteView
 
@@ -60,12 +64,13 @@ from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
-
 from nti.contenttypes.courses.interfaces import CourseInstanceRemovedEvent
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
 from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
+
+from nti.contenttypes.courses.utils import get_course_tags
 
 from nti.dataserver import authorization as nauth
 
@@ -355,3 +360,54 @@ class DeleteCourseView(AbstractAuthenticatedView):
         del course.__parent__[course.__name__]
         notify(CourseInstanceRemovedEvent(course, entry, folder))
         return hexc.HTTPNoContent()
+
+
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             request_method='GET',
+             context=ICoursesCatalogCollection,
+             name=VIEW_COURSE_SUGGESTED_TAGS,
+             permission=nauth.ACT_READ)
+class CourseSuggestedTagsView(AbstractAuthenticatedView,
+                              BatchingUtilsMixin):
+    """
+    Get suggested course tags, optionally batched and filtered.
+    The results are sorted by exact matches first, and then starting
+    with the optional filter str.
+
+    params
+        filter - (optional) only include tags with this str
+    """
+
+    _DEFAULT_BATCH_SIZE = 10
+    _DEFAULT_BATCH_START = 0
+
+    def readInput(self):
+        result = CaseInsensitiveDict(self.request.params)
+        return result
+
+    @Lazy
+    def _params(self):
+        return self.readInput()
+
+    @Lazy
+    def include_str(self):
+        return self._params.get('tag') \
+            or self._params.get('filter')
+
+    def sort_key(self, tag):
+        return (tag != self.include_str,
+                not tag.startswith(self.include_str),
+                tag.lower())
+
+    def __call__(self):
+        result = LocatedExternalDict()
+        tags = get_course_tags(filter_str=self.include_str)
+        if self.include_str:
+            tags = sorted(tags, key=self.sort_key)
+        else:
+            tags = sorted(tags, key=lambda x: x.lower())
+        result[TOTAL] = len(tags)
+        self._batch_items_iterable(result, tags)
+        result[ITEM_COUNT] = len(tags)
+        return result

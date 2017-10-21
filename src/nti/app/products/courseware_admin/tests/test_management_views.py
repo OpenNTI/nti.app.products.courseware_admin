@@ -12,6 +12,7 @@ from hamcrest import is_
 from hamcrest import is_not
 from hamcrest import has_item
 from hamcrest import not_none
+from hamcrest import contains
 from hamcrest import has_entry
 from hamcrest import has_length
 from hamcrest import assert_that
@@ -23,6 +24,7 @@ import shutil
 from zope import component
 
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
+from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 
 from nti.app.products.courseware.views import VIEW_COURSE_ACCESS_TOKENS
 
@@ -330,3 +332,76 @@ class TestCourseManagement(ApplicationLayerTest):
         self.testapp.delete(course_delete_href3)
         self.testapp.get(new_course_href3, status=404)
         self.testapp.delete(new_admin_href)
+
+    def _get_catalog_collection(self, name='Courses'):
+        """
+        Get the named collection in the `Catalog` workspace in the service doc.
+        """
+        service_res = self.testapp.get('/dataserver2/service/')
+        service_res = service_res.json_body
+        workspaces = service_res['Items']
+        catalog_ws = next(x for x in workspaces if x['Title'] == 'Catalog')
+        assert_that(catalog_ws, not_none())
+        catalog_collections = catalog_ws['Items']
+        assert_that(catalog_collections, has_length(3))
+        courses_collection = next(x for x
+                                  in catalog_collections
+                                  if x['Title'] == name)
+        assert_that(courses_collection, not_none())
+        return courses_collection
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_tags(self):
+        """
+        Validate setting tags on an entry and retrieving suggested tags.
+        """
+        # Set tags on an object
+        entry_href = '/dataserver2/%2B%2Betc%2B%2Bhostsites/platform.ou.edu/%2B%2Betc%2B%2Bsite/Courses/Fall2013/CLC3403_LawAndJustice/CourseCatalogEntry'
+        tags = [u'DELTA', u'alpha', u'alph', u'BETA', u'gaMMA', u'omega', u'law', u'LAW']
+        lower_tag_set = {x.lower() for x in tags}
+        tag_count = len(lower_tag_set)
+        entry = self.testapp.put_json(entry_href, {"tags": tags})
+        entry = entry.json_body
+        assert_that(entry, has_entry('tags', contains_inanyorder(*lower_tag_set)))
+
+        courses_collection = self._get_catalog_collection()
+        tag_url = self.require_link_href_with_rel(courses_collection,
+                                                  VIEW_COURSE_SUGGESTED_TAGS)
+        tags = self.testapp.get(tag_url).json_body
+        tags = tags[ITEMS]
+        assert_that(tags, has_length(tag_count))
+        assert_that(tags, contains(u'alph', u'alpha', u'beta',
+                                   u'delta', u'gamma', u'law', u'omega'))
+
+        tags = self.testapp.get('%s?filter=%s' % (tag_url, 'alph')).json_body
+        tags = tags[ITEMS]
+        assert_that(tags, has_length(2))
+        assert_that(tags, contains(u'alph', u'alpha'))
+
+        # startswith comes first
+        tags = self.testapp.get('%s?filter=%s' % (tag_url, 'a')).json_body
+        tags = tags[ITEMS]
+        assert_that(tags, has_length(tag_count))
+        starts_with = tags[:2]
+        other = tags[2:]
+        assert_that(starts_with, contains(u'alph', u'alpha'))
+        assert_that(other, contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
+
+        # Batching
+        tags = self.testapp.get('%s?filter=%s&batchStart=0&batchSize=2' % (tag_url, 'a'))
+        tags = tags.json_body[ITEMS]
+        assert_that(tags, has_length(2))
+        assert_that(tags, contains(u'alph', u'alpha'))
+        tags = self.testapp.get('%s?filter=%s&batchStart=2&batchSize=10' % (tag_url, 'a'))
+        tags = tags.json_body[ITEMS]
+        assert_that(tags, has_length(5))
+        assert_that(tags, contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
+
+
+        tags = self.testapp.get('%s?filter=%s' % (tag_url, 'xxx')).json_body
+        tags = tags[ITEMS]
+        assert_that(tags, has_length(0))
+        tags = self.testapp.get('%s?filter=%s&batchStart=0&batchSize=3'
+                                % (tag_url, 'xxx')).json_body
+        tags = tags[ITEMS]
+        assert_that(tags, has_length(0))

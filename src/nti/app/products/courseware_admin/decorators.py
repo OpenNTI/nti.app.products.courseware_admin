@@ -18,6 +18,7 @@ from zope.location.interfaces import ILocation
 from pyramid.threadlocal import get_current_request
 
 from nti.app.products.courseware.interfaces import ICoursesWorkspace
+from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
 
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
@@ -25,6 +26,7 @@ from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
+from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
 from nti.app.products.courseware_admin.mixins import EditorManageMixin
@@ -112,7 +114,7 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
         return self.catalog is not None \
            and not IGlobalCourseCatalog.providedBy(self.catalog) \
            and is_admin_or_content_admin_or_site_admin(self.remoteUser)
-        
+
 
     def _do_decorate_external(self, context, result):
         if self.catalog is not None:
@@ -189,4 +191,19 @@ class _AdminCourseLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
         interface.alsoProvides(link, ILocation)
         link.__name__ = ''
         link.__parent__ = context
+        _links.append(link)
+
+
+@interface.implementer(IExternalObjectDecorator)
+@component.adapter(ICoursesCatalogCollection)
+class _CourseCatalogCollectionDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    Decorate the :class:``ICoursesCatalogCollection`` with a `SuggestedTags` rel.
+    """
+
+    def _do_decorate_external(self, context, result):
+        _links = result.setdefault(LINKS, [])
+        link = Link(context,
+                    rel=VIEW_COURSE_SUGGESTED_TAGS,
+                    elements=('@@%s' % VIEW_COURSE_SUGGESTED_TAGS,))
         _links.append(link)
