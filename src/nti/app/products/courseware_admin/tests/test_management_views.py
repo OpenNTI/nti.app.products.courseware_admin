@@ -357,9 +357,10 @@ class TestCourseManagement(ApplicationLayerTest):
         """
         # Set tags on an object
         entry_href = '/dataserver2/%2B%2Betc%2B%2Bhostsites/platform.ou.edu/%2B%2Betc%2B%2Bsite/Courses/Fall2013/CLC3403_LawAndJustice/CourseCatalogEntry'
-        tags = [u'DELTA', u'alpha', u'alph', u'BETA', u'gaMMA', u'omega', u'law', u'LAW']
+        tags = [u'DELTA', u'alpha', u'alph', u'BETA', u'gaMMA', u'omega', u'law', u'LAW', u'.hidden']
         lower_tag_set = {x.lower() for x in tags}
         tag_count = len(lower_tag_set)
+        non_hidden_tag_count = tag_count - 1
         entry = self.testapp.put_json(entry_href, {"tags": tags})
         entry = entry.json_body
         assert_that(entry, has_entry('tags', contains_inanyorder(*lower_tag_set)))
@@ -369,7 +370,7 @@ class TestCourseManagement(ApplicationLayerTest):
                                                   VIEW_COURSE_SUGGESTED_TAGS)
         tags = self.testapp.get(tag_url).json_body
         tags = tags[ITEMS]
-        assert_that(tags, has_length(tag_count))
+        assert_that(tags, has_length(non_hidden_tag_count))
         assert_that(tags, contains(u'alph', u'alpha', u'beta',
                                    u'delta', u'gamma', u'law', u'omega'))
 
@@ -381,7 +382,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # startswith comes first
         tags = self.testapp.get('%s?filter=%s' % (tag_url, 'a')).json_body
         tags = tags[ITEMS]
-        assert_that(tags, has_length(tag_count))
+        assert_that(tags, has_length(non_hidden_tag_count))
         starts_with = tags[:2]
         other = tags[2:]
         assert_that(starts_with, contains(u'alph', u'alpha'))
