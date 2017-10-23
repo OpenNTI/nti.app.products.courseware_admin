@@ -41,7 +41,11 @@ from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 
+from nti.contenttypes.courses.utils import filter_hidden_tags
+
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
+
+from nti.dataserver.authorization import is_admin
 
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
@@ -95,6 +99,21 @@ class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
             link.__name__ = ''
             link.__parent__ = context
             _links.append(link)
+
+
+@component.adapter(ICourseCatalogEntry)
+@interface.implementer(IExternalMappingDecorator)
+class _EntryTagDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    Filter hidden tags on :class:`ICourseCatalogEntry` objects.
+    """
+
+    def _predicate(self, unused_context, unused_result):
+        return not is_admin(self.remoteUser)
+
+    def _do_decorate_external(self, unused_context, result):
+        if 'tags' in result:
+            result['tags'] = filter_hidden_tags(result['tags'])
 
 
 @component.adapter(ICoursesWorkspace)
