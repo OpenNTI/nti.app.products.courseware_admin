@@ -187,7 +187,7 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 'message': _(u"No course key specified."),
                 'code': 'MissingCourseKey',
             })
-            
+
         sites = get_component_hierarchy_names()
         if site and site not in sites:
             raise_error({
@@ -196,7 +196,7 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
             })
         elif not site:
             site = getSite().__name__
-        
+
         catalog = None
         site = get_host_site(site)
         with current_site(site):
@@ -211,9 +211,9 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 'message': _(u"Invalid administrative level."),
                 'code': 'InvalidAdminLevel',
             })
-        logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s)',
-                    key, admin, path, lockout, clear)
-        return create_course(admin, key, path, catalog, writeout, 
+        logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s) (site=%s)',
+                    key, admin, path, lockout, clear, site.__name__)
+        return create_course(admin, key, path, catalog, writeout,
                              lockout, clear, self.remoteUser.username)
 
     def _do_call(self):
