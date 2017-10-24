@@ -31,7 +31,7 @@ class TestCourseVendorInfoViews(ApplicationLayerTest):
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_vendor_info(self):
-        href = "/dataserver2/Objects/%s/@@vendor_info" % self.entry_ntiid
+        href = "/dataserver2/Objects/%s/@@VendorInfo" % self.entry_ntiid
         res = self.testapp.get(href, status=200)
         assert_that(res.json_body,
                     has_entries('NTI', has_entries('Forums', is_not(empty()),

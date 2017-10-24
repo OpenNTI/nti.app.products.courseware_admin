@@ -27,6 +27,8 @@ from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtils
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
+from nti.app.products.courseware_admin.views import VIEW_ASSESSMENT_POLICIES
+
 from nti.assessment.interfaces import IQAssignmentPolicies
 
 from nti.cabinet.filer import read_source
@@ -41,17 +43,18 @@ from nti.contenttypes.courses.legacy_catalog import ILegacyCourseCatalogEntry
 
 from nti.dataserver import authorization as nauth
 
+from nti.ntiids.ntiids import is_valid_ntiid_string
 
 logger = __import__('logging').getLogger(__name__)
 
 
-@view_config(name='AssigmentPolicies')
-@view_config(name='assigment_policies')
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
                context=ICourseInstance,
                permission=nauth.ACT_CONTENT_EDIT)
-class CourseAssigmentPolicyGetView(AbstractAuthenticatedView):
+class CourseAssessmentPolicyGetView(AbstractAuthenticatedView):
 
     def __call__(self):
         course = ICourseInstance(self.context)
@@ -59,28 +62,35 @@ class CourseAssigmentPolicyGetView(AbstractAuthenticatedView):
         return result
 
 
-@view_config(name='VendorInfo')
-@view_config(name='vendor_info')
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
                context=ICourseCatalogEntry,
                permission=nauth.ACT_CONTENT_EDIT)
-class CatalogEntryAssigmentPolicyGetView(CourseAssigmentPolicyGetView):
+class CatalogEntryAssessmentPolicyGetView(CourseAssessmentPolicyGetView):
     pass
 
 
-@view_config(name='AssigmentPolicies')
-@view_config(name='assigment_policies')
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
                context=ICourseInstance,
                permission=nauth.ACT_CONTENT_EDIT)
-class CourseAssigmentPolicyPutView(AbstractAuthenticatedView,
-                                   ModeledContentUploadRequestUtilsMixin):
+class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
+                                    ModeledContentUploadRequestUtilsMixin):
+
+    def clean_input(self, values):
+        for key in list(values.keys()):
+            if not is_valid_ntiid_string(key):
+                values.pop(key, None)
+        return values
 
     def readInput(self, value=None):
         if self.request.body:
-            source = super(CourseAssigmentPolicyPutView, self).readInput(value)
+            source = super(CourseAssessmentPolicyPutView,
+                           self).readInput(value)
         elif self.request.POST:
             sources = get_all_sources(self.request)
             if not sources:
@@ -99,7 +109,9 @@ class CourseAssigmentPolicyPutView(AbstractAuthenticatedView,
                                      'message': _(u"Invalid input format."),
                                  },
                                  None)
-        else:
+        if source is not None:
+            self.clean_input(source)
+        if source is None:
             raise_json_error(self.request,
                              hexc.HTTPUnprocessableEntity,
                              {
@@ -125,11 +137,11 @@ class CourseAssigmentPolicyPutView(AbstractAuthenticatedView,
         return result
 
 
-@view_config(name='VendorInfo')
-@view_config(name='vendor_info')
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
                context=ICourseCatalogEntry,
                permission=nauth.ACT_CONTENT_EDIT)
-class CatalogEntryAssigmentPolicyPutView(CourseAssigmentPolicyPutView):
+class CatalogEntryAssessmentPolicyPutView(CourseAssessmentPolicyPutView):
     pass

@@ -26,6 +26,8 @@ from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtils
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
+from nti.app.products.courseware_admin.views import VIEW_VENDOR_INFO
+
 from nti.cabinet.filer import read_source
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
@@ -45,8 +47,8 @@ EXCLUDE =   tuple(getattr(StandardExternalFields, 'ALL')) \
 logger = __import__('logging').getLogger(__name__)
 
 
-@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
+@view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
                context=ICourseInstance,
@@ -59,8 +61,8 @@ class CourseVendorInfoGetView(AbstractAuthenticatedView):
         return vendor
 
 
-@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
+@view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
                context=ICourseCatalogEntry,
@@ -69,8 +71,8 @@ class CatalogEntryVendorInfoGetView(CourseVendorInfoGetView):
     pass
 
 
-@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
+@view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
                context=ICourseInstance,
@@ -129,8 +131,8 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
         return vendor
 
 
-@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
+@view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
                context=ICourseCatalogEntry,
