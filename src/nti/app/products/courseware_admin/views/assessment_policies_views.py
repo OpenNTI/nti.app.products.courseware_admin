@@ -89,8 +89,7 @@ class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
 
     def readInput(self, value=None):
         if self.request.body:
-            source = super(CourseAssessmentPolicyPutView,
-                           self).readInput(value)
+            source = super(CourseAssessmentPolicyPutView, self).readInput(value)
         elif self.request.POST:
             sources = get_all_sources(self.request)
             if not sources:
