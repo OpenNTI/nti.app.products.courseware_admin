@@ -20,10 +20,12 @@ from pyramid.threadlocal import get_current_request
 from nti.app.products.courseware.interfaces import ICoursesWorkspace
 from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
 
+from nti.app.products.courseware_admin import VIEW_VENDOR_INFO
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
+from nti.app.products.courseware_admin import VIEW_ASSESSMENT_POLICIES
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
@@ -85,8 +87,8 @@ class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
 
     def _predicate(self, context, unused_result):
-        return  self._is_authenticated \
-            and has_permission(ACT_CONTENT_EDIT, context, self.request)
+        return self._is_authenticated \
+           and has_permission(ACT_CONTENT_EDIT, context, self.request)
 
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])
@@ -134,7 +136,6 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
            and not IGlobalCourseCatalog.providedBy(self.catalog) \
            and is_admin_or_content_admin_or_site_admin(self.remoteUser)
 
-
     def _do_decorate_external(self, context, result):
         if self.catalog is not None:
             _links = result.setdefault(LINKS, [])
@@ -156,8 +157,8 @@ class _CourseInstructorManagementLinkDecorator(AbstractAuthenticatedRequestAware
     """
 
     def _predicate(self, context, unused_result):
-        return  self._is_authenticated \
-            and self.has_access(self.remoteUser, context)
+        return self._is_authenticated \
+           and self.has_access(self.remoteUser, context)
 
     def _do_decorate_external(self, context, result):
         for rel in (VIEW_COURSE_INSTRUCTORS,
@@ -179,12 +180,36 @@ class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDeco
     """
 
     def _predicate(self, context, unused_result):
-        return  self._is_authenticated \
-            and self.has_access(self.remoteUser, context)
+        return self._is_authenticated \
+           and self.has_access(self.remoteUser, context)
 
     def _do_decorate_external(self, context, result):
         for rel in (VIEW_COURSE_EDITORS,
                     VIEW_COURSE_REMOVE_EDITORS):
+            _links = result.setdefault(LINKS, [])
+            link = Link(context, rel=rel, elements=('@@%s' % rel,))
+            interface.alsoProvides(link, ILocation)
+            link.__name__ = ''
+            link.__parent__ = context
+            _links.append(link)
+
+
+@component.adapter(ICourseInstance)
+@interface.implementer(IExternalMappingDecorator)
+class _CoursePolicyLinksDecorator(AbstractAuthenticatedRequestAwareDecorator,
+                                  EditorManageMixin):
+    """
+    A decorator that provides links for course vendor info and
+    assessement policies management.
+    """
+
+    def _predicate(self, context, unused_result):
+        return self._is_authenticated \
+           and self.has_access(self.remoteUser, context)
+
+    def _do_decorate_external(self, context, result):
+        for rel in (VIEW_VENDOR_INFO,
+                    VIEW_ASSESSMENT_POLICIES):
             _links = result.setdefault(LINKS, [])
             link = Link(context, rel=rel, elements=('@@%s' % rel,))
             interface.alsoProvides(link, ILocation)
