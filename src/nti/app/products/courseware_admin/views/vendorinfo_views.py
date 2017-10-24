@@ -45,13 +45,13 @@ EXCLUDE =   tuple(getattr(StandardExternalFields, 'ALL')) \
 logger = __import__('logging').getLogger(__name__)
 
 
-@view_config(context=ICourseInstance)
-@view_config(context=ICourseCatalogEntry)
+@view_config(name='VendorInfo')
+@view_config(name='vendor_info')
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
-               name='vendor_info',
+               context=ICourseInstance,
                permission=nauth.ACT_CONTENT_EDIT)
-class EditVendorInfoGetView(AbstractAuthenticatedView):
+class CourseVendorInfoGetView(AbstractAuthenticatedView):
 
     def __call__(self):
         course = ICourseInstance(self.context)
@@ -59,14 +59,24 @@ class EditVendorInfoGetView(AbstractAuthenticatedView):
         return vendor
 
 
-@view_config(context=ICourseInstance)
-@view_config(context=ICourseCatalogEntry)
+@view_config(name='VendorInfo')
+@view_config(name='vendor_info')
+@view_defaults(route_name='objects.generic.traversal',
+               request_method='GET',
+               context=ICourseCatalogEntry,
+               permission=nauth.ACT_CONTENT_EDIT)
+class CatalogEntryVendorInfoGetView(CourseVendorInfoGetView):
+    pass
+
+
+@view_config(name='VendorInfo')
+@view_config(name='vendor_info')
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
-               name='vendor_info',
+               context=ICourseInstance,
                permission=nauth.ACT_CONTENT_EDIT)
-class EditVendorInfoPutView(AbstractAuthenticatedView,
-                            ModeledContentUploadRequestUtilsMixin):
+class CourseVendorInfoPutView(AbstractAuthenticatedView,
+                              ModeledContentUploadRequestUtilsMixin):
 
     def clean_input(self, values):
         [values.pop(x, None) for x in EXCLUDE]
@@ -74,7 +84,7 @@ class EditVendorInfoPutView(AbstractAuthenticatedView,
 
     def readInput(self, value=None):
         if self.request.body:
-            source = super(EditVendorInfoPutView, self).readInput(value)
+            source = super(CourseVendorInfoPutView, self).readInput(value)
         elif self.request.POST:
             sources = get_all_sources(self.request)
             if not sources:
@@ -117,3 +127,13 @@ class EditVendorInfoPutView(AbstractAuthenticatedView,
         vendor.clear()
         vendor.update(values)
         return vendor
+
+
+@view_config(name='VendorInfo')
+@view_config(name='vendor_info')
+@view_defaults(route_name='objects.generic.traversal',
+               request_method='PUT',
+               context=ICourseCatalogEntry,
+               permission=nauth.ACT_CONTENT_EDIT)
+class CatalogEntryVendorInfoPutView(CourseVendorInfoPutView):
+    pass
