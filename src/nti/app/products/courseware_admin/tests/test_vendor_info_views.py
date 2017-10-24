@@ -21,7 +21,7 @@ from nti.app.testing.application_webtest import ApplicationLayerTest
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 
-class TestCourseVendorInfo(ApplicationLayerTest):
+class TestCourseVendorInfoViews(ApplicationLayerTest):
 
     layer = PersistentInstructedCourseApplicationTestLayer
 
