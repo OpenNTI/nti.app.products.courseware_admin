@@ -8,6 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import time
 import collections
 
 from pyramid import httpexceptions as hexc
@@ -26,67 +27,69 @@ from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtils
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
-from nti.app.products.courseware_admin.views import VIEW_VENDOR_INFO
+from nti.app.products.courseware_admin.views import VIEW_ASSESSMENT_POLICIES
+
+from nti.assessment.interfaces import IQAssignmentPolicies
 
 from nti.cabinet.filer import read_source
 
+from nti.contenttypes.courses._assessment_override_parser import fill_asg_from_json
+from nti.contenttypes.courses._assessment_policy_validator import validate_assigment_policies
+
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
-from nti.contenttypes.courses.interfaces import ICourseInstanceVendorInfo
 
 from nti.contenttypes.courses.legacy_catalog import ILegacyCourseCatalogEntry
 
 from nti.dataserver import authorization as nauth
 
-from nti.externalization.interfaces import StandardExternalFields
-from nti.externalization.interfaces import StandardInternalFields
-
-EXCLUDE =   tuple(getattr(StandardExternalFields, 'ALL')) \
-          + (StandardInternalFields.NTIID,)
+from nti.ntiids.ntiids import is_valid_ntiid_string
 
 logger = __import__('logging').getLogger(__name__)
 
 
-@view_config(name='vendor_info')
-@view_config(name=VIEW_VENDOR_INFO)
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
                context=ICourseInstance,
                permission=nauth.ACT_CONTENT_EDIT)
-class CourseVendorInfoGetView(AbstractAuthenticatedView):
+class CourseAssessmentPolicyGetView(AbstractAuthenticatedView):
 
     def __call__(self):
         course = ICourseInstance(self.context)
-        vendor = ICourseInstanceVendorInfo(course)
-        return vendor
+        result = IQAssignmentPolicies(course)
+        return result
 
 
-@view_config(name='vendor_info')
-@view_config(name=VIEW_VENDOR_INFO)
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
                context=ICourseCatalogEntry,
                permission=nauth.ACT_CONTENT_EDIT)
-class CatalogEntryVendorInfoGetView(CourseVendorInfoGetView):
+class CatalogEntryAssessmentPolicyGetView(CourseAssessmentPolicyGetView):
     pass
 
 
-@view_config(name='vendor_info')
-@view_config(name=VIEW_VENDOR_INFO)
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
                context=ICourseInstance,
                permission=nauth.ACT_CONTENT_EDIT)
-class CourseVendorInfoPutView(AbstractAuthenticatedView,
-                              ModeledContentUploadRequestUtilsMixin):
+class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
+                                    ModeledContentUploadRequestUtilsMixin):
 
     def clean_input(self, values):
-        [values.pop(x, None) for x in EXCLUDE]
+        for key in list(values.keys()):
+            if not is_valid_ntiid_string(key):
+                values.pop(key, None)
         return values
 
     def readInput(self, value=None):
         if self.request.body:
-            source = super(CourseVendorInfoPutView, self).readInput(value)
+            source = super(CourseAssessmentPolicyPutView, self).readInput(value)
         elif self.request.POST:
             sources = get_all_sources(self.request)
             if not sources:
@@ -105,14 +108,16 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
                                      'message': _(u"Invalid input format."),
                                  },
                                  None)
-        else:
+        if source is not None:
+            self.clean_input(source)
+        if source is None:
             raise_json_error(self.request,
                              hexc.HTTPUnprocessableEntity,
                              {
                                  'message': _(u"No input data specified."),
                              },
                              None)
-        return self.clean_input(source)
+        return source
 
     def __call__(self):
         entry = ICourseCatalogEntry(self.context, None)
@@ -125,17 +130,17 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
                              None)
         values = self.readInput()
         course = ICourseInstance(entry)
-        vendor = ICourseInstanceVendorInfo(course)
-        vendor.clear()
-        vendor.update(values)
-        return vendor
+        # fill new policy -> force new changes
+        result = fill_asg_from_json(course, values, time.time(), True)
+        validate_assigment_policies(result)
+        return result
 
 
-@view_config(name='vendor_info')
-@view_config(name=VIEW_VENDOR_INFO)
+@view_config(name='assessment_policies')
+@view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
                context=ICourseCatalogEntry,
                permission=nauth.ACT_CONTENT_EDIT)
-class CatalogEntryVendorInfoPutView(CourseVendorInfoPutView):
+class CatalogEntryAssessmentPolicyPutView(CourseAssessmentPolicyPutView):
     pass
