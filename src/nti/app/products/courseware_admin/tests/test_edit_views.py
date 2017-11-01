@@ -80,11 +80,10 @@ class TestCourseEdits(ApplicationLayerTest):
         # Be sure the new information is contained in the course
         assert_that(res.json_body,
                     has_entries("Duration", 'P112D'))
-        
+
         with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
             entry = find_object_with_ntiid(self.entry_ntiid)
             assert_that(entry.is_locked(), is_(True))
-
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     @fudge.patch('nti.app.contentlibrary.views.bundle_views.get_all_sources',
@@ -95,9 +94,9 @@ class TestCourseEdits(ApplicationLayerTest):
             path = self.presentation_assets_zip(tmpdir)
             with open(path, "rb") as fp:
                 source = SourceFile(name="assets.zip", data=fp.read())
-            mock_src.is_callable().returns({"assets.zip":source})
+            mock_src.is_callable().returns({"assets.zip": source})
             mock_save.is_callable().returns(None)
-            
+
             res_dict = {}
             res_dict["title"] = "Another Course"
             self.testapp.put_json(self.course_path, res_dict, status=200)
