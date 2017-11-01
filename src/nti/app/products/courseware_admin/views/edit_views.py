@@ -83,16 +83,16 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
         # handle presentation-assets and save
         assets = self.get_source(self.request)
         if assets is not None:
-            intids  = component.getUtility(IIntIds)
+            intids = component.getUtility(IIntIds)
             course = ICourseInstance(self.context)
             bundle = course.ContentPackageBundle
+            root = getattr(bundle, 'root', None) or course.root
             assets = self.check_presentation_assets(assets)
             # check for transaction retrial
             jid = getattr(self.request, 'jid', None)
             if jid is None:
                 doc_id = intids.getId(course)
-                save_bundle(bundle, course.root,
-                            assets, name=str(doc_id))
+                save_bundle(bundle, root, assets, str(doc_id))
                 self.request.jid = doc_id
         # Return new catalog entry object
         return self.context
