@@ -51,6 +51,7 @@ setup(
     tests_require=TESTS_REQUIRE,
     install_requires=[
         'setuptools',
+        'nti.app.contentlibrary',
         'nti.app.products.courseware',
         'nti.base',
         'nti.common',

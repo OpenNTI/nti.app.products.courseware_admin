@@ -8,11 +8,19 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+from zope import component
+
+from zope.intid.interfaces import IIntIds
+
 from pyramid import httpexceptions as hexc
 
 from pyramid.view import view_config
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
+
+from nti.app.contentlibrary.utils.bundle import save_bundle
+
+from nti.app.contentlibrary.views.bundle_views import ContentPackageBundleMixin
 
 from nti.app.externalization.error import raise_json_error
 
@@ -22,8 +30,8 @@ from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legacy_json
 
+from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
-
 from nti.contenttypes.courses.legacy_catalog import ILegacyCourseCatalogEntry
 
 from nti.dataserver import authorization as nauth
@@ -36,7 +44,8 @@ logger = __import__('logging').getLogger(__name__)
              context=ICourseCatalogEntry,
              permission=nauth.ACT_CONTENT_EDIT)
 class EditCatalogEntryView(AbstractAuthenticatedView,
-                           ModeledContentUploadRequestUtilsMixin):
+                           ModeledContentUploadRequestUtilsMixin,
+                           ContentPackageBundleMixin):
     """
     Route making ICourseCatalogEntries available for editing.
     Takes attributes to update as parameters.
@@ -71,5 +80,19 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
         values = self.readInput()
         fill_entry_from_legacy_json(self.context, values,
                                     notify=True, delete=False)
+        # handle presentation-assets and save
+        assets = self.get_source(self.request)
+        if assets is not None:
+            intids  = component.getUtility(IIntIds)
+            course = ICourseInstance(self.context)
+            bundle = course.ContentPackageBundle
+            assets = self.check_presentation_assets(assets)
+            # check for transaction retrial
+            jid = getattr(self.request, 'jid', None)
+            if jid is None:
+                doc_id = intids.getId(course)
+                save_bundle(bundle, course.root,
+                            assets, name=str(doc_id))
+                self.request.jid = doc_id
         # Return new catalog entry object
         return self.context
