@@ -48,6 +48,7 @@ logger = __import__('logging').getLogger(__name__)
 
 
 @view_config(name='vendor_info')
+@view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
@@ -62,6 +63,7 @@ class CourseVendorInfoGetView(AbstractAuthenticatedView):
 
 
 @view_config(name='vendor_info')
+@view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
@@ -72,6 +74,7 @@ class CatalogEntryVendorInfoGetView(CourseVendorInfoGetView):
 
 
 @view_config(name='vendor_info')
+@view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
@@ -132,6 +135,7 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
 
 
 @view_config(name='vendor_info')
+@view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
