@@ -49,6 +49,7 @@ logger = __import__('logging').getLogger(__name__)
 
 
 @view_config(name='assessment_policies')
+@view_config(name='assessment-policies')
 @view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
@@ -63,6 +64,7 @@ class CourseAssessmentPolicyGetView(AbstractAuthenticatedView):
 
 
 @view_config(name='assessment_policies')
+@view_config(name='assessment-policies')
 @view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='GET',
@@ -73,6 +75,7 @@ class CatalogEntryAssessmentPolicyGetView(CourseAssessmentPolicyGetView):
 
 
 @view_config(name='assessment_policies')
+@view_config(name='assessment-policies')
 @view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
@@ -137,6 +140,7 @@ class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
 
 
 @view_config(name='assessment_policies')
+@view_config(name='assessment-policies')
 @view_config(name=VIEW_ASSESSMENT_POLICIES)
 @view_defaults(route_name='objects.generic.traversal',
                request_method='PUT',
