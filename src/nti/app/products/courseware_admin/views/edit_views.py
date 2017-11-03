@@ -32,6 +32,7 @@ from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legac
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+
 from nti.contenttypes.courses.legacy_catalog import ILegacyCourseCatalogEntry
 
 from nti.dataserver import authorization as nauth
@@ -41,11 +42,49 @@ logger = __import__('logging').getLogger(__name__)
 
 @view_config(route_name='objects.generic.traversal',
              request_method='PUT',
+             name='presentation-assets',
              context=ICourseCatalogEntry,
              permission=nauth.ACT_CONTENT_EDIT)
-class EditCatalogEntryView(AbstractAuthenticatedView,
-                           ModeledContentUploadRequestUtilsMixin,
-                           ContentPackageBundleMixin):
+class CatalogEntryPresentationAssetsPutView(AbstractAuthenticatedView,
+                                            ModeledContentUploadRequestUtilsMixin,
+                                            ContentPackageBundleMixin):
+
+    def handle_presentation_assets(self):
+        # handle presentation-assets and save
+        assets = self.get_source(self.request)
+        if assets is not None:
+            intids = component.getUtility(IIntIds)
+            course = ICourseInstance(self.context)
+            bundle = course.ContentPackageBundle
+            root = getattr(bundle, 'root', None) or course.root
+            assets = self.check_presentation_assets(assets)
+            # check for transaction retrial
+            jid = getattr(self.request, 'jid', None)
+            if jid is None:
+                doc_id = intids.getId(course)
+                save_bundle(bundle, root, assets, str(doc_id))
+                self.request.jid = doc_id
+            return jid
+        return None
+
+    def __call__(self):
+        # Not allowed to edit these courses
+        if ILegacyCourseCatalogEntry.providedBy(self.context):
+            raise_json_error(self.request,
+                             hexc.HTTPForbidden,
+                             {
+                                 'message': _(u"Cannot update a legacy course."),
+                             },
+                             None)
+        self.handle_presentation_assets()
+        return self.context
+
+
+@view_config(route_name='objects.generic.traversal',
+             request_method='PUT',
+             context=ICourseCatalogEntry,
+             permission=nauth.ACT_CONTENT_EDIT)
+class CatalogEntryPutView(CatalogEntryPresentationAssetsPutView):
     """
     Route making ICourseCatalogEntries available for editing.
     Takes attributes to update as parameters.
@@ -64,35 +103,14 @@ class EditCatalogEntryView(AbstractAuthenticatedView,
         return values
 
     def readInput(self, value=None):
-        values = super(AbstractAuthenticatedView, self).readInput(value)
+        values = ModeledContentUploadRequestUtilsMixin.readInput(self, value)
         return self.clean_input(values)
 
     def __call__(self):
-        # Not allowed to edit these courses
-        if ILegacyCourseCatalogEntry.providedBy(self.context):
-            raise_json_error(self.request,
-                             hexc.HTTPForbidden,
-                             {
-                                 'message': _(u"Cannot update a legacy course."),
-                             },
-                             None)
+        CatalogEntryPresentationAssetsPutView.__call__(self)
         # Get the new course info as input data
         values = self.readInput()
         fill_entry_from_legacy_json(self.context, values,
                                     notify=True, delete=False)
-        # handle presentation-assets and save
-        assets = self.get_source(self.request)
-        if assets is not None:
-            intids = component.getUtility(IIntIds)
-            course = ICourseInstance(self.context)
-            bundle = course.ContentPackageBundle
-            root = getattr(bundle, 'root', None) or course.root
-            assets = self.check_presentation_assets(assets)
-            # check for transaction retrial
-            jid = getattr(self.request, 'jid', None)
-            if jid is None:
-                doc_id = intids.getId(course)
-                save_bundle(bundle, root, assets, str(doc_id))
-                self.request.jid = doc_id
         # Return new catalog entry object
         return self.context
