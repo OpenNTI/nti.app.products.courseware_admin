@@ -18,7 +18,7 @@ from pyramid.view import view_config
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
-from nti.app.contentlibrary.utils.bundle import save_bundle
+from nti.app.contentlibrary.utils.bundle import save_presentation_assets
 
 from nti.app.contentlibrary.views.bundle_views import ContentPackageBundleMixin
 
@@ -62,7 +62,7 @@ class CatalogEntryPresentationAssetsPutView(AbstractAuthenticatedView,
             jid = getattr(self.request, 'jid', None)
             if jid is None:
                 doc_id = intids.getId(course)
-                save_bundle(bundle, root, assets, str(doc_id))
+                save_presentation_assets(assets, root)
                 self.request.jid = doc_id
             return jid
         return None
