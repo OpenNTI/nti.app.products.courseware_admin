@@ -87,7 +87,7 @@ class TestCourseEdits(ApplicationLayerTest):
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     @fudge.patch('nti.app.contentlibrary.views.bundle_views.get_all_sources',
-                 'nti.app.products.courseware_admin.views.edit_views.save_bundle')
+                 'nti.app.products.courseware_admin.views.edit_views.save_presentation_assets')
     def test_presentation_assets(self, mock_src, mock_save):
         tmpdir = tempfile.mkdtemp()
         try:
