@@ -17,6 +17,7 @@ from hamcrest import has_entry
 from hamcrest import has_length
 from hamcrest import assert_that
 from hamcrest import contains_inanyorder
+from hamcrest import greater_than_or_equal_to
 does_not = is_not
 
 import shutil
@@ -343,10 +344,10 @@ class TestCourseManagement(ApplicationLayerTest):
         catalog_ws = next(x for x in workspaces if x['Title'] == 'Catalog')
         assert_that(catalog_ws, not_none())
         catalog_collections = catalog_ws['Items']
-        assert_that(catalog_collections, has_length(3))
-        courses_collection = next(x for x
-                                  in catalog_collections
-                                  if x['Title'] == name)
+        assert_that(catalog_collections, has_length(greater_than_or_equal_to(2)))
+        courses_collection = next(
+            x for x in catalog_collections if x['Title'] == name
+        )
         assert_that(courses_collection, not_none())
         return courses_collection
 
