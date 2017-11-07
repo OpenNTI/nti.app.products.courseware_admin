@@ -396,9 +396,9 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView,
             or self._params.get('filter')
 
     def sort_key(self, tag):
-        return (tag != self.include_str,
-                not tag.startswith(self.include_str),
-                tag.lower())
+        return (
+            tag != self.include_str, not tag.startswith(self.include_str), tag.lower()
+        )
 
     def __call__(self):
         result = LocatedExternalDict()
