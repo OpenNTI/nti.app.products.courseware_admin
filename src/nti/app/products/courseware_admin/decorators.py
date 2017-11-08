@@ -137,15 +137,14 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
            and is_admin_or_content_admin_or_site_admin(self.remoteUser)
 
     def _do_decorate_external(self, context, result):
-        if self.catalog is not None:
-            _links = result.setdefault(LINKS, [])
-            link = Link(self.catalog,
-                        rel=VIEW_COURSE_ADMIN_LEVELS,
-                        elements=('@@%s' % VIEW_COURSE_ADMIN_LEVELS,))
-            interface.alsoProvides(link, ILocation)
-            link.__name__ = ''
-            link.__parent__ = context
-            _links.append(link)
+        _links = result.setdefault(LINKS, [])
+        link = Link(self.catalog,
+                    rel=VIEW_COURSE_ADMIN_LEVELS,
+                    elements=('@@%s' % VIEW_COURSE_ADMIN_LEVELS,))
+        interface.alsoProvides(link, ILocation)
+        link.__name__ = ''
+        link.__parent__ = context
+        _links.append(link)
 
 
 @component.adapter(ICourseInstance)
