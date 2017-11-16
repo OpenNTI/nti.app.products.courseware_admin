@@ -22,8 +22,6 @@ from zope.component.hooks import site as current_site
 
 from zope.event import notify
 
-from zope.intid.interfaces import IIntIds
-
 from pyramid import httpexceptions as hexc
 
 from pyramid.view import view_config
@@ -42,8 +40,6 @@ from nti.app.products.courseware.views import raise_error
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
-from nti.app.products.courseware_admin.hostpolicy import get_site_provider
-
 from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin.views import VIEW_COURSE_SUGGESTED_TAGS
 
@@ -57,8 +53,6 @@ from nti.contenttypes.courses.courses import ContentCourseInstance
 
 from nti.contenttypes.courses.creator import create_course
 from nti.contenttypes.courses.creator import install_admin_level
-
-from nti.contenttypes.courses.interfaces import NTIID_ENTRY_TYPE
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
@@ -78,11 +72,6 @@ from nti.externalization.externalization import to_external_object
 
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
-
-from nti.intid.common import addIntId
-
-from nti.ntiids.ntiids import make_ntiid
-from nti.ntiids.ntiids import make_specific_safe
 
 from nti.site.interfaces import IHostPolicyFolder
 
@@ -265,36 +254,12 @@ class CreateCourseView(AbstractAuthenticatedView,
               or values.get('ProviderUniqueId')
         return result
 
-    def _set_entry_ntiid(self, entry):
-        """
-        We want a unique/GUID for these entry NTIIDs. We want to be able to
-        have the flexibility to move these entries/courses between admin levels
-        without being tied to an admin-level path.
-
-        NTIID of type:
-            - NTI-CourseInfo-<intid>.<timestamp>
-        """
-        # Give our catalog entry an intid and set an NTIID
-        intids = component.getUtility(IIntIds)
-        if intids.queryId(entry) is None:
-            addIntId(entry)
-        entry_id = intids.getId(entry)
-        current_time = time_to_64bit_int(time.time())
-        specific_base = '%s.%s' % (entry_id, current_time)
-        specific = make_specific_safe(specific_base)
-        ntiid = make_ntiid(nttype=NTIID_ENTRY_TYPE,
-                           provider=get_site_provider(),
-                           specific=specific)
-        entry.ntiid = ntiid
-
     def _post_create(self, course):
         catalog_entry = ICourseCatalogEntry(course)
         catalog_entry.Preview = True
         catalog_entry.ProviderUniqueID = self._course_classifier
         interface.alsoProvides(course, INonPublicCourseInstance)
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
-
-        self._set_entry_ntiid(catalog_entry)
         create_course_invitation(course, is_generic=True)
         notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
@@ -397,7 +362,9 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView,
 
     def sort_key(self, tag):
         return (
-            tag != self.include_str, not tag.startswith(self.include_str), tag.lower()
+            tag != self.include_str,
+            not tag.startswith(self.include_str),
+            tag.lower()
         )
 
     def __call__(self):
