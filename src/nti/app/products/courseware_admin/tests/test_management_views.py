@@ -356,6 +356,9 @@ class TestCourseManagement(ApplicationLayerTest):
         """
         Validate setting tags on an entry and retrieving suggested tags.
         """
+        with mock_dataserver.mock_db_trans(self.ds):
+            self._create_user('non_admin_user')
+        user_environ = self._make_extra_environ('non_admin_user')
         # Set tags on an object
         entry_href = '/dataserver2/%2B%2Betc%2B%2Bhostsites/platform.ou.edu/%2B%2Betc%2B%2Bsite/Courses/Fall2013/CLC3403_LawAndJustice/CourseCatalogEntry'
         tags = [u'DELTA', u'alpha', u'alph', u'BETA', u'gaMMA', u'omega', u'law', u'LAW', u'.hidden']
@@ -407,3 +410,9 @@ class TestCourseManagement(ApplicationLayerTest):
                                 % (tag_url, 'xxx')).json_body
         tags = tags[ITEMS]
         assert_that(tags, has_length(0))
+
+        # User tags
+        res = self.testapp.get(entry_href, extra_environ=user_environ)
+        res = res.json_body
+        assert_that(res['tags'], has_length(non_hidden_tag_count))
+

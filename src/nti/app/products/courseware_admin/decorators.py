@@ -104,7 +104,7 @@ class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
 
 
 @component.adapter(ICourseCatalogEntry)
-@interface.implementer(IExternalMappingDecorator)
+@interface.implementer(IExternalObjectDecorator)
 class _EntryTagDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
     Filter hidden tags on :class:`ICourseCatalogEntry` objects.

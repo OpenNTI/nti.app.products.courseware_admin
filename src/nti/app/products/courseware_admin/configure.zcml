@@ -14,7 +14,7 @@
 
 	<!-- Decorators -->
 	<subscriber factory=".decorators._EntryTagDecorator"
-                provides="nti.externalization.interfaces.IExternalMappingDecorator"
+                provides="nti.externalization.interfaces.IExternalObjectDecorator"
                 for="nti.contenttypes.courses.interfaces.ICourseCatalogEntry
                      pyramid.interfaces.IRequest" />
 
