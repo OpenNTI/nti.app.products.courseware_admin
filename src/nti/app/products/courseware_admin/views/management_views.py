@@ -68,6 +68,8 @@ from nti.contenttypes.courses.utils import get_course_tags
 
 from nti.dataserver import authorization as nauth
 
+from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
+
 from nti.externalization.externalization import to_external_object
 
 from nti.externalization.interfaces import LocatedExternalDict
@@ -308,11 +310,15 @@ class CreateCourseView(AbstractAuthenticatedView,
 @view_config(context=ICourseCatalogEntry)
 @view_defaults(route_name='objects.generic.traversal',
                renderer='rest',
-               request_method='DELETE',
-               permission=nauth.ACT_NTI_ADMIN)
+               request_method='DELETE')
 class DeleteCourseView(AbstractAuthenticatedView):
 
     def __call__(self):
+        if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
+            raise_error({
+                'message': _(u'Cannot delete course.'),
+                'code': 'CannotDeleteCourse',
+            })
         course = ICourseInstance(self.context)
         entry = ICourseCatalogEntry(self.context)
         folder = IHostPolicyFolder(course)
