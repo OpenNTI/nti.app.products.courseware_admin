@@ -47,8 +47,6 @@ from nti.contenttypes.courses.utils import filter_hidden_tags
 
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
-from nti.dataserver.authorization import is_admin
-
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.externalization.interfaces import StandardExternalFields
@@ -111,7 +109,7 @@ class _EntryTagDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
 
     def _predicate(self, unused_context, unused_result):
-        return not is_admin(self.remoteUser)
+        return not is_admin_or_content_admin_or_site_admin(self.remoteUser)
 
     def _do_decorate_external(self, unused_context, result):
         if 'tags' in result:
