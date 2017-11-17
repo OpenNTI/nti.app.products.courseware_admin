@@ -55,14 +55,14 @@ class CatalogEntryPresentationAssetsPutView(AbstractAuthenticatedView,
         if assets is not None:
             intids = component.getUtility(IIntIds)
             course = ICourseInstance(self.context)
-            bundle = course.ContentPackageBundle
-            root = getattr(bundle, 'root', None) or course.root
             assets = self.check_presentation_assets(assets)
             # check for transaction retrial
             jid = getattr(self.request, 'jid', None)
             if jid is None:
                 doc_id = intids.getId(course)
-                save_presentation_assets(assets, root)
+                save_presentation_assets(assets, course.root)
+                entry = ICourseCatalogEntry(course)
+                entry.root = course.root
                 self.request.jid = doc_id
             return jid
         return None
