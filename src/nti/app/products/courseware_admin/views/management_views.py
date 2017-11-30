@@ -29,6 +29,8 @@ from pyramid.view import view_defaults
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
+from nti.app.externalization.error import raise_json_error
+
 from nti.app.externalization.view_mixins import BatchingUtilsMixin
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
@@ -254,6 +256,15 @@ class CreateCourseView(AbstractAuthenticatedView,
               or values.get('name') \
               or values.get('course') \
               or values.get('ProviderUniqueId')
+        if not result:
+            raise_json_error(self.request,
+                             hexc.HTTPUnprocessableEntity,
+                             {
+                                 'field': 'password',
+                                 'message': _(u'Missing password'),
+                                 'code': 'RequiredMissing'
+                             },
+                             None)
         return result
 
     def _post_create(self, course):
