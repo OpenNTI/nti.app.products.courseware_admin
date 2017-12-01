@@ -49,6 +49,8 @@ from nti.base._compat import text_
 
 from nti.common.string import is_true
 
+from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legacy_json
+
 from nti.contenttypes.courses.courses import ContentCourseInstance
 
 from nti.contenttypes.courses.creator import create_course
@@ -241,8 +243,8 @@ class CreateCourseView(AbstractAuthenticatedView,
             values = super(CreateCourseView, self).readInput(value)
         else:
             values = self.request.params
-        result = CaseInsensitiveDict(values)
-        return result
+        # XXX: Can't be CaseInsensitive with internalization
+        return values
 
     @Lazy
     def _params(self):
@@ -251,10 +253,9 @@ class CreateCourseView(AbstractAuthenticatedView,
     @Lazy
     def _course_classifier(self):
         values = self._params
-        result = values.get('key') \
-              or values.get('ProviderUniqueId')
+        result = values.get('ProviderUniqueID')
         if not result:
-            raise_error({'field': 'ProviderUniqueId',
+            raise_error({'field': 'ProviderUniqueID',
                          'message': _(u'Missing ProviderUniqueID'),
                          'code': 'RequiredMissing'})
         return result
@@ -262,8 +263,7 @@ class CreateCourseView(AbstractAuthenticatedView,
     @Lazy
     def _course_title(self):
         values = self._params
-        result = values.get('name') \
-              or values.get('title')
+        result = values.get('title')
         if not result:
             raise_error({'field': 'title',
                          'message': _(u'Missing title'),
@@ -272,9 +272,9 @@ class CreateCourseView(AbstractAuthenticatedView,
 
     def _post_create(self, course):
         catalog_entry = ICourseCatalogEntry(course)
-        catalog_entry.title = self._course_title
+        fill_entry_from_legacy_json(catalog_entry, self._params,
+                                    notify=True, delete=False)
         catalog_entry.Preview = True
-        catalog_entry.ProviderUniqueID = self._course_classifier
         interface.alsoProvides(course, INonPublicCourseInstance)
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
         create_course_invitation(course, is_generic=True)
