@@ -228,17 +228,21 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(new_admin_href, not_none())
 
         new_course_key = 'Yorick'
+        new_course_title = 'The Last Man'
         courses = self.testapp.get(new_admin_href)
         assert_that(courses.json_body, does_not(has_item(new_course_key)))
 
         # Create course
         new_course = self.testapp.post_json(new_admin_href,
-                                            {'course': new_course_key})
+                                            {'key': new_course_key,
+                                             'title': new_course_title})
 
         new_course = new_course.json_body
         new_course_href = new_course['href']
-        course_token_href = self.require_link_href_with_rel(new_course, VIEW_COURSE_ACCESS_TOKENS)
-        course_delete_href = self.require_link_href_with_rel(new_course, 'delete')
+        course_token_href = self.require_link_href_with_rel(new_course,
+                                                            VIEW_COURSE_ACCESS_TOKENS)
+        course_delete_href = self.require_link_href_with_rel(new_course,
+                                                             'delete')
         assert_that(new_course_href, not_none())
         assert_that(new_course[CLASS], is_('CourseInstance'))
         assert_that(new_course[MIMETYPE],
@@ -264,6 +268,7 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(entry_ntiid,
                     is_not('tag:nextthought.com,2011-10:NTI-CourseInfo-TheLastMan_Yorick'))
         assert_that(catalog['ProviderUniqueID'], is_(new_course_key))
+        assert_that(catalog['title'], is_(new_course_title))
 
         # Verify that this course is non-public.
         new_course_ntiid = new_course['NTIID']
@@ -285,7 +290,8 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(new_course, has_entry('is_non_public', True))
 
         # Edit catalog entry
-        catalog_entry_res = self.testapp.put_json(catalog_href, {'title': 'new_title'})
+        catalog_entry_res = self.testapp.put_json(catalog_href,
+                                                  {'title': 'new_title'})
         catalog_entry_res = catalog_entry_res.json_body
         assert_that(catalog_entry_res, has_entry('is_non_public', True))
         assert_that(catalog_entry_res, has_entry('title', 'new_title'))
@@ -293,7 +299,8 @@ class TestCourseManagement(ApplicationLayerTest):
         # This view will create the course no matter what, in this case by
         # toggling the key.
         res = self.testapp.post_json(new_admin_href,
-                                     {'course': new_course_key})
+                                     {'key': new_course_key,
+                                      'title': 'course title2'})
         res = res.json_body
         new_course_href2 = res['href']
         assert_that(new_course_href2, is_not(new_course_href))
@@ -304,6 +311,7 @@ class TestCourseManagement(ApplicationLayerTest):
         entry_ntiid2 = catalog['NTIID']
         assert_that(entry_ntiid, is_not(entry_ntiid2))
         assert_that(catalog['ProviderUniqueID'], is_(new_course_key))
+        assert_that(catalog['title'], is_('course title2'))
 
         # We at least need the title/ProviderUniqueID to create a course
         self.testapp.post_json(new_admin_href, status=422)

@@ -29,8 +29,6 @@ from pyramid.view import view_defaults
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
-from nti.app.externalization.error import raise_json_error
-
 from nti.app.externalization.view_mixins import BatchingUtilsMixin
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
@@ -229,10 +227,11 @@ class CreateCourseView(AbstractAuthenticatedView,
 
     The course name/key/ProviderUniqueId is essentially an additional
     classifier for the course (e.g. UCOL 1002). We also happened to use this
-    as a the course key within the admin level. This is not especially useful
-    for the end-user to have to worry about. Therefore, it is optional in this
-    view (auto-creating a GUID if necessary). We'll also continue creating our
-    course (incrementing the key) until we succeed.
+    as a the course key within the admin level. This `ProviderUniqueID` field
+    and the course `title` are required.
+
+    We'll also continue creating our course (incrementing the key) until we
+    succeed.
     """
 
     _COURSE_INSTANCE_FACTORY = ContentCourseInstance
@@ -253,22 +252,27 @@ class CreateCourseView(AbstractAuthenticatedView,
     def _course_classifier(self):
         values = self._params
         result = values.get('key') \
-              or values.get('name') \
-              or values.get('course') \
               or values.get('ProviderUniqueId')
         if not result:
-            raise_json_error(self.request,
-                             hexc.HTTPUnprocessableEntity,
-                             {
-                                 'field': 'password',
-                                 'message': _(u'Missing password'),
-                                 'code': 'RequiredMissing'
-                             },
-                             None)
+            raise_error({'field': 'ProviderUniqueId',
+                         'message': _(u'Missing ProviderUniqueID'),
+                         'code': 'RequiredMissing'})
+        return result
+
+    @Lazy
+    def _course_title(self):
+        values = self._params
+        result = values.get('name') \
+              or values.get('title')
+        if not result:
+            raise_error({'field': 'title',
+                         'message': _(u'Missing title'),
+                         'code': 'RequiredMissing'})
         return result
 
     def _post_create(self, course):
         catalog_entry = ICourseCatalogEntry(course)
+        catalog_entry.title = self._course_title
         catalog_entry.Preview = True
         catalog_entry.ProviderUniqueID = self._course_classifier
         interface.alsoProvides(course, INonPublicCourseInstance)
