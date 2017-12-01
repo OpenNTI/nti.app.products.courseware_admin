@@ -229,13 +229,15 @@ class TestCourseManagement(ApplicationLayerTest):
 
         new_course_key = 'Yorick'
         new_course_title = 'The Last Man'
+        new_course_desc = 'rich description'
         courses = self.testapp.get(new_admin_href)
         assert_that(courses.json_body, does_not(has_item(new_course_key)))
 
         # Create course
         new_course = self.testapp.post_json(new_admin_href,
-                                            {'key': new_course_key,
-                                             'title': new_course_title})
+                                            {'ProviderUniqueID': new_course_key,
+                                             'title': new_course_title,
+                                             'RichDescription': new_course_desc})
 
         new_course = new_course.json_body
         new_course_href = new_course['href']
@@ -269,6 +271,7 @@ class TestCourseManagement(ApplicationLayerTest):
                     is_not('tag:nextthought.com,2011-10:NTI-CourseInfo-TheLastMan_Yorick'))
         assert_that(catalog['ProviderUniqueID'], is_(new_course_key))
         assert_that(catalog['title'], is_(new_course_title))
+        assert_that(catalog['RichDescription'], is_(new_course_desc))
 
         # Verify that this course is non-public.
         new_course_ntiid = new_course['NTIID']
@@ -299,7 +302,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # This view will create the course no matter what, in this case by
         # toggling the key.
         res = self.testapp.post_json(new_admin_href,
-                                     {'key': new_course_key,
+                                     {'ProviderUniqueID': new_course_key,
                                       'title': 'course title2'})
         res = res.json_body
         new_course_href2 = res['href']
