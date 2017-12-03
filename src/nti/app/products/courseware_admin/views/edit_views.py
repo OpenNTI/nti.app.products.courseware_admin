@@ -67,7 +67,7 @@ class CatalogEntryPresentationAssetsPutView(AbstractAuthenticatedView,
             return jid
         return None
 
-    def __call__(self):
+    def _do_call(self):
         # Not allowed to edit these courses
         if ILegacyCourseCatalogEntry.providedBy(self.context):
             raise_json_error(self.request,
@@ -106,8 +106,8 @@ class CatalogEntryPutView(CatalogEntryPresentationAssetsPutView):
         values = ModeledContentUploadRequestUtilsMixin.readInput(self, value)
         return self.clean_input(values)
 
-    def __call__(self):
-        CatalogEntryPresentationAssetsPutView.__call__(self)
+    def _do_call(self):
+        CatalogEntryPresentationAssetsPutView._do_call(self)
         # Get the new course info as input data
         values = self.readInput()
         fill_entry_from_legacy_json(self.context, values,

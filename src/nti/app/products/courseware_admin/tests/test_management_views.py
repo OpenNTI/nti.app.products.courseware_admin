@@ -413,3 +413,7 @@ class TestCourseManagement(ApplicationLayerTest):
         res = res.json_body
         assert_that(res['tags'], has_length(non_hidden_tag_count))
 
+        # Validation
+        tags = ('too_long' * 50,)
+        self.testapp.put_json(entry_href, {"tags": tags}, status=422)
+
