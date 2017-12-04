@@ -260,16 +260,6 @@ class CreateCourseView(AbstractAuthenticatedView,
                          'code': 'RequiredMissing'})
         return result
 
-    @Lazy
-    def _course_title(self):
-        values = self._params
-        result = values.get('title')
-        if not result:
-            raise_error({'field': 'title',
-                         'message': _(u'Missing title'),
-                         'code': 'RequiredMissing'})
-        return result
-
     def _post_create(self, course):
         catalog_entry = ICourseCatalogEntry(course)
         fill_entry_from_legacy_json(catalog_entry, self._params,
@@ -312,7 +302,7 @@ class CreateCourseView(AbstractAuthenticatedView,
                 pass
         return course, key
 
-    def __call__(self):
+    def _do_call(self):
         admin_level = self.context.__name__
         course, key = self._create_course(admin_level)
         entry = self._post_create(course)
