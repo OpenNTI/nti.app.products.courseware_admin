@@ -318,6 +318,8 @@ class TestCourseManagement(ApplicationLayerTest):
 
         # We at least need the title/ProviderUniqueID to create a course
         self.testapp.post_json(new_admin_href, status=422)
+        self.testapp.post_json(new_admin_href, {'ProviderUniqueID': 'id001'}, status=422)
+        self.testapp.post_json(new_admin_href, {'title': 'id001'}, status=422)
 
         # XXX: Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)
