@@ -211,8 +211,8 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 'message': _(u"Invalid administrative level."),
                 'code': 'InvalidAdminLevel',
             })
-        logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s) (site=%s)',
-                    key, admin, path, lockout, clear, site.__name__)
+        logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s) (writeout=%s) (site=%s)',
+                    key, admin, path, lockout, clear, writeout, site.__name__)
         return create_course(admin, key, path, catalog, writeout,
                              lockout, clear, self.remoteUser.username)
 
