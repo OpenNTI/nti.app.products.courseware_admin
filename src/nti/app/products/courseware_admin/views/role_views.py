@@ -9,6 +9,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import csv
+
 from io import BytesIO
 
 from requests.structures import CaseInsensitiveDict
@@ -72,6 +73,7 @@ from nti.contenttypes.courses.interfaces import CourseInstructorRemovedEvent
 from nti.contenttypes.courses.sharing import add_principal_to_course_content_roles
 from nti.contenttypes.courses.sharing import remove_principal_from_course_content_roles
 
+from nti.contenttypes.courses.utils import is_enrolled
 from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import get_course_instructors
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
@@ -312,8 +314,12 @@ class CourseEditorsRemovalView(AbstractCourseDenyView, EditorManageMixin):
 
     def deny_permission(self, user):
         super(CourseEditorsRemovalView, self).deny_permission(user)
-        if IPrincipal(user) not in self.course.instructors:
-            remove_principal_from_course_content_roles(user, self.course, unenroll=True)
+        if      IPrincipal(user) not in self.course.instructors \
+            and not is_enrolled(self.course, user):
+            # If not instructor and not enrolled, remove content access.
+            remove_principal_from_course_content_roles(user,
+                                                       self.course,
+                                                       unenroll=True)
     _edit_permissions = deny_permission
 
 
