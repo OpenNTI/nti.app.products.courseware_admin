@@ -84,6 +84,7 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
                               ModeledContentUploadRequestUtilsMixin):
 
     def clean_input(self, values):
+        # pylint: disable=expression-not-assigned
         [values.pop(x, None) for x in EXCLUDE]
         return values
 
@@ -129,6 +130,7 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
         values = self.readInput()
         course = ICourseInstance(entry)
         vendor = ICourseInstanceVendorInfo(course)
+        # pylint: disable=too-many-function-args
         vendor.clear()
         vendor.update(values)
         return vendor

@@ -13,6 +13,11 @@ import shutil
 
 from requests.structures import CaseInsensitiveDict
 
+from pyramid import httpexceptions as hexc
+
+from pyramid.view import view_config
+from pyramid.view import view_defaults
+
 from zope import component
 from zope import interface
 
@@ -21,11 +26,6 @@ from zope.cachedescriptors.property import Lazy
 from zope.component.hooks import site as current_site
 
 from zope.event import notify
-
-from pyramid import httpexceptions as hexc
-
-from pyramid.view import view_config
-from pyramid.view import view_defaults
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
@@ -106,6 +106,7 @@ class AdminLevelsGetView(AbstractAuthenticatedView):
         data = self.readInput()
         parents = is_true(data.get('parents', 'true'))
         result = LocatedExternalDict()
+        # pylint: disable=no-member
         admin_levels = self.context.get_admin_levels(parents)
         result[ITEMS] = {
             x: to_external_object(y, name='summary')
@@ -243,7 +244,7 @@ class CreateCourseView(AbstractAuthenticatedView,
             values = super(CreateCourseView, self).readInput(value)
         else:
             values = self.request.params
-        # XXX: Can't be CaseInsensitive with internalization
+        # Can't be CaseInsensitive with internalization
         return values
 
     @Lazy
@@ -252,6 +253,7 @@ class CreateCourseView(AbstractAuthenticatedView,
 
     @Lazy
     def _course_classifier(self):
+        # pylint: disable=no-member
         values = self._params
         result = values.get('ProviderUniqueID')
         if not result:
@@ -287,10 +289,11 @@ class CreateCourseView(AbstractAuthenticatedView,
         Iterating over our ``_get_course_key_iter`` until we have
         successfully created a course.
         """
-        course = None
+        key = course = None
         course_key_iter = self._get_course_key_iter()
         for key in course_key_iter:
             try:
+                # pylint: disable=no-member
                 course = create_course(admin_level,
                                        key,
                                        writeout=False,
@@ -368,6 +371,7 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView,
 
     @Lazy
     def include_str(self):
+        # pylint: disable=no-member
         return self._params.get('tag') \
             or self._params.get('filter')
 

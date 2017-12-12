@@ -5,8 +5,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-# disable: accessing protected members, too many methods
-# pylint: disable=W0212,R0904
+# pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import none
 from hamcrest import is_not
@@ -16,19 +15,19 @@ from hamcrest import has_entries
 from hamcrest import greater_than
 does_not = is_not
 
-from nti.contenttypes.courses.interfaces import ICourseInstance
-
-from nti.ntiids.ntiids import find_object_with_ntiid
-
-from nti.ntiids.oids import to_external_ntiid_oid
-
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
 from nti.app.testing.application_webtest import ApplicationLayerTest
 
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
+from nti.contenttypes.courses.interfaces import ICourseInstance
+
 from nti.dataserver.tests import mock_dataserver
+
+from nti.ntiids.ntiids import find_object_with_ntiid
+
+from nti.ntiids.oids import to_external_ntiid_oid
 
 
 class TestSyncViews(ApplicationLayerTest):

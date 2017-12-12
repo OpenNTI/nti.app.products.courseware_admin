@@ -9,10 +9,14 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import csv
-
 from io import BytesIO
 
 from requests.structures import CaseInsensitiveDict
+
+from pyramid import httpexceptions as hexc
+
+from pyramid.view import view_config
+from pyramid.view import view_defaults
 
 from zope import component
 
@@ -25,11 +29,6 @@ from zope.intid.interfaces import IIntIds
 from zope.security.interfaces import IPrincipal
 
 from zope.securitypolicy.interfaces import IPrincipalRoleManager
-
-from pyramid import httpexceptions as hexc
-
-from pyramid.view import view_config
-from pyramid.view import view_defaults
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
@@ -161,7 +160,7 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         """
         raise NotImplementedError()
 
-    def readInput(self):
+    def readInput(self, unused_value=None):
         if self.request.body:
             values = read_body_as_external_object(self.request)
         else:
@@ -197,6 +196,7 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         return IPrincipalRoleManager(self.course)
 
     def __call__(self):
+        # pylint: disable=no-member
         self.require_access(self.remoteUser, self.context)
         usernames = self._get_users()
         for username in usernames:
@@ -211,9 +211,10 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         return hexc.HTTPNoContent()
 
 
-class AbstractCourseGrantView(AbstractRoleManagerView):
+class AbstractCourseGrantView(AbstractRoleManagerView):  # pylint: disable=abstract-method
 
     def grant_permission(self, user):
+        # pylint: disable=no-member
         principal_id = IPrincipal(user).id
         self.role_manager.assignRoleToPrincipal(self.ROLE_ID, principal_id)
         logger.info('Granted user access to course (%s) (%s) (%s)',
@@ -263,11 +264,12 @@ class CourseEditorsInsertView(AbstractCourseGrantView, EditorManageMixin):
     _edit_permissions = grant_permission
 
 
-class AbstractCourseDenyView(AbstractRoleManagerView):
+class AbstractCourseDenyView(AbstractRoleManagerView):  # pylint: disable=abstract-method
 
     def deny_permission(self, user):
         principal_id = IPrincipal(user).id
         # Matches what we do during sync.
+        # pylint: disable=no-member
         self.role_manager.unsetRoleForPrincipal(self.ROLE_ID, principal_id)
         logger.info('Removed user access to course (%s) (%s) (%s)',
                     user.username, self.ROLE_ID, self.entry_ntiid)

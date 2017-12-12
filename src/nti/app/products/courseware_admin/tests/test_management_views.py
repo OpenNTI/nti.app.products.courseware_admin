@@ -5,8 +5,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-# disable: accessing protected members, too many methods
-# pylint: disable=W0212,R0904
+# pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import is_
 from hamcrest import is_not
@@ -24,10 +23,16 @@ import shutil
 
 from zope import component
 
+from nti.app.products.courseware.views import VIEW_COURSE_ACCESS_TOKENS
+
+from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
+
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 
-from nti.app.products.courseware.views import VIEW_COURSE_ACCESS_TOKENS
+from nti.app.testing.application_webtest import ApplicationLayerTest
+
+from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.contentlibrary.interfaces import IContentPackageLibrary
 from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnumeration
@@ -38,17 +43,12 @@ from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 
+from nti.dataserver.tests import mock_dataserver
+
 from nti.externalization.interfaces import StandardExternalFields
 
 from nti.ntiids.ntiids import find_object_with_ntiid
 
-from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
-
-from nti.app.testing.application_webtest import ApplicationLayerTest
-
-from nti.app.testing.decorators import WithSharedApplicationMockDS
-
-from nti.dataserver.tests import mock_dataserver
 
 ITEMS = StandardExternalFields.ITEMS
 CLASS = StandardExternalFields.CLASS
@@ -70,6 +70,7 @@ class TestCourseManagement(ApplicationLayerTest):
         with mock_dataserver.mock_db_trans(site_name='janux.ou.edu'):
             library = component.getUtility(IContentPackageLibrary)
             enumeration = IDelimitedHierarchyContentPackageEnumeration(library)
+            # pylint: disable=no-member
             shutil.rmtree(enumeration.root.absolute_path, True)
 
     def _sync(self):
@@ -80,6 +81,7 @@ class TestCourseManagement(ApplicationLayerTest):
             enumeration_root = enumeration.root
 
             name = course_catalog.__name__
+            # pylint: disable=no-member
             courses_bucket = enumeration_root.getChildNamed(name)
             synchronize_catalog_from_root(course_catalog, courses_bucket)
 
@@ -318,10 +320,11 @@ class TestCourseManagement(ApplicationLayerTest):
 
         # We at least need the title/ProviderUniqueID to create a course
         self.testapp.post_json(new_admin_href, status=422)
-        self.testapp.post_json(new_admin_href, {'ProviderUniqueID': 'id001'}, status=422)
+        self.testapp.post_json(
+            new_admin_href, {'ProviderUniqueID': 'id001'}, status=422)
         self.testapp.post_json(new_admin_href, {'title': 'id001'}, status=422)
 
-        # XXX: Not sure this is externalized like we want.
+        # Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)
         assert_that(courses.json_body, has_item(new_course_key))
 
@@ -343,7 +346,8 @@ class TestCourseManagement(ApplicationLayerTest):
         catalog_ws = next(x for x in workspaces if x['Title'] == 'Catalog')
         assert_that(catalog_ws, not_none())
         catalog_collections = catalog_ws['Items']
-        assert_that(catalog_collections, has_length(greater_than_or_equal_to(2)))
+        assert_that(catalog_collections, 
+                    has_length(greater_than_or_equal_to(2)))
         courses_collection = next(
             x for x in catalog_collections if x['Title'] == name
         )
@@ -358,15 +362,18 @@ class TestCourseManagement(ApplicationLayerTest):
         with mock_dataserver.mock_db_trans(self.ds):
             self._create_user('non_admin_user')
         user_environ = self._make_extra_environ('non_admin_user')
+
         # Set tags on an object
         entry_href = '/dataserver2/%2B%2Betc%2B%2Bhostsites/platform.ou.edu/%2B%2Betc%2B%2Bsite/Courses/Fall2013/CLC3403_LawAndJustice/CourseCatalogEntry'
-        tags = [u'DELTA', u'alpha', u'alph', u'BETA', u'gaMMA', u'omega', u'law', u'LAW', u'.hidden']
+        tags = [u'DELTA', u'alpha', u'alph', u'BETA',
+                u'gaMMA', u'omega', u'law', u'LAW', u'.hidden']
         lower_tag_set = {x.lower() for x in tags}
         tag_count = len(lower_tag_set)
         non_hidden_tag_count = tag_count - 1
         entry = self.testapp.put_json(entry_href, {"tags": tags})
         entry = entry.json_body
-        assert_that(entry, has_entry('tags', contains_inanyorder(*lower_tag_set)))
+        assert_that(entry, 
+                    has_entry('tags', contains_inanyorder(*lower_tag_set)))
 
         courses_collection = self._get_catalog_collection()
         tag_url = self.require_link_href_with_rel(courses_collection,
@@ -389,7 +396,8 @@ class TestCourseManagement(ApplicationLayerTest):
         starts_with = tags[:2]
         other = tags[2:]
         assert_that(starts_with, contains(u'alph', u'alpha'))
-        assert_that(other, contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
+        assert_that(other, 
+                    contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
 
         # Batching
         tags = self.testapp.get('%s?filter=%s&batchStart=0&batchSize=2' % (tag_url, 'a'))
@@ -399,12 +407,13 @@ class TestCourseManagement(ApplicationLayerTest):
         tags = self.testapp.get('%s?filter=%s&batchStart=2&batchSize=10' % (tag_url, 'a'))
         tags = tags.json_body[ITEMS]
         assert_that(tags, has_length(5))
-        assert_that(tags, contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
-
+        assert_that(tags, 
+                    contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
 
         tags = self.testapp.get('%s?filter=%s' % (tag_url, 'xxx')).json_body
         tags = tags[ITEMS]
         assert_that(tags, has_length(0))
+
         tags = self.testapp.get('%s?filter=%s&batchStart=0&batchSize=3'
                                 % (tag_url, 'xxx')).json_body
         tags = tags[ITEMS]
@@ -418,4 +427,3 @@ class TestCourseManagement(ApplicationLayerTest):
         # Validation
         tags = ('too_long' * 50,)
         self.testapp.put_json(entry_href, {"tags": tags}, status=422)
-
