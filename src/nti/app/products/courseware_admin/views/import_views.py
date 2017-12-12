@@ -213,6 +213,7 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
             })
         logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s) (writeout=%s) (site=%s)',
                     key, admin, path, lockout, clear, writeout, site.__name__)
+        # pylint: disable=no-member
         return create_course(admin, key, path, catalog, writeout,
                              lockout, clear, self.remoteUser.username)
 

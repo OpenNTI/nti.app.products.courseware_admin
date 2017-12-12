@@ -5,8 +5,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-# disable: accessing protected members, too many methods
-# pylint: disable=W0212,R0904
+# pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import is_
 from hamcrest import none
@@ -33,11 +32,17 @@ from nti.app.products.courseware.resources.interfaces import ICourseRootFolder
 
 from nti.app.products.courseware.resources.model import CourseContentFile
 
+from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
+
 from nti.app.products.courseware_admin.exporter import export_course
 
 from nti.app.products.courseware_admin.importer import create_course
 
 from nti.app.contentfolder.utils import to_external_cf_io_href
+
+from nti.app.testing.application_webtest import ApplicationLayerTest
+
+from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.appserver.workspaces import UserEnumerationWorkspace
 
@@ -47,17 +52,12 @@ from nti.contenttypes.courses.interfaces import ICourseSectionImporter
 
 from nti.contenttypes.presentation.interfaces import IContentBackedPresentationAsset
 
+from nti.dataserver.tests import mock_dataserver
+
 from nti.ntiids.ntiids import find_object_with_ntiid
 
 from nti.ntiids.oids import to_external_ntiid_oid
 
-from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
-
-from nti.app.testing.application_webtest import ApplicationLayerTest
-
-from nti.app.testing.decorators import WithSharedApplicationMockDS
-
-from nti.dataserver.tests import mock_dataserver
 
 
 class TestCourseImport(ApplicationLayerTest):

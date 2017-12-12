@@ -5,13 +5,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-# disable: accessing protected members, too many methods
-# pylint: disable=W0212,R0904
+# pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import has_entries
 from hamcrest import assert_that
 
-from six.moves.urllib_parse import urlencode
+from six.moves import urllib_parse
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
@@ -37,15 +36,15 @@ class TestCourseEdits(ApplicationLayerTest):
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?admin=Fall2015'
         self.testapp.get(href, status=422)
 
-        params = urlencode((("admin", 'Fall2015'),
-                            ('key', 'CS 1323'),
-                            ('site', 'bleach.prg')))
+        params = urllib_parse.urlencode((("admin", 'Fall2015'),
+                                         ('key', 'CS 1323'),
+                                         ('site', 'bleach.prg')))
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
         self.testapp.get(href, status=422)
 
-        params = urlencode((("admin", 'Fall2015'),
-                            ('key', 'CS 1323'),
-                            ('site', 'platform.ou.edu')))
+        params = urllib_parse.urlencode((("admin", 'Fall2015'),
+                                         ('key', 'CS 1323'),
+                                         ('site', 'platform.ou.edu')))
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
         res = self.testapp.get(href,
                                status=200)
@@ -53,16 +52,16 @@ class TestCourseEdits(ApplicationLayerTest):
         assert_that(res.json_body,
                     has_entries('Title', 'Introduction to Computer Programming'))
 
-        params = urlencode((("admin", 'Fall2015'),
-                            ('key', 'CS 1323'),
-                            ('section', '995'),
-                            ('site', 'platform.ou.edu')))
+        params = urllib_parse.urlencode((("admin", 'Fall2015'),
+                                         ('key', 'CS 1323'),
+                                         ('section', '995'),
+                                         ('site', 'platform.ou.edu')))
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
         self.testapp.get(href, status=200)
 
-        params = urlencode((("admin", 'Fall2015'),
-                            ('key', 'CS 1323'),
-                            ('section', 'xxxx'),
-                            ('site', 'platform.ou.edu')))
+        params = urllib_parse.urlencode((("admin", 'Fall2015'),
+                                         ('key', 'CS 1323'),
+                                         ('section', 'xxxx'),
+                                         ('site', 'platform.ou.edu')))
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
         self.testapp.get(href, status=404)

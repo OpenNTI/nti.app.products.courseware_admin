@@ -25,6 +25,7 @@ def export_course(context, backup=True, salt=None, path=None):
     course = ICourseInstance(context)
     filer = ICourseExportFiler(course)
     entry = ICourseCatalogEntry(course)
+    # pylint: disable=too-many-function-args
     try:
         # prepare filer
         filer.prepare()
@@ -36,6 +37,7 @@ def export_course(context, backup=True, salt=None, path=None):
         exporter.export(course, filer, backup, salt)
         # zip contents
         path = path or tempfile.mkdtemp()
+        # pylint: disable=redundant-keyword-arg
         zip_file = filer.asZip(path=path)
         return zip_file
     finally:

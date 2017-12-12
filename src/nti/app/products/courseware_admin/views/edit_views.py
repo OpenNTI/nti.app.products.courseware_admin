@@ -8,13 +8,13 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-from zope import component
-
-from zope.intid.interfaces import IIntIds
-
 from pyramid import httpexceptions as hexc
 
 from pyramid.view import view_config
+
+from zope import component
+
+from zope.intid.interfaces import IIntIds
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
@@ -36,6 +36,12 @@ from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.legacy_catalog import ILegacyCourseCatalogEntry
 
 from nti.dataserver import authorization as nauth
+
+from nti.externalization.interfaces import StandardExternalFields
+from nti.externalization.interfaces import StandardInternalFields
+
+NTIID = StandardExternalFields.NTIID
+INT_NTIID = StandardInternalFields.NTIID
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -95,7 +101,8 @@ class CatalogEntryPutView(CatalogEntryPresentationAssetsPutView):
         values.pop("PlatformPresentationResources", None)
         if "Duration" in values:
             values[u"duration"] = values["Duration"]
-        [values.pop(x, None) for x in ('NTIID', 'ntiid')]
+        # pylint: disable=expression-not-assigned
+        [values.pop(x, None) for x in (NTIID, INT_NTIID)]
         if "tags" in values:
             # Dedupe and sanitize these.
             tags = values['tags'] or ()

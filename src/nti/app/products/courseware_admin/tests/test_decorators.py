@@ -5,25 +5,24 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-# disable: accessing protected members, too many methods
-# pylint: disable=W0212,R0904
+# pylint: disable=protected-access,too-many-public-methods
 
 from zope.cachedescriptors.property import Lazy
 
+from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
+
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
+
+from nti.app.testing.application_webtest import ApplicationLayerTest
+
+from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.contenttypes.courses.interfaces import ICourseInstance
 
 from nti.ntiids.ntiids import find_object_with_ntiid
 
 from nti.ntiids.oids import to_external_ntiid_oid
-
-from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
-
-from nti.app.testing.application_webtest import ApplicationLayerTest
-
-from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.dataserver.tests import mock_dataserver
 

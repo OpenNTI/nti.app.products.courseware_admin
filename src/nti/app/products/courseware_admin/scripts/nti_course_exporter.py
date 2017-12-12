@@ -68,6 +68,7 @@ def _export(ntiid, site, backup, salt=None, path=None):
         raise ValueError("Invalid output path")
 
     # prepare source filer
+    # pylint: disable=too-many-function-args
     filer = ICourseExportFiler(course)
     filer.prepare()
 
@@ -76,6 +77,7 @@ def _export(ntiid, site, backup, salt=None, path=None):
     exporter.export(course, filer, backup=backup, salt=salt)
 
     # zip contents
+    # pylint: disable=redundant-keyword-arg
     zip_file = filer.asZip(path=path)
 
     # remove all content

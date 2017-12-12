@@ -10,10 +10,10 @@ from __future__ import absolute_import
 
 import time
 
-from zope import component
-
 from pyramid.view import view_config
 from pyramid.view import view_defaults
+
+from zope import component
 
 from nti.app.contentlibrary.views.sync_views import _SyncAllLibrariesView
 

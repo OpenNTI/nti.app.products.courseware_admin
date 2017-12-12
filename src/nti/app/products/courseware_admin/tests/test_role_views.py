@@ -5,8 +5,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-# disable: accessing protected members, too many methods
-# pylint: disable=W0212,R0904
+# pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import is_
 from hamcrest import is_not
@@ -21,10 +20,16 @@ from zope import component
 
 from zope.cachedescriptors.property import Lazy
 
+from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
+
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
+
+from nti.app.testing.application_webtest import ApplicationLayerTest
+
+from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.contentlibrary.interfaces import IContentPackageLibrary
 from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnumeration
@@ -40,6 +45,8 @@ from nti.contenttypes.courses.common import get_course_packages
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 
+from nti.dataserver.tests import mock_dataserver
+
 from nti.dataserver.users.interfaces import IUserProfile
 
 from nti.externalization.interfaces import StandardExternalFields
@@ -47,14 +54,6 @@ from nti.externalization.interfaces import StandardExternalFields
 from nti.ntiids.ntiids import find_object_with_ntiid
 
 from nti.ntiids.oids import to_external_ntiid_oid
-
-from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
-
-from nti.app.testing.application_webtest import ApplicationLayerTest
-
-from nti.app.testing.decorators import WithSharedApplicationMockDS
-
-from nti.dataserver.tests import mock_dataserver
 
 ITEMS = StandardExternalFields.ITEMS
 CLASS = StandardExternalFields.CLASS
@@ -80,6 +79,7 @@ class TestRoleViews(ApplicationLayerTest):
             enumeration_root = enumeration.root
 
             name = course_catalog.__name__
+            # pylint: disable=no-member
             courses_bucket = enumeration_root.getChildNamed(name)
             synchronize_catalog_from_root(course_catalog, courses_bucket)
 
@@ -115,10 +115,8 @@ class TestRoleViews(ApplicationLayerTest):
                                env=None,
                                has_instructor_links=False,
                                has_editor_links=False):
-        inst_test = self.require_link_href_with_rel if has_instructor_links \
-                    else self.forbid_link_with_rel
-        editor_test = self.require_link_href_with_rel if has_editor_links \
-                    else self.forbid_link_with_rel
+        inst_test = self.require_link_href_with_rel if has_instructor_links else self.forbid_link_with_rel
+        editor_test = self.require_link_href_with_rel if has_editor_links else self.forbid_link_with_rel
         course_ext = self._get_course_ext(env)
         for rel in (VIEW_COURSE_INSTRUCTORS, VIEW_COURSE_REMOVE_INSTRUCTORS):
             inst_test(course_ext, rel)
@@ -131,7 +129,7 @@ class TestRoleViews(ApplicationLayerTest):
             course = find_object_with_ntiid(self.course_oid)
             role_json_key = course.root.getChildNamed(ROLE_INFO_NAME)
             result = fill_roles_from_key(course, role_json_key, force=True)
-            assert_that( result, is_(True), 'Instructors did not sync')
+            assert_that(result, is_(True), 'Instructors did not sync')
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_roles(self):
@@ -283,8 +281,8 @@ class TestRoleViews(ApplicationLayerTest):
             if username == 'hero.brown':
                 assert_that(admin_courses[ITEMS], has_length(0))
                 for package_href in package_hrefs:
-                    self.testapp.get(
-                        package_href, extra_environ=env, status=403)
+                    self.testapp.get(package_href, extra_environ=env, 
+                                     status=403)
             else:
                 assert_that(admin_courses[ITEMS], has_length(1))
                 for package_href in package_hrefs:
@@ -320,7 +318,8 @@ class TestRoleViews(ApplicationLayerTest):
         self.testapp.delete_json(remove_instructor_href, {'user': 'yorick.brown'})
         instructors = _instructor_names()
         assert_that(instructors, has_length(3))
-        assert_that(instructors, contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
+        assert_that(instructors, 
+                    contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
         editors = _editor_names()
         assert_that(editors, has_length(4))
         assert_that(editors,
@@ -338,7 +337,8 @@ class TestRoleViews(ApplicationLayerTest):
         self._validate_manage_links(yorick_environ, has_instructor_links=True)
         for package_href in package_hrefs:
             self.testapp.get(package_href, extra_environ=env)
-        self.testapp.delete_json(remove_instructor_href, {'user': 'yorick.brown'})
+        self.testapp.delete_json(remove_instructor_href,
+                                 {'user': 'yorick.brown'})
 
         # Remove instructor
         self.testapp.delete_json(remove_instructor_href, {'user': 'ampersand'})
@@ -354,7 +354,7 @@ class TestRoleViews(ApplicationLayerTest):
         assert_that(instructors, has_length(3))
         assert_that(instructors,
                     contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
-        self.testapp.delete( '%s/%s' % (remove_instructor_href, 'ampersand'))
+        self.testapp.delete('%s/%s' % (remove_instructor_href, 'ampersand'))
         instructors = _instructor_names()
         assert_that(instructors, has_length(2))
         assert_that(instructors, contains_inanyorder('jmadden', 'harp4162'))
@@ -362,10 +362,10 @@ class TestRoleViews(ApplicationLayerTest):
 
         # Remove editor
         self.testapp.delete_json(remove_editor_href,
-                                {'user': 'three-fifty-five'})
+                                 {'user': 'three-fifty-five'})
 
         self.testapp.delete_json(remove_editor_href,
-                                {'user': 'three-fifty-five'})
+                                 {'user': 'three-fifty-five'})
         editors = _editor_names()
         assert_that(instructors, has_length(2))
         assert_that(instructors,
