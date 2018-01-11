@@ -19,6 +19,8 @@ from zope import component
 from zope.component.hooks import getSite
 from zope.component.hooks import site as current_site
 
+from zope.event import notify
+
 from zope.security.management import endInteraction
 from zope.security.management import restoreInteraction
 
@@ -56,6 +58,7 @@ from nti.dataserver import authorization as nauth
 
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
+from nti.externalization.interfaces import ObjectModifiedFromExternalEvent
 
 from nti.namedfile.file import safe_filename
 
@@ -146,7 +149,9 @@ class CourseImportView(AbstractAuthenticatedView, CourseImportMixin):
                           lockout,
                           clear=clear)
             result['Elapsed'] = time.time() - now
-            result['Course'] = ICourseInstance(self.context)
+            course = ICourseInstance(self.context)
+            result['Course'] = course
+            notify(ObjectModifiedFromExternalEvent(course))
         finally:
             delete_directory(tmp_path)
         return result
@@ -242,6 +247,7 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 params['Admin'] = admin = values.get('admin')
                 course = self._create_course(admin, key, path, writeout,
                                              lockout, clear, site)
+            notify(ObjectModifiedFromExternalEvent(course))
             result['Course'] = course
             result['Elapsed'] = time.time() - now
         except Exception as e:
