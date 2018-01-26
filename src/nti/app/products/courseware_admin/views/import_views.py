@@ -152,6 +152,7 @@ class CourseImportView(AbstractAuthenticatedView, CourseImportMixin):
             course = ICourseInstance(self.context)
             result['Course'] = course
             notify(ObjectModifiedFromExternalEvent(course))
+            notify(ObjectModifiedFromExternalEvent(entry))
         finally:
             delete_directory(tmp_path)
         return result
@@ -248,6 +249,10 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 course = self._create_course(admin, key, path, writeout,
                                              lockout, clear, site)
             notify(ObjectModifiedFromExternalEvent(course))
+            # Test safety
+            entry = ICourseCatalogEntry(course, None)
+            if entry is not None:
+                notify(ObjectModifiedFromExternalEvent(entry))
             result['Course'] = course
             result['Elapsed'] = time.time() - now
         except Exception as e:
