@@ -55,18 +55,21 @@ class CatalogEntryPresentationAssetsPutView(AbstractAuthenticatedView,
                                             ModeledContentUploadRequestUtilsMixin,
                                             ContentPackageBundleMixin):
 
+    def _get_bucket(self, course):
+        return course.root
+
     def handle_presentation_assets(self):
         # handle presentation-assets and save
         assets = self.get_source(self.request)
         if assets is not None:
             intids = component.getUtility(IIntIds)
             course = ICourseInstance(self.context)
-            assets = self.check_presentation_assets(assets)
             # check for transaction retrial
             jid = getattr(self.request, 'jid', None)
             if jid is None:
                 doc_id = intids.getId(course)
-                save_presentation_assets(assets, course.root)
+                bucket = self._get_bucket(course)
+                save_presentation_assets(assets, bucket)
                 entry = ICourseCatalogEntry(course)
                 entry.root = course.root
                 self.request.jid = doc_id
