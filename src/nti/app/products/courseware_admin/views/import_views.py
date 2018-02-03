@@ -46,6 +46,7 @@ from nti.app.products.courseware_admin.views import VIEW_ADMIN_IMPORT_COURSE
 from nti.cabinet.filer import transfer_to_native_file
 
 from nti.common.string import is_true
+from nti.common.string import is_false
 
 from nti.contenttypes.courses.creator import delete_directory
 from nti.contenttypes.courses.creator import install_admin_level
@@ -53,8 +54,11 @@ from nti.contenttypes.courses.creator import install_admin_level
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+from nti.contenttypes.courses.interfaces import DuplicateImportFromExportException
 
 from nti.dataserver import authorization as nauth
+
+from nti.dataserver.authorization import is_admin_or_content_admin
 
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
@@ -73,7 +77,8 @@ NTIID = StandardExternalFields.NTIID
 logger = __import__('logging').getLogger(__name__)
 
 
-class CourseImportMixin(ModeledContentUploadRequestUtilsMixin):
+class CourseImportMixin(AbstractAuthenticatedView,
+                        ModeledContentUploadRequestUtilsMixin):
 
     def readInput(self, value=None):
         if not self.request.body:
@@ -81,6 +86,18 @@ class CourseImportMixin(ModeledContentUploadRequestUtilsMixin):
         else:
             result = super(CourseImportMixin, self).readInput(value)
             return CaseInsensitiveDict(result)
+
+    def _get_validate_export_hash(self, values):
+        """
+        Get the validate_export_hash param from the user. We only allow
+        users to override this export_hash validation if they are an NT
+        or content admin.
+        """
+        validate_export_hash = True
+        if is_admin_or_content_admin(self.remoteUser):
+            # Default to True if not specified
+            validate_export_hash = not is_false(values.get('validate_export_hash'))
+        return validate_export_hash
 
     def _get_source_paths(self, values):
         tmp_path = None
@@ -120,6 +137,11 @@ class CourseImportMixin(ModeledContentUploadRequestUtilsMixin):
         endInteraction()
         try:
             return self._do_call()
+        except DuplicateImportFromExportException:
+            raise_error({
+                    'message': _(u"Duplicate import from export file error"),
+                    'code': 'DuplicateImportFromExportError',
+                })
         finally:
             restoreInteraction()
 
@@ -130,7 +152,7 @@ class CourseImportMixin(ModeledContentUploadRequestUtilsMixin):
                renderer='rest',
                name=VIEW_IMPORT_COURSE,
                permission=nauth.ACT_CONTENT_EDIT)
-class CourseImportView(AbstractAuthenticatedView, CourseImportMixin):
+class CourseImportView(CourseImportMixin):
 
     def _do_call(self):
         tmp_path = None
@@ -143,11 +165,13 @@ class CourseImportView(AbstractAuthenticatedView, CourseImportMixin):
             clear = is_true(values.get('clear'))
             writeout = is_true(values.get('writeout') or values.get('save'))
             lockout = is_true(values.get('lock') or values.get('lockout'))
+            validate_export_hash = self._get_validate_export_hash(values)
             import_course(entry.ntiid,
                           os.path.abspath(path),
                           writeout,
                           lockout,
-                          clear=clear)
+                          clear=clear,
+                          validate_export_hash=validate_export_hash)
             result['Elapsed'] = time.time() - now
             course = ICourseInstance(self.context)
             result['Course'] = course
@@ -164,10 +188,10 @@ class CourseImportView(AbstractAuthenticatedView, CourseImportMixin):
                request_method='POST',
                name=VIEW_ADMIN_IMPORT_COURSE,
                permission=nauth.ACT_CONTENT_EDIT)
-class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
+class ImportCourseView(CourseImportMixin):
 
     def _import_course(self, ntiid, path, writeout=True,
-                       lockout=False, clear=False):
+                       lockout=False, clear=False, validate_export_hash=True):
         context = find_object_with_ntiid(ntiid)
         course = ICourseInstance(context, None)
         if course is None:
@@ -179,10 +203,11 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                              path,
                              writeout,
                              lockout,
-                             clear=clear)
+                             clear=clear,
+                             validate_export_hash=validate_export_hash)
 
     def _create_course(self, admin, key, path, writeout=True,
-                       lockout=False, clear=False, site=None):
+                       lockout=False, clear=False, site=None, validate_export_hash=True):
         if not admin:
             raise_error({
                 'message': _(u"No administrative level specified."),
@@ -217,11 +242,13 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
                 'message': _(u"Invalid administrative level."),
                 'code': 'InvalidAdminLevel',
             })
-        logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s) (writeout=%s) (site=%s)',
-                    key, admin, path, lockout, clear, writeout, site.__name__)
+        logger.info('Importing course (key=%s) (admin=%s) (path=%s) (lockout=%s) (clear=%s) (writeout=%s) (site=%s) (validate_export_hash=%s)',
+                    key, admin, path, lockout, clear, writeout, site.__name__,
+                    validate_export_hash)
         # pylint: disable=no-member
         return create_course(admin, key, path, catalog, writeout,
-                             lockout, clear, self.remoteUser.username)
+                             lockout, clear, self.remoteUser.username,
+                             validate_export_hash=validate_export_hash)
 
     def _do_call(self):
         tmp_path = None
@@ -235,19 +262,22 @@ class ImportCourseView(AbstractAuthenticatedView, CourseImportMixin):
             path = os.path.abspath(path)
             clear = is_true(values.get('clear'))
             writeout = is_true(values.get('writeout') or values.get('save'))
+            validate_export_hash = self._get_validate_export_hash(values)
             lockout = is_true(   values.get('lock')
                               or values.get('lockout')
                               or 'True')
             if ntiid:
                 params[NTIID] = ntiid
                 course = self._import_course(ntiid, path, writeout,
-                                             lockout, clear=clear)
+                                             lockout, clear=clear,
+                                             validate_export_hash=validate_export_hash)
             else:
                 site = values.get('site')
                 params['Key'] = key = values.get('key')
                 params['Admin'] = admin = values.get('admin')
                 course = self._create_course(admin, key, path, writeout,
-                                             lockout, clear, site)
+                                             lockout, clear, site,
+                                             validate_export_hash=validate_export_hash)
             notify(ObjectModifiedFromExternalEvent(course))
             # Test safety
             entry = ICourseCatalogEntry(course, None)

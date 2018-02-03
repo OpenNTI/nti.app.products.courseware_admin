@@ -10,6 +10,8 @@ from __future__ import absolute_import
 from hamcrest import is_
 from hamcrest import is_in
 from hamcrest import is_not
+from hamcrest import not_none
+from hamcrest import has_item
 from hamcrest import has_length
 from hamcrest import assert_that
 from hamcrest import greater_than
@@ -29,6 +31,8 @@ from nti.app.testing.application_webtest import ApplicationLayerTest
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.cabinet.mixins import get_file_size
+
+from nti.contenttypes.courses import COURSE_EXPORT_HASH_FILE
 
 from nti.contenttypes.courses.interfaces import ICourseSectionExporter
 
@@ -68,6 +72,13 @@ class TestCourseExport(ApplicationLayerTest):
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_export_course(self):
+        def _get_export_hash(path):
+            export_zip = zipfile.ZipFile(path)
+            assert_that(export_zip.namelist(), has_item(COURSE_EXPORT_HASH_FILE))
+            export_hash = export_zip.open(COURSE_EXPORT_HASH_FILE).read()
+            assert_that(export_hash, not_none())
+            return export_hash
+
         href = '/dataserver2/CourseAdmin/@@ExportCourse'
         data = {'ntiid': self.entry_ntiid}
         res = self.testapp.post_json(href, data)
@@ -79,5 +90,30 @@ class TestCourseExport(ApplicationLayerTest):
                     fp.write(data)
             assert_that(get_file_size(path), greater_than(0))
             assert_that(zipfile.is_zipfile(path), is_(True))
+            _get_export_hash(path)
         finally:
             shutil.rmtree(tmp_dir, True)
+
+        # Duplicate salt/duplicate hash
+        data = {'ntiid': self.entry_ntiid,
+                'salt': '000000000'}
+        res = self.testapp.post_json(href, data)
+        res2 = self.testapp.post_json(href, data)
+
+        tmp_dir = tempfile.mkdtemp()
+        tmp_dir2 = tempfile.mkdtemp()
+        try:
+            path = tmp_dir + "/exported.zip"
+            with open(path, "wb") as fp:
+                for data in res.app_iter:
+                    fp.write(data)
+            path2 = tmp_dir2 + "/exported.zip"
+            with open(path2, "wb") as fp:
+                for data in res2.app_iter:
+                    fp.write(data)
+            hash1 = _get_export_hash(path)
+            hash2 = _get_export_hash(path2)
+            assert_that(hash1, is_(hash2))
+        finally:
+            shutil.rmtree(tmp_dir, True)
+            shutil.rmtree(tmp_dir2, True)
