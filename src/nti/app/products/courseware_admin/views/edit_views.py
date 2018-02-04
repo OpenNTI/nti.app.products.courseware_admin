@@ -26,6 +26,8 @@ from nti.app.externalization.error import raise_json_error
 
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
+from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
+
 from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legacy_json
@@ -48,7 +50,7 @@ logger = __import__('logging').getLogger(__name__)
 
 @view_config(route_name='objects.generic.traversal',
              request_method='PUT',
-             name='presentation-assets',
+             name=VIEW_PRESENTATION_ASSETS,
              context=ICourseCatalogEntry,
              permission=nauth.ACT_CONTENT_EDIT)
 class CatalogEntryPresentationAssetsPutView(AbstractAuthenticatedView,
