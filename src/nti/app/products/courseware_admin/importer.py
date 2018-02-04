@@ -15,9 +15,12 @@ import tempfile
 from zope import component
 from zope import lifecycleevent
 
+from nti.cabinet.filer import read_source
 from nti.cabinet.filer import DirectoryFiler
 
 from nti.contentfolder.interfaces import IRootFolder
+
+from nti.contenttypes.courses import COURSE_EXPORT_HASH_FILE
 
 from nti.contenttypes.courses.creator import delete_directory
 from nti.contenttypes.courses.creator import create_course_subinstance
@@ -28,6 +31,11 @@ from nti.contenttypes.courses.interfaces import SECTIONS
 from nti.contenttypes.courses.interfaces import ICourseOutline
 from nti.contenttypes.courses.interfaces import ICourseImporter
 from nti.contenttypes.courses.interfaces import ICourseInstance
+from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+from nti.contenttypes.courses.interfaces import ICourseImportMetadata
+from nti.contenttypes.courses.interfaces import DuplicateImportFromExportException
+
+from nti.contenttypes.courses.utils import get_courses_for_export_hash
 
 from nti.contenttypes.presentation.interfaces import INTIMedia
 from nti.contenttypes.presentation.interfaces import IConcreteAsset
@@ -83,7 +91,27 @@ def _lockout(course):
     _recur(course.Outline)
 
 
-def _execute(course, archive_path, writeout=True, lockout=False, clear=False):
+def _check_export_hash(course, filer, validate):
+    """
+    Validate the export hash has not been seen in this environment by any
+    other courses. Otherwise, we may get courses with colliding ntiids.
+    """
+    source = filer.get(COURSE_EXPORT_HASH_FILE)
+    export_hash = read_source(source)
+    if export_hash is not None:
+        if validate:
+            imported_courses = get_courses_for_export_hash(export_hash)
+            if      imported_courses \
+                and set(imported_courses) != set((course,)):
+                entry_ntiids = [ICourseCatalogEntry(x).ntiid for x in imported_courses]
+                logger.warn('Duplicate imported courses from zip file (hash=%s) (%s)',
+                            export_hash,
+                            entry_ntiids)
+                raise DuplicateImportFromExportException(entry_ntiids)
+        ICourseImportMetadata(course).import_hash = export_hash
+
+
+def _execute(course, archive_path, writeout=True, lockout=False, clear=False, validate_export_hash=True):
     course = ICourseInstance(course, None)
     if course is None:
         raise ValueError("Invalid course")
@@ -95,6 +123,7 @@ def _execute(course, archive_path, writeout=True, lockout=False, clear=False):
     try:
         tmp_path = check_archive(archive_path)
         filer = DirectoryFiler(tmp_path or archive_path)
+        _check_export_hash(course, filer, validate_export_hash)
         importer = component.getUtility(ICourseImporter)
         result = importer.process(course, filer, writeout)
         if lockout:
@@ -104,20 +133,21 @@ def _execute(course, archive_path, writeout=True, lockout=False, clear=False):
         delete_directory(tmp_path)
 
 
-def import_course(ntiid, archive_path, writeout=True, lockout=False, clear=False):
+def import_course(ntiid, archive_path, writeout=True, lockout=False, clear=False, validate_export_hash=True):
     """
     Import a course from a file archive
 
     :param ntiid Course NTIID
     :param archive_path archive path
+    :param validate_export_hash whether to validate the export_hash against other imported courses
     """
     course = find_object_with_ntiid(ntiid) if ntiid else None
-    _execute(course, archive_path, writeout, lockout, clear)
+    _execute(course, archive_path, writeout, lockout, clear, validate_export_hash)
     return course
 
 
 def create_course(admin, key, archive_path, catalog=None, writeout=True,
-                  lockout=False, clear=False, creator=None):
+                  lockout=False, clear=False, creator=None, validate_export_hash=True):
     """
     Creates a course from a file archive
 
@@ -139,7 +169,7 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
                     continue
                 create_course_subinstance(course, name, writeout, creator=creator)
         # process
-        _execute(course, tmp_path or archive_path, writeout, lockout, clear)
+        _execute(course, tmp_path or archive_path, writeout, lockout, clear, validate_export_hash)
         return course
     finally:
         delete_directory(tmp_path)
