@@ -19,6 +19,8 @@ import tempfile
 
 import fudge
 
+from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
+
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
 from nti.app.testing.application_webtest import ApplicationLayerTest
@@ -137,7 +139,9 @@ class TestCourseEdits(ApplicationLayerTest):
             with open(thumbnail_file, "rb") as fp:
                 thumnail_source = fp.read()
 
-            assets_href = '%s/presentation-assets' % self.course_path
+            entry_res = self.testapp.get(self.course_path)
+            assets_href = self.require_link_href_with_rel(entry_res.json_body,
+                                                          VIEW_PRESENTATION_ASSETS)
             self.testapp.put(assets_href,
                              upload_files=[
                                 (background_key, background_key, background_source),

@@ -27,6 +27,7 @@ from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_ASSESSMENT_POLICIES
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
+from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
@@ -43,6 +44,7 @@ from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 
+from nti.contenttypes.courses.utils import is_course_editor
 from nti.contenttypes.courses.utils import filter_hidden_tags
 
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
@@ -73,6 +75,11 @@ def get_ds2(request=None):
 def course_admin_adapter_path(request=None):
     path = '/%s/CourseAdmin' % get_ds2(request)
     return path
+
+
+def _can_edit_course(course, user):
+    return     is_admin_or_content_admin_or_site_admin(user) \
+            or is_course_editor(course, user)
 
 
 @component.adapter(ICourseInstance)
@@ -193,21 +200,43 @@ class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDeco
 
 @component.adapter(ICourseInstance)
 @interface.implementer(IExternalMappingDecorator)
-class _CoursePolicyLinksDecorator(AbstractAuthenticatedRequestAwareDecorator,
-                                  EditorManageMixin):
+class _CoursePolicyLinksDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
     A decorator that provides links for course vendor info and
     assessement policies management.
     """
 
     def _predicate(self, context, unused_result):
-        return self._is_authenticated \
-           and self.has_access(self.remoteUser, context)
+        return  self._is_authenticated \
+            and _can_edit_course(context, self.remoteUser)
 
     def _do_decorate_external(self, context, result):
+        _links = result.setdefault(LINKS, [])
         for rel in (VIEW_VENDOR_INFO,
                     VIEW_ASSESSMENT_POLICIES):
-            _links = result.setdefault(LINKS, [])
+            link = Link(context, rel=rel, elements=('@@%s' % rel,))
+            interface.alsoProvides(link, ILocation)
+            link.__name__ = ''
+            link.__parent__ = context
+            _links.append(link)
+
+
+@component.adapter(ICourseCatalogEntry)
+@interface.implementer(IExternalMappingDecorator)
+class _CatalogEntryEditLinksDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    A decorator that provides edit links for :class:`ICourseCatalogEntry`
+    objects.
+    """
+
+    def _predicate(self, context, unused_result):
+        course = ICourseInstance(context)
+        return  self._is_authenticated \
+            and _can_edit_course(course, self.remoteUser)
+
+    def _do_decorate_external(self, context, result):
+        _links = result.setdefault(LINKS, [])
+        for rel in (VIEW_PRESENTATION_ASSETS,):
             link = Link(context, rel=rel, elements=('@@%s' % rel,))
             interface.alsoProvides(link, ILocation)
             link.__name__ = ''
