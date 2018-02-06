@@ -121,15 +121,19 @@ class TestCourseEdits(ApplicationLayerTest):
         bucket.absolute_path = tmpdir
         mock_save_dir.is_callable().returns(bucket)
         try:
+            source_key = 'catalog-source'
             background_key = 'catalog-background'
             promo_key = 'catalog-promo-large'
             cover_key = 'catalog-entry-cover'
             thumbnail_key = 'catalog-entry-thumbnail'
             source_dir = os.path.join(self.asset_dir_path, 'shared', 'v1')
+            source_file = os.path.join(source_dir, 'source.png')
             background_file = os.path.join(source_dir, 'background.png')
             cover_file = os.path.join(source_dir, 'contentpackage-cover-256x156.png')
             promo_file = os.path.join(source_dir, 'contentpackage-landing-232x170.png')
             thumbnail_file = os.path.join(source_dir, 'thumb.png')
+            with open(source_file, "rb") as fp:
+                source_source = fp.read()
             with open(background_file, "rb") as fp:
                 background_source = fp.read()
             with open(promo_file, "rb") as fp:
@@ -151,13 +155,15 @@ class TestCourseEdits(ApplicationLayerTest):
 
             self.testapp.put(assets_href,
                              upload_files=[
+                                (source_key, source_key, source_source),
                                 (background_key, background_key, background_source),
                                 (promo_key, promo_key, promo_source),
                                 (cover_key, cover_key, cover_source),
                                 (thumbnail_key, thumbnail_key, thumnail_source)])
 
             # Valdate tree
-            image_files = ['background.png',
+            image_files = ['client_image_source.png',
+                           'background.png',
                            'contentpackage-cover-256x156.png',
                            'contentpackage-landing-232x170.png',
                            'contentpackage-thumb-60x60.png',
