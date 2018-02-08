@@ -56,6 +56,7 @@ from nti.contenttypes.courses.courses import ContentCourseInstance
 from nti.contenttypes.courses.creator import create_course
 from nti.contenttypes.courses.creator import install_admin_level
 
+from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
@@ -64,7 +65,6 @@ from nti.contenttypes.courses.interfaces import CourseInstanceRemovedEvent
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
 from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
-from nti.contenttypes.courses.interfaces import ICourseCatalog
 
 from nti.contenttypes.courses.utils import get_course_tags
 
@@ -73,6 +73,8 @@ from nti.dataserver import authorization as nauth
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.externalization.externalization import to_external_object
+
+from nti.externalization.internalization import find_factory_for
 
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
@@ -83,6 +85,7 @@ from nti.zodb.containers import time_to_64bit_int
 
 ITEMS = StandardExternalFields.ITEMS
 TOTAL = StandardExternalFields.TOTAL
+MIMETYPE = StandardExternalFields.MIMETYPE
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
 
 logger = __import__('logging').getLogger(__name__)
@@ -237,7 +240,7 @@ class CreateCourseView(AbstractAuthenticatedView,
     succeed.
     """
 
-    _COURSE_INSTANCE_FACTORY = ContentCourseInstance
+    DEFAULT_FACTORY_MIMETYPE = 'application/vnd.nextthought.courses.courseinstance'
 
     def readInput(self, value=None):
         if self.request.body:
@@ -245,6 +248,8 @@ class CreateCourseView(AbstractAuthenticatedView,
         else:
             values = self.request.params
         # Can't be CaseInsensitive with internalization
+        if MIMETYPE not in values:
+            values[MIMETYPE] = self.DEFAULT_FACTORY_MIMETYPE
         return values
 
     @Lazy
@@ -290,6 +295,7 @@ class CreateCourseView(AbstractAuthenticatedView,
         successfully created a course.
         """
         key = course = None
+        factory = find_factory_for(self._params) or ContentCourseInstance
         course_key_iter = self._get_course_key_iter()
         for key in course_key_iter:
             try:
@@ -299,7 +305,7 @@ class CreateCourseView(AbstractAuthenticatedView,
                                        writeout=False,
                                        strict=True,
                                        creator=self.remoteUser.username,
-                                       factory=self._COURSE_INSTANCE_FACTORY)
+                                       factory=factory)
                 break
             except CourseAlreadyExistsException:
                 pass
