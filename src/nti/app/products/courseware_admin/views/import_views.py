@@ -166,12 +166,17 @@ class CourseImportView(CourseImportMixin):
             writeout = is_true(values.get('writeout') or values.get('save'))
             lockout = is_true(values.get('lock') or values.get('lockout'))
             validate_export_hash = self._get_validate_export_hash(values)
+            preview_raw_value = getattr(entry, 'PreviewRawValue', None)
             import_course(entry.ntiid,
                           os.path.abspath(path),
                           writeout,
                           lockout,
                           clear=clear,
                           validate_export_hash=validate_export_hash)
+            if preview_raw_value is not None:
+                entry.Preview = preview_raw_value
+            else:
+                delattr(entry, 'Preview')
             result['Elapsed'] = time.time() - now
             course = ICourseInstance(self.context)
             result['Course'] = course
@@ -268,9 +273,17 @@ class ImportCourseView(CourseImportMixin):
                               or 'True')
             if ntiid:
                 params[NTIID] = ntiid
+                context = find_object_with_ntiid(ntiid)
+                course = ICourseInstance(context, None)
+                entry = ICourseCatalogEntry(course, None)
+                preview_raw_value = getattr(entry, 'PreviewRawValue', None)
                 course = self._import_course(ntiid, path, writeout,
                                              lockout, clear=clear,
                                              validate_export_hash=validate_export_hash)
+                if preview_raw_value is not None:
+                    entry.Preview = preview_raw_value
+                else:
+                    delattr(entry, 'Preview')
             else:
                 site = values.get('site')
                 params['Key'] = key = values.get('key')
