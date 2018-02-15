@@ -8,6 +8,7 @@ from __future__ import absolute_import
 # pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import is_
+from hamcrest import is_not
 from hamcrest import contains
 from hamcrest import has_entries
 from hamcrest import assert_that
@@ -45,7 +46,9 @@ class TestCourseEdits(ApplicationLayerTest):
 
     default_origin = 'http://janux.ou.edu'
 
-    course_path = '/dataserver2/%2B%2Betc%2B%2Bhostsites/platform.ou.edu/%2B%2Betc%2B%2Bsite/Courses/Fall2015/CS%201323/CourseCatalogEntry'
+    course_path = '/dataserver2/%2B%2Betc%2B%2Bhostsites/platform.ou.edu/%2B%2Betc%2B%2Bsite/Courses/Fall2015/CS%201323'
+
+    entry_path = '%s/CourseCatalogEntry' % course_path
 
     entry_ntiid = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2015_CS_1323'
 
@@ -67,7 +70,7 @@ class TestCourseEdits(ApplicationLayerTest):
         res_dict["description"] = "Yet another course"
 
         # Edit the course with the new information,
-        res = self.testapp.put_json(self.course_path,
+        res = self.testapp.put_json(self.entry_path,
                                     res_dict,
                                     extra_environ=instructor_environ,
                                     status=200)
@@ -79,7 +82,7 @@ class TestCourseEdits(ApplicationLayerTest):
 
         # valid duration and try again
         res_dict["Duration"] = "16 weeks"
-        res = self.testapp.put_json(self.course_path,
+        res = self.testapp.put_json(self.entry_path,
                                     res_dict,
                                     extra_environ=instructor_environ)
 
@@ -105,9 +108,33 @@ class TestCourseEdits(ApplicationLayerTest):
 
             res_dict = {}
             res_dict["title"] = "Another Course"
-            self.testapp.put_json(self.course_path, res_dict, status=200)
+            self.testapp.put_json(self.entry_path, res_dict, status=200)
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def _validate_asset_tree(self, tmpdir):
+        image_files = ['client_image_source.png',
+                       'background.png',
+                       'contentpackage-cover-256x156.png',
+                       'contentpackage-landing-232x170.png',
+                       'contentpackage-thumb-60x60.png',
+                       'course-cover-232x170.png',
+                       'course-promo-large-16x9.png']
+        assert_that(os.listdir(tmpdir), contains('presentation-assets'))
+        asset_dir = os.path.join(tmpdir, 'presentation-assets')
+        client_dirs = os.listdir(asset_dir)
+        assert_that(client_dirs,
+                    contains_inanyorder('shared', 'iPad', 'webapp'))
+        for client in client_dirs:
+            client_dir = os.path.join(asset_dir, client)
+            assert_that(os.listdir(client_dir), contains('v1'))
+            version_dir = os.path.join(client_dir, 'v1')
+            assert_that(os.listdir(version_dir),
+                        contains_inanyorder(*image_files))
+            # Validate files and symlinks
+            for image_file in image_files:
+                image_path = os.path.join(version_dir, image_file)
+                assert_that(os.path.exists(image_path), is_(True))
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     @fudge.patch('nti.app.products.courseware_admin.views.edit_views.CatalogEntryPresentationAssetsPutView._get_bucket')
@@ -120,6 +147,7 @@ class TestCourseEdits(ApplicationLayerTest):
         bucket = FilesystemBucket(name=u"test")
         bucket.absolute_path = tmpdir
         mock_save_dir.is_callable().returns(bucket)
+
         try:
             source_key = 'catalog-source'
             background_key = 'catalog-background'
@@ -143,7 +171,7 @@ class TestCourseEdits(ApplicationLayerTest):
             with open(thumbnail_file, "rb") as fp:
                 thumnail_source = fp.read()
 
-            entry_res = self.testapp.get(self.course_path)
+            entry_res = self.testapp.get(self.entry_path)
             assets_href = self.require_link_href_with_rel(entry_res.json_body,
                                                           VIEW_PRESENTATION_ASSETS)
             self.testapp.put(assets_href,
@@ -153,6 +181,13 @@ class TestCourseEdits(ApplicationLayerTest):
                                 (cover_key, cover_key, cover_source)],
                              status=422)
 
+            def get_asset_last_mods():
+                course = self.testapp.get(self.course_path)
+                bundle = course.json_body['ContentPackageBundle']
+                sources = bundle['PlatformPresentationResources']
+                mod_times = [x['Last Modified'] for x in sources]
+                return sorted(mod_times)
+
             self.testapp.put(assets_href,
                              upload_files=[
                                 (source_key, source_key, source_source),
@@ -161,29 +196,22 @@ class TestCourseEdits(ApplicationLayerTest):
                                 (cover_key, cover_key, cover_source),
                                 (thumbnail_key, thumbnail_key, thumnail_source)])
 
-            # Valdate tree
-            image_files = ['client_image_source.png',
-                           'background.png',
-                           'contentpackage-cover-256x156.png',
-                           'contentpackage-landing-232x170.png',
-                           'contentpackage-thumb-60x60.png',
-                           'course-cover-232x170.png',
-                           'course-promo-large-16x9.png']
-            assert_that(os.listdir(tmpdir), contains('presentation-assets'))
-            assert_that(os.listdir(tmpdir), contains('presentation-assets'))
-            asset_dir = os.path.join(tmpdir, 'presentation-assets')
-            client_dirs = os.listdir(asset_dir)
-            assert_that(client_dirs,
-                        contains_inanyorder('shared', 'iPad', 'webapp'))
-            for client in client_dirs:
-                client_dir = os.path.join(asset_dir, client)
-                assert_that(os.listdir(client_dir), contains('v1'))
-                version_dir = os.path.join(client_dir, 'v1')
-                assert_that(os.listdir(version_dir),
-                            contains_inanyorder(*image_files))
-                # Validate files and symlinks
-                for image_file in image_files:
-                    image_path = os.path.join(version_dir, image_file)
-                    assert_that(os.path.exists(image_path), is_(True))
+            # Validate tree
+            self._validate_asset_tree(tmpdir)
+            last_mods = get_asset_last_mods()
+
+            # Now update images
+            self.testapp.put(assets_href,
+                             upload_files=[
+                                (source_key, source_key, source_source),
+                                (background_key, background_key, background_source),
+                                (promo_key, promo_key, promo_source),
+                                (cover_key, cover_key, cover_source),
+                                (thumbnail_key, thumbnail_key, thumnail_source)])
+
+            # Validate tree
+            self._validate_asset_tree(tmpdir)
+            # Last modified updated
+            #assert_that(get_asset_last_mods(), is_not(last_mods))
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)

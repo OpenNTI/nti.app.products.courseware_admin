@@ -253,6 +253,7 @@ class TestCourseManagement(ApplicationLayerTest):
                     is_('application/vnd.nextthought.courses.courseinstance'))
         assert_that(new_course['NTIID'], not_none())
         assert_that(new_course['TotalEnrolledCount'], is_(0))
+        assert_that(new_course['ContentPackageBundle']['title'], is_(new_course_title))
 
         # Has an invitation
         tokens = self.testapp.get(course_token_href)
@@ -346,7 +347,7 @@ class TestCourseManagement(ApplicationLayerTest):
         catalog_ws = next(x for x in workspaces if x['Title'] == 'Catalog')
         assert_that(catalog_ws, not_none())
         catalog_collections = catalog_ws['Items']
-        assert_that(catalog_collections, 
+        assert_that(catalog_collections,
                     has_length(greater_than_or_equal_to(2)))
         courses_collection = next(
             x for x in catalog_collections if x['Title'] == name
@@ -372,7 +373,7 @@ class TestCourseManagement(ApplicationLayerTest):
         non_hidden_tag_count = tag_count - 1
         entry = self.testapp.put_json(entry_href, {"tags": tags})
         entry = entry.json_body
-        assert_that(entry, 
+        assert_that(entry,
                     has_entry('tags', contains_inanyorder(*lower_tag_set)))
 
         courses_collection = self._get_catalog_collection()
@@ -396,7 +397,7 @@ class TestCourseManagement(ApplicationLayerTest):
         starts_with = tags[:2]
         other = tags[2:]
         assert_that(starts_with, contains(u'alph', u'alpha'))
-        assert_that(other, 
+        assert_that(other,
                     contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
 
         # Batching
@@ -407,7 +408,7 @@ class TestCourseManagement(ApplicationLayerTest):
         tags = self.testapp.get('%s?filter=%s&batchStart=2&batchSize=10' % (tag_url, 'a'))
         tags = tags.json_body[ITEMS]
         assert_that(tags, has_length(5))
-        assert_that(tags, 
+        assert_that(tags,
                     contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
 
         tags = self.testapp.get('%s?filter=%s' % (tag_url, 'xxx')).json_body
