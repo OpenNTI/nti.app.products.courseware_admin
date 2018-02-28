@@ -15,6 +15,8 @@ from pyramid import httpexceptions as hexc
 from pyramid.view import view_config
 from pyramid.view import view_defaults
 
+from zope.event import notify
+
 from nti.app.base.abstract_views import get_all_sources
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
@@ -33,6 +35,7 @@ from nti.cabinet.filer import read_source
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseInstanceVendorInfo
+from nti.contenttypes.courses.interfaces import CourseVendorInfoSynchronized
 
 from nti.contenttypes.courses.legacy_catalog import ILegacyCourseCatalogEntry
 
@@ -133,6 +136,7 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
         # pylint: disable=too-many-function-args
         vendor.clear()
         vendor.update(values)
+        notify(CourseVendorInfoSynchronized(course))
         return vendor
 
 
