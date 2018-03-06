@@ -39,6 +39,7 @@ from nti.app.renderers.decorators import AbstractAuthenticatedRequestAwareDecora
 
 from nti.appserver.pyramid_authorization import has_permission
 
+from nti.contenttypes.courses.interfaces import INonExportable
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
@@ -92,7 +93,9 @@ class _ImportExportLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
 
     def _predicate(self, context, unused_result):
+        course = ICourseInstance(context)
         return self._is_authenticated \
+           and not INonExportable.providedBy(course) \
            and has_permission(ACT_CONTENT_EDIT, context, self.request)
 
     def _do_decorate_external(self, context, result):
