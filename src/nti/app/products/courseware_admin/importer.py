@@ -9,6 +9,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
+import json
 import zipfile
 import tempfile
 
@@ -20,6 +21,8 @@ from nti.cabinet.filer import DirectoryFiler
 
 from nti.contentfolder.interfaces import IRootFolder
 
+from nti.contenttypes.courses import EXPORT_HASH_KEY
+from nti.contenttypes.courses import COURSE_META_NAME
 from nti.contenttypes.courses import COURSE_EXPORT_HASH_FILE
 
 from nti.contenttypes.courses.creator import delete_directory
@@ -96,8 +99,14 @@ def _check_export_hash(course, filer, validate):
     Validate the export hash has not been seen in this environment by any
     other courses. Otherwise, we may get courses with colliding ntiids.
     """
-    source = filer.get(COURSE_EXPORT_HASH_FILE)
-    export_hash = read_source(source)
+    source = filer.get(COURSE_META_NAME)
+    if source:
+        meta = json.load(source)
+        export_hash = meta[EXPORT_HASH_KEY]
+    else:
+        # Backwards compatibility
+        source = filer.get(COURSE_EXPORT_HASH_FILE)
+        export_hash = read_source(source)
     if export_hash is not None:
         if validate:
             imported_courses = get_courses_for_export_hash(export_hash)
