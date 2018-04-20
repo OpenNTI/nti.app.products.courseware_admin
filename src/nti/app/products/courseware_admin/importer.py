@@ -176,10 +176,12 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
         meta_path = os.path.expanduser(tmp_path or archive_path)
         meta_path = os.path.join(meta_path, COURSE_META_NAME)
         filer = DirectoryFiler(tmp_path or archive_path)
+        course_factory = None
         meta_source = filer.get(meta_path)
-        meta = json.load(meta_source)
-        factory = find_factory_for(meta) or ContentCourseInstance
-        course = course_creator(admin, key, catalog, writeout, creator=creator, factory=factory)
+        if meta_source:
+            meta = json.load(meta_source)
+            course_factory = find_factory_for(meta)
+        course = course_creator(admin, key, catalog, writeout, creator=creator, factory=course_factory)
         
         archive_sec_path = os.path.expanduser(tmp_path or archive_path)
         archive_sec_path = os.path.join(archive_sec_path, SECTIONS)
