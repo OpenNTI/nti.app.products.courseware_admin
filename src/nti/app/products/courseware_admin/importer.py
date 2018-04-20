@@ -102,8 +102,8 @@ def _check_export_hash(course, filer, validate):
     source = filer.get(COURSE_META_NAME)
     if source:
         meta = json.load(source)
-        export_hash = meta[EXPORT_HASH_KEY]
-    else:
+        export_hash = meta.get(EXPORT_HASH_KEY)
+    if not source or not export_hash:
         # Backwards compatibility
         source = filer.get(COURSE_EXPORT_HASH_FILE)
         export_hash = read_source(source)
