@@ -25,6 +25,8 @@ from nti.contenttypes.courses import EXPORT_HASH_KEY
 from nti.contenttypes.courses import COURSE_META_NAME
 from nti.contenttypes.courses import COURSE_EXPORT_HASH_FILE
 
+from nti.contenttypes.courses.courses import ContentCourseInstance
+
 from nti.contenttypes.courses.creator import delete_directory
 from nti.contenttypes.courses.creator import create_course_subinstance
 from nti.contenttypes.courses.creator import create_course as course_creator
@@ -44,6 +46,8 @@ from nti.contenttypes.presentation.interfaces import INTIMedia
 from nti.contenttypes.presentation.interfaces import IConcreteAsset
 from nti.contenttypes.presentation.interfaces import INTILessonOverview
 from nti.contenttypes.presentation.interfaces import IItemAssetContainer
+
+from nti.externalization.internalization import find_factory_for
 
 from nti.ntiids.ntiids import find_object_with_ntiid
 
@@ -165,9 +169,18 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
     :param archive_path archive path
     """
     tmp_path = None
-    course = course_creator(admin, key, catalog, writeout, creator=creator)
     try:
         tmp_path = check_archive(archive_path)
+        
+        # Create course using factory specified by meta-info
+        meta_path = os.path.expanduser(tmp_path or archive_path)
+        meta_path = os.path.join(meta_path, COURSE_META_NAME)
+        filer = DirectoryFiler(tmp_path or archive_path)
+        meta_source = filer.get(meta_path)
+        meta = json.load(meta_source)
+        factory = find_factory_for(meta) or ContentCourseInstance
+        course = course_creator(admin, key, catalog, writeout, creator=creator, factory=factory)
+        
         archive_sec_path = os.path.expanduser(tmp_path or archive_path)
         archive_sec_path = os.path.join(archive_sec_path, SECTIONS)
         # Import sections, if necessary.
