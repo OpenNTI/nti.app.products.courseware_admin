@@ -16,16 +16,15 @@ import tempfile
 from zope import component
 from zope import lifecycleevent
 
+from nti.app.products.courseware.utils import EXPORT_HASH_KEY
+from nti.app.products.courseware.utils import COURSE_META_NAME
+
 from nti.cabinet.filer import read_source
 from nti.cabinet.filer import DirectoryFiler
 
 from nti.contentfolder.interfaces import IRootFolder
 
-from nti.contenttypes.courses import EXPORT_HASH_KEY
-from nti.contenttypes.courses import COURSE_META_NAME
 from nti.contenttypes.courses import COURSE_EXPORT_HASH_FILE
-
-from nti.contenttypes.courses.courses import ContentCourseInstance
 
 from nti.contenttypes.courses.creator import delete_directory
 from nti.contenttypes.courses.creator import create_course_subinstance

@@ -27,14 +27,14 @@ from zope import component
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
+from nti.app.products.courseware.utils import EXPORT_HASH_KEY
+from nti.app.products.courseware.utils import COURSE_META_NAME
+
 from nti.app.testing.application_webtest import ApplicationLayerTest
 
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.cabinet.mixins import get_file_size
-
-from nti.contenttypes.courses import EXPORT_HASH_KEY
-from nti.contenttypes.courses import COURSE_META_NAME
 
 from nti.contenttypes.courses.interfaces import ICourseSectionExporter
 
