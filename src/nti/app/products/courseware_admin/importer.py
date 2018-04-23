@@ -9,11 +9,15 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
+import json
 import zipfile
 import tempfile
 
 from zope import component
 from zope import lifecycleevent
+
+from nti.app.products.courseware.utils import EXPORT_HASH_KEY
+from nti.app.products.courseware.utils import COURSE_META_NAME
 
 from nti.cabinet.filer import read_source
 from nti.cabinet.filer import DirectoryFiler
@@ -41,6 +45,8 @@ from nti.contenttypes.presentation.interfaces import INTIMedia
 from nti.contenttypes.presentation.interfaces import IConcreteAsset
 from nti.contenttypes.presentation.interfaces import INTILessonOverview
 from nti.contenttypes.presentation.interfaces import IItemAssetContainer
+
+from nti.externalization.internalization import find_factory_for
 
 from nti.ntiids.ntiids import find_object_with_ntiid
 
@@ -96,8 +102,14 @@ def _check_export_hash(course, filer, validate):
     Validate the export hash has not been seen in this environment by any
     other courses. Otherwise, we may get courses with colliding ntiids.
     """
-    source = filer.get(COURSE_EXPORT_HASH_FILE)
-    export_hash = read_source(source)
+    source = filer.get(COURSE_META_NAME)
+    if source:
+        meta = json.load(source)
+        export_hash = meta.get(EXPORT_HASH_KEY)
+    if not source or not export_hash:
+        # Backwards compatibility
+        source = filer.get(COURSE_EXPORT_HASH_FILE)
+        export_hash = read_source(source)
     if export_hash is not None:
         if validate:
             imported_courses = get_courses_for_export_hash(export_hash)
@@ -156,9 +168,20 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
     :param archive_path archive path
     """
     tmp_path = None
-    course = course_creator(admin, key, catalog, writeout, creator=creator)
     try:
         tmp_path = check_archive(archive_path)
+        
+        # Create course using factory specified by meta-info
+        meta_path = os.path.expanduser(tmp_path or archive_path)
+        meta_path = os.path.join(meta_path, COURSE_META_NAME)
+        filer = DirectoryFiler(tmp_path or archive_path)
+        course_factory = None
+        meta_source = filer.get(meta_path)
+        if meta_source:
+            meta = json.load(meta_source)
+            course_factory = find_factory_for(meta)
+        course = course_creator(admin, key, catalog, writeout, creator=creator, factory=course_factory)
+        
         archive_sec_path = os.path.expanduser(tmp_path or archive_path)
         archive_sec_path = os.path.join(archive_sec_path, SECTIONS)
         # Import sections, if necessary.

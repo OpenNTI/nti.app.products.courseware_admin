@@ -18,6 +18,7 @@ from hamcrest import greater_than
 from hamcrest import greater_than_or_equal_to
 does_not = is_not
 
+import json
 import shutil
 import zipfile
 import tempfile
@@ -26,13 +27,14 @@ from zope import component
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
+from nti.app.products.courseware.utils import EXPORT_HASH_KEY
+from nti.app.products.courseware.utils import COURSE_META_NAME
+
 from nti.app.testing.application_webtest import ApplicationLayerTest
 
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 from nti.cabinet.mixins import get_file_size
-
-from nti.contenttypes.courses import COURSE_EXPORT_HASH_FILE
 
 from nti.contenttypes.courses.interfaces import ICourseSectionExporter
 
@@ -62,6 +64,7 @@ class TestCourseExport(ApplicationLayerTest):
         assert_that('005:Vendor_Info', is_in(sections))
         assert_that('006:Role_Info', is_in(sections))
         assert_that('008:Course_Outline', is_in(sections))
+        assert_that('009:Course_Metainfo', is_in(sections))
         assert_that('011:Assessments', is_in(sections))
         assert_that('012:Evaluations', is_in(sections))
         assert_that('014:ContentPackages', is_in(sections))
@@ -74,8 +77,10 @@ class TestCourseExport(ApplicationLayerTest):
     def test_export_course(self):
         def _get_export_hash(path):
             export_zip = zipfile.ZipFile(path)
-            assert_that(export_zip.namelist(), has_item(COURSE_EXPORT_HASH_FILE))
-            export_hash = export_zip.open(COURSE_EXPORT_HASH_FILE).read()
+            assert_that(export_zip.namelist(), has_item(COURSE_META_NAME))
+            export_meta = json.load(export_zip.open(COURSE_META_NAME))
+            assert_that(export_meta, not_none())
+            export_hash = export_meta[EXPORT_HASH_KEY]
             assert_that(export_hash, not_none())
             return export_hash
 

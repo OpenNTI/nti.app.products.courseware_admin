@@ -133,7 +133,9 @@ class TestCourseImport(ApplicationLayerTest):
         interface.noLongerProvides(ref, IContentBackedPresentationAsset)
 
     @WithSharedApplicationMockDS(testapp=False, users=True)
-    def test_import_export(self):
+    @fudge.patch('nti.app.products.courseware.utils.exporter.CourseMetaInfoExporter._get_remote_user')
+    def test_import_export(self, mock_get_remote_user):
+        mock_get_remote_user.is_callable().returns(u'Heisenberg')
         path = tempfile.mkdtemp()
         try:
             with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
