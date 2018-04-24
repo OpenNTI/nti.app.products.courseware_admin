@@ -43,8 +43,6 @@ from nti.app.products.courseware_admin.importer import import_course
 from nti.app.products.courseware_admin.views import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin.views import VIEW_ADMIN_IMPORT_COURSE
 
-from nti.app.products.courseware_scorm.courses import ImportSCORMArchiveUnsupportedError
-
 from nti.cabinet.filer import transfer_to_native_file
 
 from nti.common.string import is_true
