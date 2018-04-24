@@ -57,6 +57,7 @@ from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import InvalidCourseArchiveException
+from nti.contenttypes.courses.interfaces import ImportCourseTypeUnsupportedError
 from nti.contenttypes.courses.interfaces import DuplicateImportFromExportException
 
 from nti.dataserver import authorization as nauth
@@ -150,10 +151,10 @@ class CourseImportMixin(AbstractAuthenticatedView,
                 'message': _(u"Error importing: Invalid course archive"),
                 'code': 'InvalidCourseArchiveException'
                 })
-        except ImportSCORMArchiveUnsupportedError:
+        except ImportCourseTypeUnsupportedError:
             raise_error({
-                   'message':  _(u'Import error: SCORM packages are unsupported'),
-                   'code': 'ImportSCORMArchiveUnsupportedError'
+                   'message':  _(u'Import error: unsupported course type'),
+                   'code': 'ImportCourseTypeUnsupportedError'
                 })
         finally:
             restoreInteraction()
