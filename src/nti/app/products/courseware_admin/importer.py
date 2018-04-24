@@ -37,6 +37,7 @@ from nti.contenttypes.courses.interfaces import ICourseImporter
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseImportMetadata
+from nti.contenttypes.courses.interfaces import InvalidCourseArchiveException
 from nti.contenttypes.courses.interfaces import DuplicateImportFromExportException
 
 from nti.contenttypes.courses.utils import get_courses_for_export_hash
@@ -121,6 +122,9 @@ def _check_export_hash(course, filer, validate):
                             entry_ntiids)
                 raise DuplicateImportFromExportException(entry_ntiids)
         ICourseImportMetadata(course).import_hash = export_hash
+    else:
+        logger.error(u'Attempting to import course archive with no export hash')
+        raise InvalidCourseArchiveException()
 
 
 def _execute(course, archive_path, writeout=True, lockout=False, clear=False, validate_export_hash=True):
