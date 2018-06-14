@@ -39,6 +39,7 @@ from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.app.products.courseware_admin.importer import create_course
 from nti.app.products.courseware_admin.importer import import_course
+from nti.app.products.courseware_admin.importer import create_sections
 
 from nti.app.products.courseware_admin.views import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin.views import VIEW_ADMIN_IMPORT_COURSE
@@ -289,6 +290,8 @@ class ImportCourseView(CourseImportMixin):
                 course = ICourseInstance(context, None)
                 entry = ICourseCatalogEntry(course, None)
                 preview_raw_value = getattr(entry, 'PreviewRawValue', None)
+                # We have a course, but want to create an sections given to us.
+                create_sections(course, path, writeout)
                 course = self._import_course(ntiid, path, writeout,
                                              lockout, clear=clear,
                                              validate_export_hash=validate_export_hash)

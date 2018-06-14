@@ -162,6 +162,30 @@ def import_course(ntiid, archive_path, writeout=True, lockout=False, clear=False
     return course
 
 
+def create_sections(course, archive_path, writeout=True, creator=None):
+    """
+    Creates section courses from a file archive
+
+    :param archive_path archive path
+    """
+    tmp_path = None
+    try:
+        tmp_path = check_archive(archive_path)
+        path = tmp_path or archive_path
+        archive_sec_path = os.path.expanduser(path)
+        archive_sec_path = os.path.join(archive_sec_path, SECTIONS)
+        # Import sections, if necessary.
+        if os.path.isdir(archive_sec_path):
+            for name in os.listdir(archive_sec_path):
+                ipath = os.path.join(archive_sec_path, name)
+                if not os.path.isdir(ipath):
+                    continue
+                logger.info('Creating subinstance (%s)', name)
+                create_course_subinstance(course, name, writeout, creator=creator)
+    finally:
+        delete_directory(tmp_path)
+
+
 def create_course(admin, key, archive_path, catalog=None, writeout=True,
                   lockout=False, clear=False, creator=None, validate_export_hash=True):
     """
@@ -174,29 +198,22 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
     tmp_path = None
     try:
         tmp_path = check_archive(archive_path)
-        
+
         # Create course using factory specified by meta-info
-        meta_path = os.path.expanduser(tmp_path or archive_path)
+        path = tmp_path or archive_path
+        meta_path = os.path.expanduser(path)
         meta_path = os.path.join(meta_path, COURSE_META_NAME)
-        filer = DirectoryFiler(tmp_path or archive_path)
+        filer = DirectoryFiler(path)
         course_factory = None
         meta_source = filer.get(meta_path)
         if meta_source:
             meta = json.load(meta_source)
             course_factory = find_factory_for(meta)
         course = course_creator(admin, key, catalog, writeout, creator=creator, factory=course_factory)
-        
-        archive_sec_path = os.path.expanduser(tmp_path or archive_path)
-        archive_sec_path = os.path.join(archive_sec_path, SECTIONS)
-        # Import sections, if necessary.
-        if os.path.isdir(archive_sec_path):
-            for name in os.listdir(archive_sec_path):
-                ipath = os.path.join(archive_sec_path, name)
-                if not os.path.isdir(ipath):
-                    continue
-                create_course_subinstance(course, name, writeout, creator=creator)
+
+        create_sections(course, path, writeout, creator)
         # process
-        _execute(course, tmp_path or archive_path, writeout, lockout, clear, validate_export_hash)
+        _execute(course, path, writeout, lockout, clear, validate_export_hash)
         return course
     finally:
         delete_directory(tmp_path)
