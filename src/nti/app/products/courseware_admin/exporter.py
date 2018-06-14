@@ -31,7 +31,7 @@ def export_course(context, backup=True, salt=None, path=None):
         filer.prepare()
         # export course
         salt = salt or str(time.time())
-        logger.info('Initiating course export for %s. (backup=%s) (salt=%s)',
+        logger.info('Initiating course export for %s (backup=%s) (salt=%s)',
                     entry.ntiid, backup, salt)
         exporter = component.getUtility(ICourseExporter)
         exporter.export(course, filer, backup, salt)
