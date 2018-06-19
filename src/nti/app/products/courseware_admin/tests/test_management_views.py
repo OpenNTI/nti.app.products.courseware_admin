@@ -243,8 +243,7 @@ class TestCourseManagement(ApplicationLayerTest):
 
         new_course = new_course.json_body
         new_course_href = new_course['href']
-        course_token_href = self.require_link_href_with_rel(new_course,
-                                                            VIEW_COURSE_ACCESS_TOKENS)
+        self.forbid_link_with_rel(new_course, VIEW_COURSE_ACCESS_TOKENS)
         course_delete_href = self.require_link_href_with_rel(new_course,
                                                              'delete')
         assert_that(new_course_href, not_none())
@@ -254,16 +253,6 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(new_course['NTIID'], not_none())
         assert_that(new_course['TotalEnrolledCount'], is_(0))
         assert_that(new_course['ContentPackageBundle']['title'], is_(new_course_title))
-
-        # Has an invitation
-        tokens = self.testapp.get(course_token_href)
-        tokens = tokens.json_body
-        tokens = tokens[ITEMS]
-        assert_that(tokens, has_length(1))
-        token = tokens[0]
-        assert_that(token.get('Code'), not_none())
-        assert_that(token.get('MimeType'), not_none())
-        assert_that(token.get('Scope'), not_none())
 
         catalog = self.testapp.get('%s/CourseCatalogEntry' % new_course_href)
         catalog = catalog.json_body
