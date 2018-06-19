@@ -34,8 +34,6 @@ from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtils
 
 from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
 
-from nti.app.products.courseware.invitations.utils import create_course_invitation
-
 from nti.app.products.courseware.views import raise_error
 
 from nti.app.products.courseware_admin import MessageFactory as _
@@ -274,7 +272,6 @@ class CreateCourseView(AbstractAuthenticatedView,
         catalog_entry.Preview = True
         interface.alsoProvides(course, INonPublicCourseInstance)
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
-        create_course_invitation(course, is_generic=True)
         notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
 
