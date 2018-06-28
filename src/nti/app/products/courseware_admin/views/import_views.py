@@ -172,8 +172,9 @@ class CourseImportView(CourseImportMixin):
         now = time.time()
         values = self.readInput()
         result = LocatedExternalDict()
+        course = ICourseInstance(self.context)
+        entry = ICourseCatalogEntry(self.context)
         try:
-            entry = ICourseCatalogEntry(self.context)
             path, tmp_path = self._get_source_paths(values)
             clear = is_true(values.get('clear'))
             writeout = is_true(values.get('writeout') or values.get('save'))
@@ -182,7 +183,7 @@ class CourseImportView(CourseImportMixin):
             preview_raw_value = getattr(entry, 'PreviewRawValue', None)
             path = os.path.abspath(path)
             # We have a course, but want to create an sections given to us.
-            create_sections(self.context, path, writeout)
+            create_sections(course, path, writeout)
             import_course(entry.ntiid,
                           path,
                           writeout,
