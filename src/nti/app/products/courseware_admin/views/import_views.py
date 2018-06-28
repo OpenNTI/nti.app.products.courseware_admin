@@ -180,8 +180,11 @@ class CourseImportView(CourseImportMixin):
             lockout = is_true(values.get('lock') or values.get('lockout'))
             validate_export_hash = self._get_validate_export_hash(values)
             preview_raw_value = getattr(entry, 'PreviewRawValue', None)
+            path = os.path.abspath(path)
+            # We have a course, but want to create an sections given to us.
+            create_sections(self.context, path, writeout)
             import_course(entry.ntiid,
-                          os.path.abspath(path),
+                          path,
                           writeout,
                           lockout,
                           clear=clear,
@@ -290,7 +293,7 @@ class ImportCourseView(CourseImportMixin):
                 course = ICourseInstance(context, None)
                 entry = ICourseCatalogEntry(course, None)
                 preview_raw_value = getattr(entry, 'PreviewRawValue', None)
-                # We have a course, but want to create an sections given to us.
+                # We have a course, but want to create any sections given to us.
                 create_sections(course, path, writeout)
                 course = self._import_course(ntiid, path, writeout,
                                              lockout, clear=clear,
