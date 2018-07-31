@@ -53,10 +53,12 @@ from nti.contenttypes.courses.courses import ContentCourseInstance
 
 from nti.contenttypes.courses.creator import create_course
 from nti.contenttypes.courses.creator import install_admin_level
+from nti.contenttypes.courses.creator import create_course_subinstance
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+from nti.contenttypes.courses.interfaces import ICourseSubInstances
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
 from nti.contenttypes.courses.interfaces import CourseInstanceRemovedEvent
@@ -78,6 +80,8 @@ from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
 
 from nti.site.interfaces import IHostPolicyFolder
+
+from nti.traversal.traversal import find_interface
 
 from nti.zodb.containers import time_to_64bit_int
 
@@ -314,6 +318,44 @@ class CreateCourseView(AbstractAuthenticatedView,
         entry = self._post_create(course)
         logger.info('Creating course (%s) (admin=%s) (ntiid=%s) (key=%s)',
                     self._course_classifier, admin_level, entry.ntiid, key)
+        return course
+
+
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             context=ICourseSubInstances,
+             request_method='POST',
+             permission=nauth.ACT_CONTENT_EDIT)
+class CreateCourseSubinstanceView(CreateCourseView):
+    """
+    Creates a section course.
+    """
+
+    def _create_course(self, parent_course):
+        base_key = self._course_classifier
+        course = None
+        try:
+            # pylint: disable=no-member
+            course = create_course_subinstance(parent_course,
+                                               base_key,
+                                               writeout=False,
+                                               strict=True,
+                                               creator=self.remoteUser.username)
+        except CourseAlreadyExistsException:
+            raise_error({'message': _(u'Course already exists.'),
+                         'code': 'CourseAlreadyExists'},
+                         factory=hexc.HTTPConflict)
+        return course
+
+    def _do_call(self):
+        parent_course = find_interface(self.context, ICourseInstance)
+        course = self._create_course(parent_course)
+        entry = self._post_create(course)
+        logger.info('Creating course section (%s) (admin=%s) (ntiid=%s) (key=%s)',
+                    self._course_classifier,
+                    ICourseCatalogEntry(parent_course).ntiid,
+                    entry.ntiid,
+                    course.__name__)
         return course
 
 

@@ -8,6 +8,7 @@ from __future__ import absolute_import
 # pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import is_
+from hamcrest import none
 from hamcrest import is_not
 from hamcrest import has_item
 from hamcrest import not_none
@@ -317,6 +318,31 @@ class TestCourseManagement(ApplicationLayerTest):
         # Not sure this is externalized like we want.
         courses = self.testapp.get(new_admin_href)
         assert_that(courses.json_body, has_item(new_course_key))
+
+        # Create subinstance
+        subinstances_href = '%s/SubInstances' % new_course_href
+        section_course = self.testapp.post_json(subinstances_href,
+                                                {'ProviderUniqueID': 'section 001',
+                                                 'title': 'SectionTitle',
+                                                 'RichDescription': 'SectionDesc'})
+
+        section_course = section_course.json_body
+        section_course_href = section_course['href']
+        assert_that(section_course_href, not_none())
+
+        catalog = self.testapp.get('%s/CourseCatalogEntry' % section_course_href)
+        catalog = catalog.json_body
+        section_entry_ntiid = catalog['NTIID']
+        assert_that(section_entry_ntiid, not_none())
+        assert_that(section_entry_ntiid, is_not(entry_ntiid))
+        assert_that(catalog['ProviderUniqueID'], is_('section 001'))
+        assert_that(catalog['title'], is_('SectionTitle'))
+        assert_that(catalog['RichDescription'], is_('SectionDesc'))
+
+        # Delete section
+        self.testapp.delete(section_course_href)
+        res = self.testapp.get(subinstances_href).json_body
+        assert_that(res.get('Items'), none())
 
         # Delete
         self.testapp.delete(course_delete_href)
