@@ -339,6 +339,15 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(catalog['title'], is_('SectionTitle'))
         assert_that(catalog['RichDescription'], is_('SectionDesc'))
 
+        # Parent course entry ntiid
+        with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
+            course_object = find_object_with_ntiid(new_course_ntiid)
+            assert_that(INonPublicCourseInstance.providedBy(course_object))
+            catalog_entry = ICourseCatalogEntry(course_object)
+            assert_that(INonPublicCourseInstance.providedBy(catalog_entry))
+            entry = find_object_with_ntiid(entry_ntiid)
+            assert_that(entry.ntiid, is_(catalog_entry_ntiid))
+
         # Delete section
         self.testapp.delete(section_course_href)
         res = self.testapp.get(subinstances_href).json_body
