@@ -27,6 +27,8 @@ from zope.component.hooks import site as current_site
 
 from zope.event import notify
 
+from zope.securitypolicy.interfaces import IPrincipalRoleManager
+
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.view_mixins import BatchingUtilsMixin
@@ -55,6 +57,9 @@ from nti.contenttypes.courses.creator import create_course
 from nti.contenttypes.courses.creator import install_admin_level
 from nti.contenttypes.courses.creator import create_course_subinstance
 
+from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
+from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
+
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
@@ -65,8 +70,13 @@ from nti.contenttypes.courses.interfaces import CourseInstanceRemovedEvent
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
 from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
+from nti.contenttypes.courses.sharing import add_principal_to_course_content_roles
 
 from nti.contenttypes.courses.utils import get_course_tags
+from nti.contenttypes.courses.utils import get_course_editors
+from nti.contenttypes.courses.utils import grant_instructor_access_to_course
+
+from nti.coremetadata.interfaces import IUser
 
 from nti.dataserver import authorization as nauth
 
@@ -331,6 +341,35 @@ class CreateCourseSubinstanceView(CreateCourseView):
     Creates a section course.
     """
 
+    @Lazy
+    def parent_course(self):
+        return find_interface(self.context, ICourseInstance)
+
+    @Lazy
+    def copy_roles(self):
+        result = self._params.get('copy_roles') \
+              or self._params.get('copy_instructor') \
+              or self._params.get('copy_instructors')
+        return is_true(result)
+
+    def _post_create(self, course):
+        if self.copy_roles:
+            prm = IPrincipalRoleManager(course)
+            for prin in self.parent_course.instructors or ():
+                user = IUser(prin, None)
+                if user is None:
+                    continue
+                prm.assignRoleToPrincipal(RID_INSTRUCTOR, prin.id)
+                course.instructors += (prin,)
+                grant_instructor_access_to_course(user, course)
+            for editor_prin in get_course_editors(self.parent_course) or ():
+                user = IUser(editor_prin, None)
+                if user is None:
+                    continue
+                prm.assignRoleToPrincipal(RID_CONTENT_EDITOR, editor_prin.id)
+                add_principal_to_course_content_roles(user, course)
+        return super(CreateCourseSubinstanceView, self)._post_create(course)
+
     def _create_course(self, parent_course):
         base_key = self._course_classifier
         course = None
@@ -348,12 +387,11 @@ class CreateCourseSubinstanceView(CreateCourseView):
         return course
 
     def _do_call(self):
-        parent_course = find_interface(self.context, ICourseInstance)
-        course = self._create_course(parent_course)
+        course = self._create_course(self.parent_course)
         entry = self._post_create(course)
-        logger.info('Creating course section (%s) (admin=%s) (ntiid=%s) (key=%s)',
+        logger.info('Creating course section (%s) (parent=%s) (ntiid=%s) (key=%s)',
                     self._course_classifier,
-                    ICourseCatalogEntry(parent_course).ntiid,
+                    ICourseCatalogEntry(self.parent_course).ntiid,
                     entry.ntiid,
                     course.__name__)
         return course

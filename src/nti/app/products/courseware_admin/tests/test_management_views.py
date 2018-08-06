@@ -28,6 +28,8 @@ from nti.app.products.courseware.views import VIEW_COURSE_ACCESS_TOKENS
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
+from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
+from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 
@@ -41,8 +43,11 @@ from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnume
 from nti.contenttypes.courses._synchronize import synchronize_catalog_from_root
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
+from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
+
+from nti.contenttypes.courses.utils import get_course_editors
 
 from nti.dataserver.tests import mock_dataserver
 
@@ -220,6 +225,10 @@ class TestCourseManagement(ApplicationLayerTest):
         """
         Validate basic course management.
         """
+        with mock_dataserver.mock_db_trans(self.ds):
+            self._create_user('instructor1')
+            self._create_user('editor1')
+
         admin_href = self._get_admin_href()
         # Create admin level
         test_admin_key = 'TheLastMan'
@@ -265,6 +274,15 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(catalog['ProviderUniqueID'], is_(new_course_key))
         assert_that(catalog['title'], is_(new_course_title))
         assert_that(catalog['RichDescription'], is_(new_course_desc))
+
+        # Add editor and instructor
+        editor_href = self.require_link_href_with_rel(new_course,
+                                                      VIEW_COURSE_EDITORS)
+
+        instructor_href = self.require_link_href_with_rel(new_course,
+                                                          VIEW_COURSE_INSTRUCTORS)
+        self.testapp.post_json(instructor_href, {'user': 'instructor1'})
+        self.testapp.post_json(editor_href, {'user': 'editor1'})
 
         # Verify that this course is non-public.
         new_course_ntiid = new_course['NTIID']
@@ -339,7 +357,44 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(catalog['title'], is_('SectionTitle'))
         assert_that(catalog['RichDescription'], is_('SectionDesc'))
 
-        # Parent course entry ntiid
+        # Section 2 with instructors
+        section_course = self.testapp.post_json(subinstances_href,
+                                                {'ProviderUniqueID': 'section 002',
+                                                 'title': 'SectionTitle2',
+                                                 'copy_roles': 'true',
+                                                 'RichDescription': 'SectionDesc2'})
+
+        section_course = section_course.json_body
+        section_course_href2 = section_course['href']
+        assert_that(section_course_href, not_none())
+
+        catalog = self.testapp.get('%s/CourseCatalogEntry' % section_course_href2)
+        catalog = catalog.json_body
+        section_entry_ntiid2 = catalog['NTIID']
+        assert_that(section_entry_ntiid2, not_none())
+        assert_that(section_entry_ntiid2, is_not(entry_ntiid))
+        assert_that(section_entry_ntiid2, is_not(section_entry_ntiid))
+
+        # Validate instructors/editors copy
+        inst_environ = self._make_extra_environ('instructor1')
+        editor_environ = self._make_extra_environ('editor1')
+        res = self.testapp.get(section_course_href,
+                               extra_environ=inst_environ)
+        self.forbid_link_with_rel(res.json_body, VIEW_COURSE_INSTRUCTORS)
+
+        res = self.testapp.get(section_course_href,
+                               extra_environ=editor_environ)
+        self.forbid_link_with_rel(res.json_body, VIEW_COURSE_EDITORS)
+
+        res = self.testapp.get(section_course_href2,
+                               extra_environ=inst_environ)
+        self.require_link_href_with_rel(res.json_body, VIEW_COURSE_INSTRUCTORS)
+
+        res = self.testapp.get(section_course_href2,
+                               extra_environ=editor_environ)
+        self.require_link_href_with_rel(res.json_body, VIEW_COURSE_EDITORS)
+
+        # Parent course entry ntiid and instructors/editors
         with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
             course_object = find_object_with_ntiid(new_course_ntiid)
             assert_that(INonPublicCourseInstance.providedBy(course_object))
@@ -348,8 +403,21 @@ class TestCourseManagement(ApplicationLayerTest):
             entry = find_object_with_ntiid(entry_ntiid)
             assert_that(entry.ntiid, is_(catalog_entry_ntiid))
 
-        # Delete section
+            section1 = find_object_with_ntiid(section_entry_ntiid)
+            section1 = ICourseInstance(section1)
+            section2 = find_object_with_ntiid(section_entry_ntiid2)
+            section2 = ICourseInstance(section2)
+            assert_that(course_object.instructors, has_length(1))
+            assert_that(section1.instructors, has_length(0))
+            assert_that(section2.instructors, has_length(1))
+
+            assert_that(get_course_editors(course_object), has_length(1))
+            assert_that(get_course_editors(section1), has_length(0))
+            assert_that(get_course_editors(section2), has_length(1))
+
+        # Delete sections
         self.testapp.delete(section_course_href)
+        self.testapp.delete(section_course_href2)
         res = self.testapp.get(subinstances_href).json_body
         assert_that(res.get('Items'), none())
 
