@@ -64,6 +64,7 @@ from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseSubInstances
+from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
 from nti.contenttypes.courses.interfaces import CourseInstanceRemovedEvent
@@ -368,6 +369,7 @@ class CreateCourseSubinstanceView(CreateCourseView):
                     continue
                 prm.assignRoleToPrincipal(RID_CONTENT_EDITOR, editor_prin.id)
                 add_principal_to_course_content_roles(user, course)
+            notify(CourseRolesSynchronized(course))
         return super(CreateCourseSubinstanceView, self)._post_create(course)
 
     def _create_course(self, parent_course):
