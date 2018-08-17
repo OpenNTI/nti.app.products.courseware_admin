@@ -117,7 +117,7 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
 
     def __call__(self):
         entry = ICourseCatalogEntry(self.context, None)
-        if entry is None or ILegacyCourseCatalogEntry.providedBy(self.context):
+        if entry is None or ILegacyCourseCatalogEntry.providedBy(entry):
             raise_json_error(self.request,
                              hexc.HTTPForbidden,
                              {
