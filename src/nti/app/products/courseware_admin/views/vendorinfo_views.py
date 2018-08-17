@@ -92,17 +92,9 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
         return values
 
     def readInput(self, value=None):
-        if self.request.body:
-            source = super(CourseVendorInfoPutView, self).readInput(value)
-        elif self.request.POST:
-            sources = get_all_sources(self.request)
-            if not sources:
-                raise_json_error(self.request,
-                                 hexc.HTTPUnprocessableEntity,
-                                 {
-                                     'message': _(u"No source was specified."),
-                                 },
-                                 None)
+        source = None
+        sources = get_all_sources(self.request)
+        if sources:
             source = next(iter(sources.values()))  # pick first
             source = read_input_data(read_source(source), self.request)
             if not isinstance(source, collections.Mapping):
@@ -112,7 +104,9 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
                                      'message': _(u"Invalid input format."),
                                  },
                                  None)
-        else:
+        elif self.request.body:
+            source = super(CourseVendorInfoPutView, self).readInput(value)
+        if not source:
             raise_json_error(self.request,
                              hexc.HTTPUnprocessableEntity,
                              {
