@@ -91,17 +91,9 @@ class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
         return values
 
     def readInput(self, value=None):
-        if self.request.body:
-            source = super(CourseAssessmentPolicyPutView, self).readInput(value)
-        elif self.request.POST:
-            sources = get_all_sources(self.request)
-            if not sources:
-                raise_json_error(self.request,
-                                 hexc.HTTPUnprocessableEntity,
-                                 {
-                                     'message': _(u"No source was specified."),
-                                 },
-                                 None)
+        source = None
+        sources = get_all_sources(self.request)
+        if sources:
             source = next(iter(sources.values()))  # pick first
             source = read_input_data(read_source(source), self.request)
             if not isinstance(source, collections.Mapping):
@@ -111,8 +103,8 @@ class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
                                      'message': _(u"Invalid input format."),
                                  },
                                  None)
-        if source is not None:
-            self.clean_input(source)
+        elif self.request.body:
+            source = super(CourseAssessmentPolicyPutView, self).readInput(value)
         if source is None:
             raise_json_error(self.request,
                              hexc.HTTPUnprocessableEntity,
@@ -120,11 +112,13 @@ class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
                                  'message': _(u"No input data specified."),
                              },
                              None)
+        else:
+            self.clean_input(source)
         return source
 
     def __call__(self):
         entry = ICourseCatalogEntry(self.context, None)
-        if entry is None or ILegacyCourseCatalogEntry.providedBy(self.context):
+        if entry is None or ILegacyCourseCatalogEntry.providedBy(entry):
             raise_json_error(self.request,
                              hexc.HTTPForbidden,
                              {
