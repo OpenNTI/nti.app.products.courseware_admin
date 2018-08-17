@@ -39,6 +39,7 @@ class TestCourseAssessmentPolicyViews(ApplicationLayerTest):
         data = {
             self.clicker: {
                 'locked': True,
+                "available_for_submission_beginning": "2018-05-04T12:00:43Z",
                 'auto_grade': {
                     'total_points': 100,
                 }
