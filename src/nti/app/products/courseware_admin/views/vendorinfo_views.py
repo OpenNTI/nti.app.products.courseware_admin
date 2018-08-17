@@ -50,6 +50,7 @@ EXCLUDE =   tuple(getattr(StandardExternalFields, 'ALL')) \
 logger = __import__('logging').getLogger(__name__)
 
 
+@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
 @view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
@@ -65,6 +66,7 @@ class CourseVendorInfoGetView(AbstractAuthenticatedView):
         return vendor
 
 
+@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
 @view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
@@ -76,6 +78,7 @@ class CatalogEntryVendorInfoGetView(CourseVendorInfoGetView):
     pass
 
 
+@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
 @view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
@@ -134,6 +137,7 @@ class CourseVendorInfoPutView(AbstractAuthenticatedView,
         return vendor
 
 
+@view_config(name='VendorInfo')
 @view_config(name='vendor_info')
 @view_config(name='vendor-info')
 @view_config(name=VIEW_VENDOR_INFO)
