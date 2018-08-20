@@ -87,7 +87,6 @@ class SyncCourseView(_SyncAllLibrariesView):
 @view_config(name='SyncCourse')
 @view_defaults(route_name='objects.generic.traversal',
                renderer='rest',
-               name='SyncCourse',
                context=ICourseCatalogEntry,
                permission=nauth.ACT_SYNC_LIBRARY)
 class SyncEntryView(SyncCourseView):
