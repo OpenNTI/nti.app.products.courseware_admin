@@ -201,7 +201,7 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         usernames = self._get_users()
         for username in usernames:
             user = User.get_user(username)
-            if user is None:
+            if not IUser.providedBy(user):
                 raise_error({
                     'message': _(u"User does not exist."),
                     'code': 'UserDoesNotExist',
