@@ -348,12 +348,14 @@ class CreateCourseSubinstanceView(CreateCourseView):
 
     @Lazy
     def copy_roles(self):
+        # pylint: disable=no-member
         result = self._params.get('copy_roles') \
               or self._params.get('copy_instructor') \
               or self._params.get('copy_instructors')
         return is_true(result)
 
     def _post_create(self, course):
+        # pylint: disable=too-many-function-args,no-member
         if self.copy_roles:
             prm = IPrincipalRoleManager(course)
             for prin in self.parent_course.instructors or ():
@@ -372,7 +374,7 @@ class CreateCourseSubinstanceView(CreateCourseView):
             notify(CourseRolesSynchronized(course))
         return super(CreateCourseSubinstanceView, self)._post_create(course)
 
-    def _create_course(self, parent_course):
+    def _create_course(self, parent_course):  # pylint: disable=arguments-differ
         base_key = self._course_classifier
         course = None
         try:
