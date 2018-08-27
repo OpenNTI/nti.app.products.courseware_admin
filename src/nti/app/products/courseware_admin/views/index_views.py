@@ -21,11 +21,14 @@ from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
+from nti.contentlibrary.index import get_contentbundle_catalog
+
 from nti.contenttypes.courses.index import get_courses_catalog
 from nti.contenttypes.courses.index import get_course_outline_catalog
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
+from nti.contenttypes.courses.interfaces import ICourseSubInstance
 
 from nti.dataserver import authorization as nauth
 
@@ -60,6 +63,7 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
         # reindex
         seen = set()
         items = dict()
+        bundle_catalog = get_contentbundle_catalog()
         for host_site in get_all_host_sites():  # check all sites
             with current_site(host_site):
                 library = component.queryUtility(ICourseCatalog)
@@ -75,6 +79,12 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
                     seen.add(doc_id)
                     catalog.index_doc(doc_id, course)
                     metadata_queue_add(course)
+                    # index bundle
+                    if not ICourseSubInstance.providedBy(course):
+                        bundle = course.ContentPackageBundle
+                        doc_id = intids.queryId(bundle)
+                        if doc_id is not None:
+                            bundle_catalog.index_doc(doc_id, bundle)
                 items[host_site.__name__] = count
         result = LocatedExternalDict()
         result[ITEMS] = items
