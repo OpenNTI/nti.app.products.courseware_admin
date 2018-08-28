@@ -40,3 +40,10 @@ class TestIndexViews(ApplicationLayerTest):
         res = self.testapp.post_json(href, status=200)
         assert_that(res.json_body,
                     has_entry('Total', is_(greater_than(0))))
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_rebuild_enrollment_catalog(self):
+        href = '/dataserver2/CourseAdmin/@@RebuildEnrollmentCatalog'
+        res = self.testapp.post_json(href, status=200)
+        assert_that(res.json_body,
+                    has_entry('Total', is_(greater_than(0))))
