@@ -29,6 +29,7 @@ from nti.contenttypes.courses.index import get_course_outline_catalog
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseSubInstance
+from nti.contenttypes.courses.interfaces import IContentCourseInstance
 
 from nti.dataserver import authorization as nauth
 
@@ -80,7 +81,8 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
                     catalog.index_doc(doc_id, course)
                     metadata_queue_add(course)
                     # index bundle
-                    if not ICourseSubInstance.providedBy(course):
+                    if      not ICourseSubInstance.providedBy(course) \
+                        and IContentCourseInstance.providedBy(course):
                         bundle = course.ContentPackageBundle
                         doc_id = intids.queryId(bundle)
                         if doc_id is not None:
