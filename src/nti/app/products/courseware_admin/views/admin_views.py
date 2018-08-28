@@ -184,7 +184,7 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
         course = ICourseInstance(self.context)
         # get and validate role instructors
         role_inst = {
-            x for x in get_course_instructors(course) if self.validate(x)
+            x.lower() for x in get_course_instructors(course) if self.validate(x)
         }
         # get course instructors
         # pylint: disable=not-an-iterable
@@ -194,7 +194,7 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
         course_insts = {x.lower() for x in course_insts if self.validate(x)}
 
         # all instructors
-        instructors = course_insts.union({x.lower() for x in role_inst})
+        instructors = course_insts.union(role_inst)
         if not instructors:
             raise_json_error(self.request,
                              hexc.HTTPUnprocessableEntity,
