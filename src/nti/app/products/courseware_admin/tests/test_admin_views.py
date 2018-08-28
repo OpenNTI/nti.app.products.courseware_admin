@@ -68,7 +68,7 @@ class TestAdminViews(ApplicationLayerTest):
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
         self.testapp.get(href, status=404)
 
-    @WithSharedApplicationMockDS(testapp=True, users=False)
+    @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_sync_instructors(self):
         href = "/dataserver2/Objects/%s/@@SyncInstructors" % self.entry_ntiid
         self.testapp.post(href, status=204)
