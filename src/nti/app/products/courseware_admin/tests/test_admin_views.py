@@ -19,7 +19,7 @@ from nti.app.testing.application_webtest import ApplicationLayerTest
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
 
-class TestCourseEdits(ApplicationLayerTest):
+class TestAdminViews(ApplicationLayerTest):
     """
     Test the editing of ICourseCatalogEntries
     """
@@ -28,6 +28,8 @@ class TestCourseEdits(ApplicationLayerTest):
 
     default_origin = 'http://janux.ou.edu'
 
+    entry_ntiid = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2015_CS_1323'
+    
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_get_catalog_entry(self):
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry'
@@ -65,3 +67,8 @@ class TestCourseEdits(ApplicationLayerTest):
                                          ('site', 'platform.ou.edu')))
         href = '/dataserver2/CourseAdmin/@@GetCatalogEntry?%s' % params
         self.testapp.get(href, status=404)
+
+    @WithSharedApplicationMockDS(testapp=True, users=False)
+    def test_sync_instructors(self):
+        href = "/dataserver2/Objects/%s/@@SyncInstructors" % self.entry_ntiid
+        self.testapp.post(href, status=204)
