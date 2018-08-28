@@ -91,6 +91,9 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
                     metadata_queue_add(course)
                     # index entry
                     metadata_queue_add(entry)
+                    doc_id = intids.queryId(entry)
+                    if doc_id is None:
+                        catalog.index_doc(doc_id, entry)
                     # index bundle
                     self.index_bundle(bundle_catalog, course, intids)
                 items[host_site.__name__] = count
