@@ -92,7 +92,7 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
                     # index entry
                     metadata_queue_add(entry)
                     doc_id = intids.queryId(entry)
-                    if doc_id is None:
+                    if doc_id is not None:
                         catalog.index_doc(doc_id, entry)
                     # index bundle
                     self.index_bundle(bundle_catalog, course, intids)
