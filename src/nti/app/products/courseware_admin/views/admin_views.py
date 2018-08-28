@@ -19,6 +19,13 @@ from zope import component
 
 from zope.component.hooks import site as current_site
 
+from zope.event import notify
+
+from zope.security.interfaces import IPrincipal
+
+from zope.securitypolicy.interfaces import Allow
+from zope.securitypolicy.interfaces import IPrincipalRoleManager
+
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.error import raise_json_error
@@ -29,15 +36,25 @@ from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.contenttypes.courses.common import get_course_packages
 
+from nti.contenttypes.courses.interfaces import RID_TA
+from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
+from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
+
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
 from nti.contenttypes.courses.sharing import update_package_permissions
 
+from nti.contenttypes.courses.utils import get_course_instructors
+
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
+
+from nti.dataserver.interfaces import IUser
+
+from nti.dataserver.users.users import User
 
 from nti.externalization.interfaces import StandardExternalFields
 
@@ -149,3 +166,75 @@ class GetCatalogEntryView(GetCourseView):
     def __call__(self):
         result = super(GetCatalogEntryView, self).__call__()
         return ICourseCatalogEntry(result)
+
+
+@view_config(name='SyncInstructors')
+@view_defaults(route_name='objects.generic.traversal',
+               renderer='rest',
+               context=ICourseInstance,
+               request_method='POST',
+               permission=nauth.ACT_NTI_ADMIN)
+class SyncCourseInstructorsView(AbstractAuthenticatedView):
+
+    def validate(self, name):
+        user = User.get_user(name)
+        return IUser.providedBy(user)
+
+    def __call__(self):
+        course = ICourseInstance(self.context)
+        # get and validate role instructors
+        role_inst = {
+            x.lower() for x in get_course_instructors(course) if self.validate(x)
+        }
+        # get course instructors
+        # pylint: disable=not-an-iterable
+        course_insts = {
+            IPrincipal(x).id for x in course.instructors or ()
+        }
+        course_insts = {x.lower() for x in course_insts if self.validate(x)}
+
+        # all instructors
+        instructors = course_insts.union(role_inst)
+        if not instructors:
+            raise_json_error(self.request,
+                             hexc.HTTPUnprocessableEntity,
+                             {
+                                 'message': _(u"Course does not have valid instructors."),
+                             },
+                             None)
+
+        # reset all TA/Instructor roles while saving valid mappings
+        # pylint: disable=too-many-function-args
+        roles = {}
+        manager = IPrincipalRoleManager(course)
+        for role, principal, setting in list(manager.getPrincipalsAndRoles() or ()):
+            if role in (RID_TA, RID_INSTRUCTOR):
+                pid = getattr(principal, 'id', principal).lower()
+                if pid in instructors and setting is Allow:
+                    roles[pid] = role
+                manager.unsetRoleForPrincipal(role, principal)
+
+        # set course instructors
+        course.instructors = tuple(
+            IPrincipal(User.get_user(x)) for x in sorted(instructors)
+        )
+
+        # set course roles
+        for principal in course.instructors:
+            pid = principal.id.lower()
+            role = roles.get(pid, RID_INSTRUCTOR)
+            manager.assignRoleToPrincipal(role, pid)
+
+        # notify
+        notify(CourseRolesSynchronized(course))
+        return hexc.HTTPNoContent()
+
+
+@view_config(name='SyncInstructors')
+@view_defaults(route_name='objects.generic.traversal',
+               renderer='rest',
+               context=ICourseCatalogEntry,
+               request_method='POST',
+               permission=nauth.ACT_NTI_ADMIN)
+class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
+    pass
