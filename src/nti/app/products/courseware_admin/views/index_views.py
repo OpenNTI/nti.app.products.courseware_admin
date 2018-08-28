@@ -55,6 +55,14 @@ logger = __import__('logging').getLogger(__name__)
                permission=nauth.ACT_NTI_ADMIN)
 class RebuildCoursesCatalogView(AbstractAuthenticatedView):
 
+    def index_bundle(self, catalog, course, intids):
+        if      not ICourseSubInstance.providedBy(course) \
+            and IContentCourseInstance.providedBy(course):
+            bundle = course.ContentPackageBundle
+            doc_id = intids.queryId(bundle)
+            if doc_id is not None:
+                catalog.index_doc(doc_id, bundle)
+
     def __call__(self):
         intids = component.getUtility(IIntIds)
         # clear indexes
@@ -78,15 +86,13 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
                         continue
                     count += 1
                     seen.add(doc_id)
+                    # index course
                     catalog.index_doc(doc_id, course)
                     metadata_queue_add(course)
+                    # index entry
+                    metadata_queue_add(entry)
                     # index bundle
-                    if      not ICourseSubInstance.providedBy(course) \
-                        and IContentCourseInstance.providedBy(course):
-                        bundle = course.ContentPackageBundle
-                        doc_id = intids.queryId(bundle)
-                        if doc_id is not None:
-                            bundle_catalog.index_doc(doc_id, bundle)
+                    self.index_bundle(bundle_catalog, course, intids)
                 items[host_site.__name__] = count
         result = LocatedExternalDict()
         result[ITEMS] = items
