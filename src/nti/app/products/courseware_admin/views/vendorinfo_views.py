@@ -44,8 +44,7 @@ from nti.dataserver import authorization as nauth
 from nti.externalization.interfaces import StandardExternalFields
 from nti.externalization.interfaces import StandardInternalFields
 
-EXCLUDE =   tuple(getattr(StandardExternalFields, 'ALL')) \
-          + (StandardInternalFields.NTIID,)
+EXCLUDE = tuple(StandardExternalFields.EXTERNAL_KEYS) + (StandardInternalFields.NTIID,)
 
 logger = __import__('logging').getLogger(__name__)
 
