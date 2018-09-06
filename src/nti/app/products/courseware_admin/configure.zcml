@@ -77,6 +77,7 @@
 
 	<!-- Subscribers -->
 	<subscriber handler=".subscribers._on_course_instance_created" />
+	<subscriber handler=".subscribers._enable_default_assignments_as_required" />
 
 	<!-- workspace -->
 	<subscriber	factory=".providers._CourseImportLinkProvider"

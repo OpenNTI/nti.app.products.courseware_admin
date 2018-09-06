@@ -18,6 +18,11 @@ from zope.lifecycleevent.interfaces import IObjectCreatedEvent
 
 from nti.app.products.courseware_admin.hostpolicy import get_site_provider
 
+from nti.assessment.interfaces import ALL_ASSIGNMENT_MIME_TYPES
+
+from nti.contenttypes.completion.interfaces import ICompletionContext
+from nti.contenttypes.completion.interfaces import ICompletableItemDefaultRequiredPolicy
+
 from nti.contenttypes.courses.interfaces import ICreatedCourse
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
@@ -63,3 +68,13 @@ def _on_course_instance_created(course, _):
         entry = ICourseCatalogEntry(course, None)
         if entry is not None:
             _set_entry_ntiid(entry)
+
+
+@component.adapter(ICourseInstance, IObjectCreatedEvent)
+def _enable_default_assignments_as_required(course, _):
+    if ICreatedCourse.providedBy(course):
+        context = ICompletionContext(course, None)
+        if context is not None:
+            policy = ICompletableItemDefaultRequiredPolicy(context)
+            policy.mime_types.add(ALL_ASSIGNMENT_MIME_TYPES)
+
