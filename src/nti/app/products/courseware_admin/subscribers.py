@@ -76,5 +76,5 @@ def _enable_default_assignments_as_required(course, _):
         context = ICompletionContext(course, None)
         if context is not None:
             policy = ICompletableItemDefaultRequiredPolicy(context)
-            policy.mime_types.add(ALL_ASSIGNMENT_MIME_TYPES)
+            policy.mime_types.update(ALL_ASSIGNMENT_MIME_TYPES)
 

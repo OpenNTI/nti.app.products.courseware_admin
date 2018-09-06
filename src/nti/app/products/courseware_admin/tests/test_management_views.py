@@ -305,7 +305,8 @@ class TestCourseManagement(ApplicationLayerTest):
 
             # Default Assignemnts are required
             policy = ICompletableItemDefaultRequiredPolicy(course_object)
-            assert_that(policy.mime_types, has_items(ALL_ASSIGNMENT_MIME_TYPES))
+            assert_that(policy.mime_types, has_length(3))
+            assert_that(policy.mime_types, has_items(*tuple(ALL_ASSIGNMENT_MIME_TYPES)))
 
         catalog_href = '/dataserver2/Objects/' + catalog_entry_ntiid
         catalog_entry_res = self.testapp.get(catalog_href)
@@ -372,7 +373,8 @@ class TestCourseManagement(ApplicationLayerTest):
             section_course_object = find_object_with_ntiid(new_section_course_ntiid)
 
             policy = ICompletableItemDefaultRequiredPolicy(section_course_object)
-            assert_that(policy.mime_types, has_items(ALL_ASSIGNMENT_MIME_TYPES))
+            assert_that(policy.mime_types, has_length(3))
+            assert_that(policy.mime_types, has_items(*tuple(ALL_ASSIGNMENT_MIME_TYPES)))
 
         # Section 2 with instructors
         section_course = self.testapp.post_json(subinstances_href,
