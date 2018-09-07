@@ -58,7 +58,7 @@ def _set_entry_ntiid(entry):
 
 
 @component.adapter(ICourseInstance, IObjectCreatedEvent)
-def _on_course_instance_created(course, _):
+def _on_course_instance_created(course, unused_event=None):
     if ICreatedCourse.providedBy(course):
         entry = ICourseCatalogEntry(course, None)
         if entry is not None:
