@@ -120,10 +120,17 @@ class AdminLevelsGetView(AbstractAuthenticatedView):
 
     def __call__(self):
         data = self.readInput()
-        parents = is_true(data.get('parents', 'true'))
+        # This is typically fetched when creating courses, therefore we'll
+        # want to return the admin levels from this site, which this user
+        # should have access to insert into (but may not for parent site
+        # admin levels). Plus, parent site admins would not want to create
+        # courses in the parent site from a sub-site; that would be confusing.
+        parents = is_true(data.get('parents', 'false'))
         result = LocatedExternalDict()
         # pylint: disable=no-member
         admin_levels = self.context.get_admin_levels(parents)
+        # TODO: Now that we allow dupe admin level names, we probably need
+        # to return list here with appropriate links.
         result[ITEMS] = {
             x: to_external_object(y, name='summary')
             for x, y in admin_levels.items()
@@ -141,8 +148,7 @@ class AdminLevelsGetView(AbstractAuthenticatedView):
 class AdminLevelsPostView(AbstractAuthenticatedView,
                           ModeledContentUploadRequestUtilsMixin):
     """
-    A view to create a new ICourseAdministrativeLevel, given as
-    a 'key' param.
+    A view to create a new ICourseAdministrativeLevel, given as a 'key' param.
     """
 
     def readInput(self, value=None):
@@ -164,9 +170,11 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
             })
         return result
 
-    def _insert(self, context, admin_key, parents=True):
-        # Do not allow children levels to mask parent levels.
-        admin_levels = context.get_admin_levels(parents)
+    def _insert(self, context, admin_key):
+        # For child sites, we'll want to allow creating admin levels
+        # that may be duplicates of parent admin levels. This allows
+        # child site admins to create structure in their site.
+        admin_levels = context.get_admin_levels(parents=False)
         if admin_key in admin_levels:
             raise_error({
                 'message': _(u'Admin key already exists.'),
@@ -181,9 +189,8 @@ class AdminLevelsPostView(AbstractAuthenticatedView,
 
     def __call__(self):
         values = self.readInput()
-        parents = is_true(values.get('parents', 'true'))
         admin_key = self._get_admin_key(values)
-        new_level = self._insert(self._catalog, admin_key, parents)
+        new_level = self._insert(self._catalog, admin_key)
         logger.info("Created new admin level (%s)", admin_key)
         return to_external_object(new_level, name="summary")
 
