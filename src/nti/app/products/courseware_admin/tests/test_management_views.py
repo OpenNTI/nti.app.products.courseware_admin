@@ -107,18 +107,23 @@ class TestCourseManagement(ApplicationLayerTest):
         Validate basic admin level management.
         """
         admin_href = self._get_admin_href()
-        admin_levels = self.testapp.get(admin_href)
+        parents_admin_href = '%s?parents=True' % admin_href
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(2))
         assert_that(admin_levels[ITEMS],
                     contains_inanyorder('Fall2013', 'Fall2015'))
+
+        admin_levels = self.testapp.get(admin_href)
+        admin_levels = admin_levels.json_body
+        assert_that(admin_levels[ITEM_COUNT], is_(0))
 
         # Create
         test_admin_key = 'TestAdminKey'
         res = self.testapp.post_json(admin_href, {'key': test_admin_key})
         res = res.json_body
         assert_that(res['href'], not_none())
-        admin_levels = self.testapp.get(admin_href)
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(3))
         assert_that(admin_levels[ITEMS],
@@ -135,7 +140,7 @@ class TestCourseManagement(ApplicationLayerTest):
         self.testapp.delete(new_admin_href)
         self.testapp.get(new_admin_href, status=404)
 
-        admin_levels = self.testapp.get(admin_href)
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(2))
         assert_that(admin_levels[ITEMS],
@@ -147,7 +152,8 @@ class TestCourseManagement(ApplicationLayerTest):
         Validate syncs and admin levels.
         """
         admin_href = self._get_admin_href()
-        admin_levels = self.testapp.get(admin_href)
+        parents_admin_href = '%s?parents=True' % admin_href
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(2))
         assert_that(admin_levels[ITEMS],
@@ -156,7 +162,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # Create
         test_admin_key = 'TestAdminKey'
         self.testapp.post_json(admin_href, {'key': test_admin_key})
-        admin_levels = self.testapp.get(admin_href)
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(3))
         assert_that(admin_levels[ITEMS],
@@ -168,7 +174,7 @@ class TestCourseManagement(ApplicationLayerTest):
 
         # Sync is ok
         self._sync()
-        admin_levels = self.testapp.get(admin_href)
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(3))
         assert_that(admin_levels[ITEMS],
@@ -181,7 +187,7 @@ class TestCourseManagement(ApplicationLayerTest):
             shutil.rmtree(admin_level.root.absolute_path, False)
 
         self._sync()
-        admin_levels = self.testapp.get(admin_href)
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(3))
         assert_that(admin_levels[ITEMS],
@@ -191,7 +197,7 @@ class TestCourseManagement(ApplicationLayerTest):
         self.testapp.delete(new_admin_href)
         self.testapp.get(new_admin_href, status=404)
 
-        admin_levels = self.testapp.get(admin_href)
+        admin_levels = self.testapp.get(parents_admin_href)
         admin_levels = admin_levels.json_body
         assert_that(admin_levels[ITEM_COUNT], is_(2))
         assert_that(admin_levels[ITEMS],
