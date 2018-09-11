@@ -11,6 +11,7 @@ from hamcrest import is_
 from hamcrest import none
 from hamcrest import is_not
 from hamcrest import has_item
+from hamcrest import has_items
 from hamcrest import not_none
 from hamcrest import contains
 from hamcrest import has_entry
@@ -37,8 +38,12 @@ from nti.app.testing.application_webtest import ApplicationLayerTest
 
 from nti.app.testing.decorators import WithSharedApplicationMockDS
 
+from nti.assessment.interfaces import ALL_ASSIGNMENT_MIME_TYPES
+
 from nti.contentlibrary.interfaces import IContentPackageLibrary
 from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnumeration
+
+from nti.contenttypes.completion.interfaces import ICompletableItemDefaultRequiredPolicy
 
 from nti.contenttypes.courses._synchronize import synchronize_catalog_from_root
 
@@ -304,6 +309,11 @@ class TestCourseManagement(ApplicationLayerTest):
             assert_that(entry.ntiid, is_(entry_ntiid))
             assert_that(entry, is_(catalog_entry))
 
+            # Default Assignemnts are required
+            policy = ICompletableItemDefaultRequiredPolicy(course_object)
+            assert_that(policy.mime_types, has_length(3))
+            assert_that(policy.mime_types, has_items(*tuple(ALL_ASSIGNMENT_MIME_TYPES)))
+
         catalog_href = '/dataserver2/Objects/' + catalog_entry_ntiid
         catalog_entry_res = self.testapp.get(catalog_href)
         assert_that(catalog_entry_res.json, has_entry('is_non_public', True))
@@ -362,6 +372,15 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(catalog['ProviderUniqueID'], is_('section 001'))
         assert_that(catalog['title'], is_('SectionTitle'))
         assert_that(catalog['RichDescription'], is_('SectionDesc'))
+
+        # Verify default assignments
+        new_section_course_ntiid = section_course['NTIID']
+        with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
+            section_course_object = find_object_with_ntiid(new_section_course_ntiid)
+
+            policy = ICompletableItemDefaultRequiredPolicy(section_course_object)
+            assert_that(policy.mime_types, has_length(3))
+            assert_that(policy.mime_types, has_items(*tuple(ALL_ASSIGNMENT_MIME_TYPES)))
 
         # Section 2 with instructors
         section_course = self.testapp.post_json(subinstances_href,
