@@ -12,6 +12,9 @@ import os
 import time
 import tempfile
 
+from pyramid.view import view_config
+from pyramid.view import view_defaults
+
 from requests.structures import CaseInsensitiveDict
 
 from zope import component
@@ -23,9 +26,6 @@ from zope.event import notify
 
 from zope.security.management import endInteraction
 from zope.security.management import restoreInteraction
-
-from pyramid.view import view_config
-from pyramid.view import view_defaults
 
 from nti.app.base.abstract_views import get_all_sources
 from nti.app.base.abstract_views import AbstractAuthenticatedView

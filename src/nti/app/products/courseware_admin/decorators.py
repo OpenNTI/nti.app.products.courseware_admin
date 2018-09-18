@@ -8,14 +8,14 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+from pyramid.threadlocal import get_current_request
+
 from zope import component
 from zope import interface
 
 from zope.cachedescriptors.property import Lazy
 
 from zope.location.interfaces import ILocation
-
-from pyramid.threadlocal import get_current_request
 
 from nti.app.products.courseware.interfaces import ICoursesWorkspace
 from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
