@@ -13,10 +13,10 @@ import time
 import shutil
 import tempfile
 
-from requests.structures import CaseInsensitiveDict
-
 from pyramid.view import view_config
 from pyramid.view import view_defaults
+
+from requests.structures import CaseInsensitiveDict
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 

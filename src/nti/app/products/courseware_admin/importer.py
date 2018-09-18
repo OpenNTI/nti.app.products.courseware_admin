@@ -9,9 +9,10 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
-import json
 import zipfile
 import tempfile
+
+import simplejson as json
 
 from zope import component
 from zope import lifecycleevent
@@ -127,7 +128,8 @@ def _check_export_hash(course, filer, validate):
         raise InvalidCourseArchiveException()
 
 
-def _execute(course, archive_path, writeout=True, lockout=False, clear=False, validate_export_hash=True):
+def _execute(course, archive_path, writeout=True, lockout=False, 
+             clear=False, validate_export_hash=True):
     course = ICourseInstance(course, None)
     if course is None:
         raise ValueError("Invalid course")
@@ -149,7 +151,8 @@ def _execute(course, archive_path, writeout=True, lockout=False, clear=False, va
         delete_directory(tmp_path)
 
 
-def import_course(ntiid, archive_path, writeout=True, lockout=False, clear=False, validate_export_hash=True):
+def import_course(ntiid, archive_path, writeout=True, lockout=False,
+                  clear=False, validate_export_hash=True):
     """
     Import a course from a file archive
 
@@ -209,7 +212,8 @@ def create_course(admin, key, archive_path, catalog=None, writeout=True,
         if meta_source:
             meta = json.load(meta_source)
             course_factory = find_factory_for(meta)
-        course = course_creator(admin, key, catalog, writeout, creator=creator, factory=course_factory)
+        course = course_creator(admin, key, catalog, writeout,
+                                creator=creator, factory=course_factory)
 
         create_sections(course, path, writeout, creator)
         # process

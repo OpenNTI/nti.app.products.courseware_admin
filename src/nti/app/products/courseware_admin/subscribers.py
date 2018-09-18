@@ -71,10 +71,10 @@ def _on_course_instance_created(course, unused_event=None):
 
 
 @component.adapter(ICourseInstance, IObjectCreatedEvent)
-def _enable_default_assignments_as_required(course, _):
+def _enable_default_assignments_as_required(course, unused_event=None):
     if ICreatedCourse.providedBy(course):
         context = ICompletionContext(course, None)
         if context is not None:
+            # pylint: disable=no-member
             policy = ICompletableItemDefaultRequiredPolicy(context)
             policy.mime_types.update(ALL_ASSIGNMENT_MIME_TYPES)
-

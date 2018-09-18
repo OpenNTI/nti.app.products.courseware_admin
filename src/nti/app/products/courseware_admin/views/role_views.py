@@ -11,12 +11,12 @@ from __future__ import absolute_import
 import csv
 from io import BytesIO
 
-from requests.structures import CaseInsensitiveDict
-
 from pyramid import httpexceptions as hexc
 
 from pyramid.view import view_config
 from pyramid.view import view_defaults
+
+from requests.structures import CaseInsensitiveDict
 
 from zope import component
 
