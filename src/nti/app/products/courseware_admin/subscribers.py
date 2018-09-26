@@ -20,6 +20,8 @@ from nti.app.products.courseware_admin.hostpolicy import get_site_provider
 
 from nti.assessment.interfaces import ALL_ASSIGNMENT_MIME_TYPES
 
+from nti.base._compat import text_
+
 from nti.contenttypes.completion.interfaces import ICompletionContext
 from nti.contenttypes.completion.interfaces import ICompletableItemDefaultRequiredPolicy
 
@@ -77,4 +79,4 @@ def _enable_default_assignments_as_required(course, unused_event=None):
         if context is not None:
             # pylint: disable=no-member
             policy = ICompletableItemDefaultRequiredPolicy(context)
-            policy.mime_types.update(ALL_ASSIGNMENT_MIME_TYPES)
+            policy.add_mime_types([text_(x) for x in ALL_ASSIGNMENT_MIME_TYPES])
