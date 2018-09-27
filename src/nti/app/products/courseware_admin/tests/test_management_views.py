@@ -381,6 +381,9 @@ class TestCourseManagement(ApplicationLayerTest):
             policy = ICompletableItemDefaultRequiredPolicy(section_course_object)
             assert_that(policy.mime_types, has_length(3))
             assert_that(policy.mime_types, has_items(*tuple(ALL_ASSIGNMENT_MIME_TYPES)))
+            assert_that(policy.child_policy.mime_types, has_length(0))
+            assert_that(policy.parent_policy.mime_types, has_length(3))
+            assert_that(policy.parent_policy.mime_types, has_items(*tuple(ALL_ASSIGNMENT_MIME_TYPES)))
 
         # Section 2 with instructors
         section_course = self.testapp.post_json(subinstances_href,

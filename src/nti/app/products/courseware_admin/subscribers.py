@@ -27,6 +27,7 @@ from nti.contenttypes.completion.interfaces import ICompletableItemDefaultRequir
 
 from nti.contenttypes.courses.interfaces import ICreatedCourse
 from nti.contenttypes.courses.interfaces import ICourseInstance
+from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
 from nti.contenttypes.courses.interfaces import NTIID_ENTRY_TYPE
@@ -74,7 +75,7 @@ def _on_course_instance_created(course, unused_event=None):
 
 @component.adapter(ICourseInstance, IObjectCreatedEvent)
 def _enable_default_assignments_as_required(course, unused_event=None):
-    if ICreatedCourse.providedBy(course):
+    if ICreatedCourse.providedBy(course) and not ICourseSubInstance.providedBy(course):
         context = ICompletionContext(course, None)
         if context is not None:
             # pylint: disable=no-member
