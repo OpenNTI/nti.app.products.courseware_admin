@@ -30,6 +30,7 @@ from nti.app.products.courseware_admin import MessageFactory as _
 from nti.app.products.courseware_admin.views import VIEW_ASSESSMENT_POLICIES
 
 from nti.assessment.interfaces import IQAssignmentPolicies
+from nti.assessment.interfaces import AssessmentPolicyValidationError
 
 from nti.cabinet.filer import read_source
 
@@ -127,9 +128,17 @@ class CourseAssessmentPolicyPutView(AbstractAuthenticatedView,
                              None)
         values = self.readInput()
         course = ICourseInstance(entry)
-        # fill new policy -> force new changes
-        result = fill_asg_from_json(course, values, time.time(), True)
-        validate_assigment_policies(result)
+        try:
+            # fill new policy -> force new changes
+            result = fill_asg_from_json(course, values, time.time(), True)
+            validate_assigment_policies(result)
+        except AssessmentPolicyValidationError as exc:
+            raise_json_error(self.request,
+                             hexc.HTTPUnprocessableEntity,
+                             {
+                                 'message': str(exc),
+                             },
+                             None)
         return result
 
 
