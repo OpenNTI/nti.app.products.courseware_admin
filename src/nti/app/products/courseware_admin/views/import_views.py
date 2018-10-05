@@ -133,6 +133,24 @@ class CourseImportMixin(AbstractAuthenticatedView,
             })
         return path, tmp_path
 
+    def _section_course_preview_raw_values(self, course):
+        _res = []
+        for sub_instance in course.SubInstances.values():
+            entry = ICourseCatalogEntry(sub_instance)
+            _res.append((getattr(entry, 'PreviewRawValue', None), entry, sub_instance))
+        return _res
+
+    def _recover_section_course_preview_raw_values(self, preview_raw_values, do_notify=True):
+        for raw_val, sub_entry, sub_instance in preview_raw_values or ():
+            if raw_val is not None:
+                sub_entry.Preview = raw_val
+            else:
+                delattr(sub_entry, 'Preview')
+
+            if do_notify:
+                notify(ObjectModifiedFromExternalEvent(sub_instance))
+                notify(ObjectModifiedFromExternalEvent(sub_entry))
+
     def _do_call(self):
         pass
 
@@ -184,6 +202,8 @@ class CourseImportView(CourseImportMixin):
             path = os.path.abspath(path)
             # We have a course, but want to create an sections given to us.
             create_sections(course, path, writeout)
+            sub_preview_raw_values = self._section_course_preview_raw_values(course)
+
             import_course(entry.ntiid,
                           path,
                           writeout,
@@ -194,6 +214,9 @@ class CourseImportView(CourseImportMixin):
                 entry.Preview = preview_raw_value
             else:
                 delattr(entry, 'Preview')
+
+            self._recover_section_course_preview_raw_values(sub_preview_raw_values)
+
             result['Elapsed'] = time.time() - now
             course = ICourseInstance(self.context)
             result['Course'] = course
@@ -296,6 +319,8 @@ class ImportCourseView(CourseImportMixin):
                 preview_raw_value = getattr(entry, 'PreviewRawValue', None)
                 # We have a course, but want to create any sections given to us.
                 create_sections(course, path, writeout)
+                sub_preview_raw_values = self._section_course_preview_raw_values(course)
+
                 course = self._import_course(ntiid, path, writeout,
                                              lockout, clear=clear,
                                              validate_export_hash=validate_export_hash)
@@ -303,6 +328,8 @@ class ImportCourseView(CourseImportMixin):
                     entry.Preview = preview_raw_value
                 else:
                     delattr(entry, 'Preview')
+
+                self._recover_section_course_preview_raw_values(sub_preview_raw_values)
             else:
                 site = values.get('site')
                 params['Key'] = key = values.get('key')
