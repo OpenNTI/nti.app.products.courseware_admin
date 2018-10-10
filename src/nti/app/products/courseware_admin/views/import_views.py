@@ -133,14 +133,14 @@ class CourseImportMixin(AbstractAuthenticatedView,
             })
         return path, tmp_path
 
-    def _section_course_preview_raw_values(self, course):
+    def _section_course_preview_raw_values(self, existing_sections):
         _res = []
-        for sub_instance in course.SubInstances.values():
+        for sub_instance in existing_sections or ():
             entry = ICourseCatalogEntry(sub_instance)
             _res.append((getattr(entry, 'PreviewRawValue', None), entry, sub_instance))
         return _res
 
-    def _recover_section_course_preview_raw_values(self, preview_raw_values, do_notify=True):
+    def _recover_existing_section_preview_raw_values(self, preview_raw_values, do_notify=True):
         for raw_val, sub_entry, sub_instance in preview_raw_values or ():
             if raw_val is not None:
                 sub_entry.Preview = raw_val
@@ -150,6 +150,17 @@ class CourseImportMixin(AbstractAuthenticatedView,
             if do_notify:
                 notify(ObjectModifiedFromExternalEvent(sub_instance))
                 notify(ObjectModifiedFromExternalEvent(sub_entry))
+
+    def _set_new_section_preview_raw_values(self, new_sections, preview_raw_value=None, do_notify=True):
+        for sub_instance in new_sections:
+            sub_entry = ICourseCatalogEntry(sub_instance)
+            if preview_raw_value is not None:
+                sub_entry.Preview = preview_raw_value
+            else:
+                delattr(sub_entry, 'Preview')
+
+            notify(ObjectModifiedFromExternalEvent(sub_instance))
+            notify(ObjectModifiedFromExternalEvent(sub_entry))
 
     def _do_call(self):
         pass
@@ -201,8 +212,14 @@ class CourseImportView(CourseImportMixin):
             preview_raw_value = getattr(entry, 'PreviewRawValue', None)
             path = os.path.abspath(path)
             # We have a course, but want to create an sections given to us.
+            # If a section course exists, keep its original preview state,
+            # otherwise its preview state should come from parent.
+            existing_sections = set([x for x in course.SubInstances.values()])
+            existing_section_preview_raw_values = self._section_course_preview_raw_values(existing_sections)
+
             create_sections(course, path, writeout)
-            sub_preview_raw_values = self._section_course_preview_raw_values(course)
+
+            new_sections = [x for x in course.SubInstances.values() if x not in existing_sections]
 
             import_course(entry.ntiid,
                           path,
@@ -215,7 +232,10 @@ class CourseImportView(CourseImportMixin):
             else:
                 delattr(entry, 'Preview')
 
-            self._recover_section_course_preview_raw_values(sub_preview_raw_values)
+            self._recover_existing_section_preview_raw_values(existing_section_preview_raw_values)
+
+            self._set_new_section_preview_raw_values(new_sections=new_sections,
+                                                     preview_raw_value=preview_raw_value)
 
             result['Elapsed'] = time.time() - now
             course = ICourseInstance(self.context)
@@ -318,8 +338,12 @@ class ImportCourseView(CourseImportMixin):
                 entry = ICourseCatalogEntry(course, None)
                 preview_raw_value = getattr(entry, 'PreviewRawValue', None)
                 # We have a course, but want to create any sections given to us.
+                existing_sections = set([x for x in course.SubInstances.values()])
+                existing_section_preview_raw_values = self._section_course_preview_raw_values(existing_sections)
+
                 create_sections(course, path, writeout)
-                sub_preview_raw_values = self._section_course_preview_raw_values(course)
+
+                new_sections = [x for x in course.SubInstances.values() if x not in existing_sections]
 
                 course = self._import_course(ntiid, path, writeout,
                                              lockout, clear=clear,
@@ -329,7 +353,10 @@ class ImportCourseView(CourseImportMixin):
                 else:
                     delattr(entry, 'Preview')
 
-                self._recover_section_course_preview_raw_values(sub_preview_raw_values)
+                self._recover_existing_section_preview_raw_values(existing_section_preview_raw_values)
+
+                self._set_new_section_preview_raw_values(new_sections=new_sections,
+                                                         preview_raw_value=preview_raw_value)
             else:
                 site = values.get('site')
                 params['Key'] = key = values.get('key')
