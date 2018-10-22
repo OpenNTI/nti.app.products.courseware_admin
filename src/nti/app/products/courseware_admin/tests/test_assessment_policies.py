@@ -52,3 +52,25 @@ class TestCourseAssessmentPolicyViews(ApplicationLayerTest):
                     has_entries(self.clicker,
                                 has_entries('auto_grade',  has_entries('total_points', 100),
                                             'locked', is_(True))))
+
+        # Max submissions
+        for invalid in (-1, 'a', 0):
+            data[self.clicker]['max_submissions'] = invalid
+            self.testapp.put_json(href, data, status=422)
+
+        for invalid in ('dne', 'a', 0):
+            data[self.clicker]['submission_priority'] = invalid
+            self.testapp.put_json(href, data, status=422)
+
+        data[self.clicker]['max_submissions'] = 3
+        data[self.clicker]['submission_priority'] = 'most_recent'
+        self.testapp.put_json(href, data)
+
+        data[self.clicker]['submission_priority'] = 'highest_grade'
+        self.testapp.put_json(href, data)
+
+        # If auto-grade is disabled, we cannot use highest_grade submission
+        # priority.
+        data[self.clicker]['auto_grade']['disable'] = True
+        self.testapp.put_json(href, data, status=422)
+
