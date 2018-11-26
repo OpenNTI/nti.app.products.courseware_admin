@@ -599,10 +599,10 @@ class TestCourseManagement(ApplicationLayerTest):
 
         # Visible only to our new community
         res = self.testapp.put_json(entry_href,
-                                    {'EnrollmentVisibileEntityNTIIDs': [community_ntiid,]})
+                                    {'AvailableToEntityNTIIDs': [community_ntiid,]})
         res = res.json_body
-        assert_that(res.get('EnrollmentVisibileEntityNTIIDs'), has_length(1))
-        assert_that(res.get('EnrollmentVisibileEntityNTIIDs'), contains(community_ntiid))
+        assert_that(res.get('AvailableToEntityNTIIDs'), has_length(1))
+        assert_that(res.get('AvailableToEntityNTIIDs'), contains(community_ntiid))
 
         non_community_user_environ = self._make_extra_environ(username='marco')
         community_user_environ = self._make_extra_environ(username='alana')
@@ -643,9 +643,9 @@ class TestCourseManagement(ApplicationLayerTest):
 
         # Remove
         res = self.testapp.put_json(entry_href,
-                                    {'EnrollmentVisibileEntityNTIIDs': []})
+                                    {'AvailableToEntityNTIIDs': []})
         res = res.json_body
-        assert_that(res.get('EnrollmentVisibileEntityNTIIDs'), has_length(0))
+        assert_that(res.get('AvailableToEntityNTIIDs'), has_length(0))
 
         # Available to all
         self.testapp.post_json('/dataserver2/users/marco/Courses/EnrolledCourses',
