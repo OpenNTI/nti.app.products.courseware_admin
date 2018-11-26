@@ -54,11 +54,15 @@ from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 
 from nti.contenttypes.courses.utils import get_course_editors
 
+from nti.dataserver.users.communities import Community
+
 from nti.dataserver.tests import mock_dataserver
 
 from nti.externalization.interfaces import StandardExternalFields
 
 from nti.ntiids.ntiids import find_object_with_ntiid
+
+from nti.ntiids.oids import to_external_ntiid_oid
 
 
 ITEMS = StandardExternalFields.ITEMS
@@ -548,3 +552,106 @@ class TestCourseManagement(ApplicationLayerTest):
         # Validation
         tags = ('too_long' * 50,)
         self.testapp.put_json(entry_href, {"tags": tags}, status=422)
+
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_enrollment_visibility(self):
+        """
+        Test catalog entry enrollment visiblity.
+        """
+        admin_href = self._get_admin_href()
+        # Create admin level
+        test_admin_key = 'TheLastMan'
+        self.testapp.post_json(admin_href, {'key': test_admin_key})
+        admin_levels = self.testapp.get(admin_href)
+        admin_levels = admin_levels.json_body
+        new_admin = admin_levels[ITEMS][test_admin_key]
+        new_admin_href = new_admin['href']
+        assert_that(new_admin_href, not_none())
+
+        new_course_key = 'Yorick'
+        new_course_title = 'CommunityRestricted'
+        new_course_desc = 'rich description'
+        courses = self.testapp.get(new_admin_href)
+        assert_that(courses.json_body, does_not(has_item(new_course_key)))
+
+        # Create course
+        new_course = self.testapp.post_json(new_admin_href,
+                                            {'ProviderUniqueID': new_course_key,
+                                             'title': new_course_title,
+                                             'RichDescription': new_course_desc})
+        course_href = new_course.json_body.get('href')
+        assert_that(course_href, not_none())
+
+        entry_href = '%s/CourseCatalogEntry' % course_href
+        entry_res = self.testapp.get(entry_href).json_body
+        entry_ntiid = entry_res.get('NTIID')
+        assert_that(entry_ntiid, not_none())
+
+        with mock_dataserver.mock_db_trans(self.ds):
+            self._create_user(u'marco')
+            community_member = self._create_user(u'alana')
+            new_community = Community.create_community(username='law_community')
+            new_community._note_member(community_member)
+            community_member.record_dynamic_membership(new_community)
+            community_member.follow(new_community)
+            community_ntiid = to_external_ntiid_oid(new_community)
+
+        # Visible only to our new community
+        res = self.testapp.put_json(entry_href,
+                                    {'EnrollmentVisibileEntityNTIIDs': [community_ntiid,]})
+        res = res.json_body
+        assert_that(res.get('EnrollmentVisibileEntityNTIIDs'), has_length(1))
+        assert_that(res.get('EnrollmentVisibileEntityNTIIDs'), contains(community_ntiid))
+
+        non_community_user_environ = self._make_extra_environ(username='marco')
+        community_user_environ = self._make_extra_environ(username='alana')
+
+        # Non public instances are unavailable to everyone
+        self.testapp.post_json('/dataserver2/users/marco/Courses/EnrolledCourses',
+                               entry_ntiid,
+                               extra_environ=non_community_user_environ,
+                               status=403)
+
+        self.testapp.post_json('/dataserver2/users/alana/Courses/EnrolledCourses',
+                               entry_ntiid,
+                               extra_environ=community_user_environ,
+                               status=403)
+
+        # Now public and available to community member
+        res = self.testapp.put_json(entry_href,
+                                    {'is_non_public': False})
+
+        res = self.testapp.get("/dataserver2/users/marco/Courses/AllCourses",
+                               extra_environ=non_community_user_environ)
+        res = [x['NTIID'] for x in res.json_body['Items']]
+        assert_that(res, does_not(has_item(entry_ntiid)))
+
+        res = self.testapp.get("/dataserver2/users/alana/Courses/AllCourses",
+                               extra_environ=community_user_environ)
+        res = [x['NTIID'] for x in res.json_body['Items']]
+        assert_that(res, has_item(entry_ntiid))
+
+        self.testapp.post_json('/dataserver2/users/marco/Courses/EnrolledCourses',
+                               entry_ntiid,
+                               extra_environ=non_community_user_environ,
+                               status=403)
+
+        self.testapp.post_json('/dataserver2/users/alana/Courses/EnrolledCourses',
+                               entry_ntiid,
+                               extra_environ=community_user_environ)
+
+        # Remove
+        res = self.testapp.put_json(entry_href,
+                                    {'EnrollmentVisibileEntityNTIIDs': []})
+        res = res.json_body
+        assert_that(res.get('EnrollmentVisibileEntityNTIIDs'), has_length(0))
+
+        # Available to all
+        self.testapp.post_json('/dataserver2/users/marco/Courses/EnrolledCourses',
+                               entry_ntiid,
+                               extra_environ=non_community_user_environ)
+
+        self.testapp.post_json('/dataserver2/users/alana/Courses/EnrolledCourses',
+                               entry_ntiid,
+                               extra_environ=community_user_environ)
