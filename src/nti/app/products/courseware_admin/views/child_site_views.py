@@ -56,6 +56,7 @@ logger = __import__('logging').getLogger(__name__)
 @view_config(route_name='objects.generic.traversal',
              renderer='rest',
              context=ICourseInstance,
+             name='CreateChildSiteSectionCourses',
              permission=nauth.ACT_NTI_ADMIN)
 class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
     """
