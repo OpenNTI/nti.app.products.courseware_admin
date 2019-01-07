@@ -19,6 +19,8 @@ from zope.component.hooks import getSite
 
 from zope.event import notify
 
+from nti.app.products.courseware.views import CourseAdminPathAdapter
+
 from nti.app.products.courseware_admin.views.management_views import CreateCourseSubinstanceView
 
 from nti.appserver.policies.interfaces import ISitePolicyUserEventListener
@@ -55,7 +57,7 @@ logger = __import__('logging').getLogger(__name__)
 
 @view_config(route_name='objects.generic.traversal',
              renderer='rest',
-             context=ICourseInstance,
+             context=CourseAdminPathAdapter,
              name='CreateChildSiteSectionCourses',
              permission=nauth.ACT_NTI_ADMIN)
 class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
