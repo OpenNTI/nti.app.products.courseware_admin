@@ -267,6 +267,7 @@ class CreateCourseView(AbstractAuthenticatedView,
             values = super(CreateCourseView, self).readInput(value)
         else:
             values = self.request.params
+        values = dict(values)
         # Can't be CaseInsensitive with internalization
         if MIMETYPE not in values:
             values[MIMETYPE] = self.DEFAULT_FACTORY_MIMETYPE
