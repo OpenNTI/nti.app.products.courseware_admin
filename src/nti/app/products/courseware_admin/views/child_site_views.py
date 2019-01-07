@@ -106,7 +106,7 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         NTIIDs of courses we want to create sections on.
         """
         result = self._params.get('included_courses')
-        return set(result)
+        return set(result) if result else ()
 
     @Lazy
     def excluded_courses(self):
@@ -114,7 +114,7 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         NTIIDs of courses we do not want to create sections on.
         """
         result = self._params.get('excluded_courses')
-        return set(result)
+        return set(result) if result else ()
 
     def _post_create(self, course, section_values, community_ntiid):
         """
