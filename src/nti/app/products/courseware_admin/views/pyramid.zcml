@@ -15,6 +15,7 @@
 	<pyramid:scan package=".import_views" />
 	<pyramid:scan package=".management_views" />
 	<pyramid:scan package=".vendorinfo_views" />
+	<pyramid:scan package=".child_site_views" />
 	<pyramid:scan package=".assessment_policies_views" />
 
 </configure>

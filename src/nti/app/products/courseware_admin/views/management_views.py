@@ -361,7 +361,7 @@ class CreateCourseSubinstanceView(CreateCourseView):
               or self._params.get('copy_instructors')
         return is_true(result)
 
-    def _post_create(self, course):
+    def do_copy_roles(self, course):
         # pylint: disable=too-many-function-args,no-member
         if self.copy_roles:
             prm = IPrincipalRoleManager(course)
@@ -379,6 +379,9 @@ class CreateCourseSubinstanceView(CreateCourseView):
                 prm.assignRoleToPrincipal(RID_CONTENT_EDITOR, editor_prin.id)
                 add_principal_to_course_content_roles(user, course)
             notify(CourseRolesSynchronized(course))
+
+    def _post_create(self, course):
+        self.do_copy_roles(course)
         return super(CreateCourseSubinstanceView, self)._post_create(course)
 
     def _create_course(self, parent_course):  # pylint: disable=arguments-differ
