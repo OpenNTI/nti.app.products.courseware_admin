@@ -32,6 +32,7 @@ from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legac
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
+from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseInstanceVendorInfo
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
@@ -156,7 +157,8 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
                 and (   not self.excluded_courses
                      or entry.ntiid not in self.excluded_courses):
                 course = ICourseInstance(entry, None)
-                if course is not None:
+                if      course is not None \
+                    and not ICourseSubInstance.providedBy(course):
                     result.append(course)
         return result
 
