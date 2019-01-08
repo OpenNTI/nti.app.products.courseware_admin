@@ -129,8 +129,7 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         nti_dict['DefaultSharingScopeNTIID'] = community_ntiid
         notify(CourseVendorInfoSynchronized(course))
 
-        if self.preview:
-            catalog_entry.Preview = True
+        catalog_entry.Preview = self.preview
         if self.non_public:
             interface.alsoProvides(course, INonPublicCourseInstance)
             interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
