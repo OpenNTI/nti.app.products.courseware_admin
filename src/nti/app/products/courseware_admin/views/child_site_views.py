@@ -124,7 +124,8 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
 
         # By default, share with our community ntiid
         vendor = ICourseInstanceVendorInfo(course)
-        vendor['NTI']['DefaultSharingScopeNTIID'] = community_ntiid
+        nti_dict = vendor.setdefault('NTI', {})
+        nti_dict['DefaultSharingScopeNTIID'] = community_ntiid
         notify(CourseVendorInfoSynchronized(course))
 
         if self.preview:
