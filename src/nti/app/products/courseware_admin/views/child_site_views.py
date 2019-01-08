@@ -144,7 +144,8 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         site_hierarchy_utility = component.getUtility(ISiteHierarchy)
         site_hierarchy = site_hierarchy_utility.tree
         site_node = site_hierarchy.get_node_from_object(site.__name__)
-        return site_node.children_objects
+        site_folder = site.__parent__
+        return [site_folder[x] for x in site_node.children_objects]
 
     def get_courses(self):
         """
@@ -200,10 +201,8 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         return True
 
     def _do_call(self):
-        # Gather all child site information
-        # Check if section course already exists for that child site
-        result = LocatedExternalDict()
         # Return a dict of child_site -> [parent_entry_ntiids_of_created_sections]
+        result = LocatedExternalDict()
         result[ITEMS] = items = {}
         courses_created = 0
         courses = self.get_courses()
@@ -216,11 +215,10 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
                 course = self._create_course(self.parent_course)
                 entry = self._post_create(course, new_entry_dict, community_ntiid)
                 parent_ntiid = ICourseCatalogEntry(self.parent_course).ntiid
-                logger.info('[%s] Creating child site section (parent=%s) (ntiid=%s) (key=%s)',
+                logger.info('[%s] Creating child site section (parent=%s) (ntiid=%s)',
                             child_site.__name__,
                             parent_ntiid,
-                            entry.ntiid,
-                            course.__name__)
+                            entry.ntiid)
                 created_courses = items.setdefault(child_site.__name__, [])
                 created_courses.append(parent_ntiid)
         result['TotalSiteCount'] = len(items)
