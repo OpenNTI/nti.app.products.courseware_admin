@@ -81,10 +81,6 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
     """
 
     @Lazy
-    def parent_course(self):
-        return self.context
-
-    @Lazy
     def _course_classifier(self):
         return None
 
@@ -207,14 +203,14 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         courses_created = 0
         courses = self.get_courses()
         for child_site in self.get_child_sites():
-            for course in courses:
-                new_entry_dict, community_ntiid = self.get_child_section_dict(course, child_site)
-                if not self.need_to_create_child_site_section(community_ntiid, course):
+            for parent_course in courses:
+                new_entry_dict, community_ntiid = self.get_child_section_dict(parent_course, child_site)
+                if not self.need_to_create_child_site_section(community_ntiid, parent_course):
                     continue
                 courses_created += 1
-                course = self._create_course(self.parent_course)
+                course = self._create_course(parent_course)
                 entry = self._post_create(course, new_entry_dict, community_ntiid)
-                parent_ntiid = ICourseCatalogEntry(self.parent_course).ntiid
+                parent_ntiid = ICourseCatalogEntry(parent_course).ntiid
                 logger.info('[%s] Creating child site section (parent=%s) (ntiid=%s)',
                             child_site.__name__,
                             parent_ntiid,
@@ -223,5 +219,4 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
                 created_courses.append(parent_ntiid)
         result['TotalSiteCount'] = len(items)
         result['TotalCourseCreatedCount'] = courses_created
-        return course
-
+        return result

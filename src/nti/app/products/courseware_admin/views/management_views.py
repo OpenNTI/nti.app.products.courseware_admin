@@ -74,6 +74,7 @@ from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 from nti.contenttypes.courses.sharing import add_principal_to_course_content_roles
 
 from nti.contenttypes.courses.utils import get_course_tags
+from nti.contenttypes.courses.utils import get_parent_course
 from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
 
@@ -366,14 +367,15 @@ class CreateCourseSubinstanceView(CreateCourseView):
         # pylint: disable=too-many-function-args,no-member
         if self.copy_roles:
             prm = IPrincipalRoleManager(course)
-            for prin in self.parent_course.instructors or ():
+            parent_course = get_parent_course(course)
+            for prin in parent_course.instructors or ():
                 user = IUser(prin, None)
                 if user is None:
                     continue
                 prm.assignRoleToPrincipal(RID_INSTRUCTOR, prin.id)
                 course.instructors += (prin,)
                 grant_instructor_access_to_course(user, course)
-            for editor_prin in get_course_editors(self.parent_course) or ():
+            for editor_prin in get_course_editors(parent_course) or ():
                 user = IUser(editor_prin, None)
                 if user is None:
                     continue
