@@ -56,6 +56,8 @@ from nti.dataserver.users.communities import Community
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
 
+from nti.site.interfaces import ISiteMapping
+
 ITEMS = StandardExternalFields.ITEMS
 TOTAL = StandardExternalFields.TOTAL
 MIMETYPE = StandardExternalFields.MIMETYPE
@@ -219,7 +221,17 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         if parent_site_name in child_com_username:
             puid_suffix = child_com_username.replace('-%s' % parent_site_name, '')
         else:
+            # Default to com alias, check for a site mapping to see if we can
+            # get just the child site specific snippet for our PUID
+            site_mappings = component.getAllUtilitiesRegisteredFor(ISiteMapping)
             puid_suffix = child_policy.COM_ALIAS
+            for site_mapping in site_mappings or ():
+                if site_mapping.target_site_name == parent_site_name:
+                    source_site_name = site_mapping.source_site_name
+                    for site_name_part in ('-%s' % source_site_name, '.%s' % source_site_name):
+                        if site_name_part in child_com_username:
+                            puid_suffix = child_com_username.replace(site_name_part, '')
+                    break
         puid_suffix = puid_suffix.upper()
         new_puid = '%s-%s' % (parent_entry.ProviderUniqueID, puid_suffix)
         new_puid = new_puid[:32]
