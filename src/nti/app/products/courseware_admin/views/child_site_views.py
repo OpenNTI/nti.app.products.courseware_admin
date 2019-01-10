@@ -8,6 +8,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+from copy import copy
+
 from pyramid.view import view_config
 
 from zope import component
@@ -19,6 +21,8 @@ from zope.component.hooks import getSite
 
 from zope.event import notify
 
+from nti.app.products.courseware.invitations.utils import create_course_invitation
+
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin.views.management_views import CreateCourseSubinstanceView
@@ -28,14 +32,18 @@ from nti.appserver.policies.interfaces import ISitePolicyUserEventListener
 from nti.common.string import is_true
 from nti.common.string import is_false
 
+from nti.contenttypes.completion.interfaces import ICompletionContextCompletionPolicy
+from nti.contenttypes.completion.interfaces import ICompletionContextCompletionPolicyContainer
+
 from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legacy_json
+
+from nti.contenttypes.courses.interfaces import ES_PUBLIC
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseInstanceVendorInfo
-from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
 from nti.contenttypes.courses.interfaces import CourseVendorInfoSynchronized
 
@@ -78,7 +86,15 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
 
         excluded_courses - entry ntiids of courses to not create child sections
 
-        preview - (default False) create courses in preview mode
+        non_public - (default False) course visibility
+
+        create_invitation - (default True) create a generic invitation code for
+            new sections
+
+        invitation_scope - (default ES_PUBLIC) invitation scope
+
+        copy_completion_policy - (default True) copies the parent course completion policy to
+            new sections
     """
 
     @Lazy
@@ -86,16 +102,10 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         return None
 
     @Lazy
-    def preview(self):
-        # pylint: disable=no-member
-        result = self._params.get('preview')
-        return is_true(result)
-
-    @Lazy
     def non_public(self):
         # pylint: disable=no-member
         result = self._params.get('non_public')
-        return not is_false(result)
+        return is_true(result)
 
     @Lazy
     def included_courses(self):
@@ -113,7 +123,31 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         result = self._params.get('excluded_courses')
         return set(result) if result else ()
 
-    def _post_create(self, course, section_values, community_ntiid):
+    @Lazy
+    def create_invitation(self):
+        """
+        Create generic invitation, defaults to True
+        """
+        result = self._params.get('create_invitation')
+        return not is_false(result)
+
+    @Lazy
+    def copy_completion_policy(self):
+        """
+        Copy parent course completion policy, defaults to True
+        """
+        result = self._params.get('copy_completion_policy')
+        return not is_false(result)
+
+    @Lazy
+    def invitation_scope(self):
+        """
+        Invitation scope, defaults to ES_PUBLIC
+        """
+        result = self._params.get('invitation_scope')
+        return result or ES_PUBLIC
+
+    def _post_create(self, course, section_values, community_ntiid, parent_course):
         """
         Roll with our own post_create implementation since we have specific
         args to pass to section catalog entry.
@@ -129,11 +163,21 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         nti_dict['DefaultSharingScope'] = community_ntiid
         notify(CourseVendorInfoSynchronized(course))
 
-        catalog_entry.Preview = self.preview
-        if self.non_public:
-            interface.alsoProvides(course, INonPublicCourseInstance)
-            interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
+        catalog_entry.Preview = ICourseCatalogEntry(parent_course).Preview
         notify(CourseInstanceAvailableEvent(course))
+        if self.create_invitation:
+            create_course_invitation(course,
+                                     scope=self.invitation_scope,
+                                     is_generic=True)
+
+        if self.copy_completion_policy:
+            parent_completion_policy = ICompletionContextCompletionPolicy(parent_course, None)
+            if parent_completion_policy is not None:
+                copied_policy = copy(parent_completion_policy)
+                completion_container = ICompletionContextCompletionPolicyContainer(course)
+                completion_container.context_policy = copied_policy
+                interface.alsoProvides(copied_policy, ICompletionContextCompletionPolicy)
+                copied_policy.__parent__ = completion_container
         return catalog_entry
 
     def get_child_sites(self):
@@ -184,6 +228,7 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         result['title'] = parent_entry.title
         result['RichDescription'] = parent_entry.RichDescription
         result['AvailableToEntityNTIIDs'] = [community_ntiid]
+        result['is_non_public'] = self.non_public
         return result, community_ntiid
 
     def need_to_create_child_site_section(self, community_ntiid, course):
@@ -211,7 +256,8 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
                     continue
                 courses_created += 1
                 course = self._create_course(parent_course)
-                entry = self._post_create(course, new_entry_dict, community_ntiid)
+                entry = self._post_create(course, new_entry_dict,
+                                          community_ntiid, parent_course)
                 parent_ntiid = ICourseCatalogEntry(parent_course).ntiid
                 logger.info('[%s] Creating child site section (parent=%s) (ntiid=%s)',
                             child_site.__name__,
