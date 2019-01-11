@@ -88,6 +88,10 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
 
         excluded_courses - entry ntiids of courses to not create child sections
 
+        included_sites - site names to include
+
+        excluded_sites - site names to exclude
+
         non_public - (default False) course visibility
 
         create_invitation - (default True) create a generic invitation code for
@@ -108,6 +112,22 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         # pylint: disable=no-member
         result = self._params.get('non_public')
         return is_true(result)
+
+    @Lazy
+    def included_sites(self):
+        """
+        NTIIDs of courses we want to create sections on.
+        """
+        result = self._params.get('included_sites')
+        return set(result) if result else ()
+
+    @Lazy
+    def excluded_sites(self):
+        """
+        NTIIDs of courses we want to create sections on.
+        """
+        result = self._params.get('excluded_sites')
+        return set(result) if result else ()
 
     @Lazy
     def included_courses(self):
@@ -188,7 +208,14 @@ class CreateChildSiteSectionCourses(CreateCourseSubinstanceView):
         site_hierarchy = site_hierarchy_utility.tree
         site_node = site_hierarchy.get_node_from_object(site.__name__)
         site_folder = site.__parent__
-        return [site_folder[x] for x in site_node.children_objects]
+        result = []
+        for site_name in site_node.descendant_objects:
+            if      (   not self.included_sites
+                     or site_name in self.included_sites) \
+                and (   not self.excluded_sites
+                     or site_name not in self.excluded_sites):
+                result.append(site_folder[site_name])
+        return result
 
     def get_courses(self):
         """
