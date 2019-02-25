@@ -54,7 +54,7 @@ class TestCourseAssessmentPolicyViews(ApplicationLayerTest):
                                             'locked', is_(True))))
 
         # Max submissions
-        for invalid in (-1, 'a', 0):
+        for invalid in (-2, 'a', 0):
             data[self.clicker]['max_submissions'] = invalid
             self.testapp.put_json(href, data, status=422)
 
