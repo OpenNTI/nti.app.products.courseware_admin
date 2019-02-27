@@ -39,8 +39,10 @@ from nti.app.products.courseware_admin.views.management_views import DeleteCours
 
 from nti.contenttypes.courses.common import get_course_packages
 
-from nti.contenttypes.courses.interfaces import RID_TA, ICourseSubInstance
+from nti.contenttypes.courses.interfaces import RID_TA
 from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
+
+from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
@@ -56,7 +58,7 @@ from nti.dataserver import authorization as nauth
 from nti.dataserver.authorization import is_admin
 from nti.dataserver.authorization import is_admin_or_site_admin
 
-from nti.dataserver.interfaces import IUser, IDataserverFolder
+from nti.dataserver.interfaces import IUser
 
 from nti.dataserver.users.users import User
 
@@ -243,6 +245,7 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
                permission=nauth.ACT_NTI_ADMIN)
 class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
     pass
+
 
 @view_config(request_method='GET')
 @view_config(request_method='POST')
