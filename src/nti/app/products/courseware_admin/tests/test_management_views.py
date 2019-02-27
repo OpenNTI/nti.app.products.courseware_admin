@@ -655,3 +655,97 @@ class TestCourseManagement(ApplicationLayerTest):
         self.testapp.post_json('/dataserver2/users/alana/Courses/EnrolledCourses',
                                entry_ntiid,
                                extra_environ=community_user_environ)
+
+
+class TestDeleteAllCourses(ApplicationLayerTest):
+    """
+    Test deleting all section. We do not want to do this in janux and
+    remove actual testable section courses.
+
+    """
+
+    layer = PersistentInstructedCourseApplicationTestLayer
+
+    default_origin = 'http://alpha.nextthought.com'
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def tearDown(self):
+        """
+        Our alpha site should not have an admin level
+        """
+        with mock_dataserver.mock_db_trans(site_name='alpha.nextthought.com'):
+            library = component.getUtility(IContentPackageLibrary)
+            enumeration = IDelimitedHierarchyContentPackageEnumeration(library)
+            # pylint: disable=no-member
+            shutil.rmtree(enumeration.root.absolute_path, True)
+
+    def _get_admin_href(self):
+        service_res = self.fetch_service_doc()
+        workspaces = service_res.json_body['Items']
+        courses_workspace = next(
+            x for x in workspaces if x['Title'] == 'Courses'
+        )
+        admin_href = self.require_link_href_with_rel(courses_workspace,
+                                                     VIEW_COURSE_ADMIN_LEVELS)
+        return admin_href
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_course_views(self):
+        """
+        Validate basic course management.
+        """
+        admin_href = self._get_admin_href()
+        # Create admin level
+        test_admin_key = 'TheLastMan'
+        self.testapp.post_json(admin_href, {'key': test_admin_key})
+        admin_levels = self.testapp.get(admin_href)
+        admin_levels = admin_levels.json_body
+        new_admin = admin_levels[ITEMS][test_admin_key]
+        new_admin_href = new_admin['href']
+        assert_that(new_admin_href, not_none())
+
+        new_course_key = 'Yorick'
+        new_course_title = 'The Last Man'
+        new_course_desc = 'rich description'
+        courses = self.testapp.get(new_admin_href)
+        assert_that(courses.json_body, does_not(has_item(new_course_key)))
+
+        # Create course
+        new_course = self.testapp.post_json(new_admin_href,
+                                            {'ProviderUniqueID': new_course_key,
+                                             'title': new_course_title,
+                                             'RichDescription': new_course_desc})
+
+        new_course = new_course.json_body
+        new_course_href = new_course['href']
+
+        # Create subinstance
+        subinstances_href = '%s/SubInstances' % new_course_href
+        section_course = self.testapp.post_json(subinstances_href,
+                                                {'ProviderUniqueID': 'section 001',
+                                                 'title': 'SectionTitle',
+                                                 'RichDescription': 'SectionDesc'})
+
+        section_course = section_course.json_body
+        section_course_href = section_course['href']
+        assert_that(section_course_href, not_none())
+
+        # Section 2 with instructors
+        section_course = self.testapp.post_json(subinstances_href,
+                                                {'ProviderUniqueID': 'section 002',
+                                                 'title': 'SectionTitle2',
+                                                 'copy_roles': 'true',
+                                                 'RichDescription': 'SectionDesc2'})
+
+        section_course = section_course.json_body
+        section_course_href2 = section_course['href']
+
+        # Delete all sections
+        self.testapp.get('/dataserver2/CourseAdmin/DeleteSiteSectionCourses')
+        self.testapp.get(new_course_href)
+        self.testapp.get(section_course_href)
+        self.testapp.get(section_course_href2)
+        self.testapp.post('/dataserver2/CourseAdmin/DeleteSiteSectionCourses')
+        self.testapp.get(new_course_href)
+        self.testapp.get(section_course_href, status=404)
+        self.testapp.get(section_course_href2, status=404)

@@ -421,14 +421,9 @@ class CreateCourseSubinstanceView(CreateCourseView):
                request_method='DELETE')
 class DeleteCourseView(AbstractAuthenticatedView):
 
-    def __call__(self):
-        if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
-            raise_error({
-                'message': _(u'Cannot delete course.'),
-                'code': 'CannotDeleteCourse',
-            })
-        course = ICourseInstance(self.context)
-        entry = ICourseCatalogEntry(self.context)
+    def _delete_course(self, context):
+        course = ICourseInstance(context)
+        entry = ICourseCatalogEntry(context)
         folder = IHostPolicyFolder(course)
         logger.info('Deleting course (%s)', entry.ntiid)
         try:
@@ -438,6 +433,18 @@ class DeleteCourseView(AbstractAuthenticatedView):
             pass
         del course.__parent__[course.__name__]
         notify(CourseInstanceRemovedEvent(course, entry, folder))
+        return hexc.HTTPNoContent()
+
+    def _check_access(self):
+        if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
+            raise_error({
+                'message': _(u'Cannot delete course.'),
+                'code': 'CannotDeleteCourse',
+            })
+
+    def __call__(self):
+        self._check_access()
+        self._delete_course(self.context)
         return hexc.HTTPNoContent()
 
 
