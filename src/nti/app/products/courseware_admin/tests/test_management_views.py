@@ -242,6 +242,7 @@ class TestCourseManagement(ApplicationLayerTest):
         """
         with mock_dataserver.mock_db_trans(self.ds):
             self._create_user('instructor1')
+            self._create_user('section_instructor1')
             self._create_user('editor1')
 
         admin_href = self._get_admin_href()
@@ -409,6 +410,7 @@ class TestCourseManagement(ApplicationLayerTest):
 
         # Validate instructors/editors copy
         inst_environ = self._make_extra_environ('instructor1')
+        section2_inst_environ = self._make_extra_environ('section_instructor1')
         editor_environ = self._make_extra_environ('editor1')
         res = self.testapp.get(section_course_href,
                                extra_environ=inst_environ)
@@ -420,7 +422,8 @@ class TestCourseManagement(ApplicationLayerTest):
 
         res = self.testapp.get(section_course_href2,
                                extra_environ=inst_environ)
-        self.require_link_href_with_rel(res.json_body, VIEW_COURSE_INSTRUCTORS)
+        section2_instr_href = self.require_link_href_with_rel(res.json_body,
+                                                             VIEW_COURSE_INSTRUCTORS)
 
         res = self.testapp.get(section_course_href2,
                                extra_environ=editor_environ)
@@ -447,11 +450,25 @@ class TestCourseManagement(ApplicationLayerTest):
             assert_that(get_course_editors(section1), has_length(0))
             assert_that(get_course_editors(section2), has_length(1))
 
+        # Disable the catalog entry
+        new_course_entry_href = '%s/CourseCatalogEntry' % new_course_href
+        res = self.testapp.put_json(new_course_entry_href, {'is_non_public': True})
+
+        # Section instr can access parent course
+        self.testapp.post_json(section2_instr_href, {'user': 'section_instructor1'})
+        self.testapp.get(new_course_entry_href, extra_environ=inst_environ)
+        self.testapp.get(new_course_entry_href, extra_environ=section2_inst_environ)
+
         # Delete sections
         self.testapp.delete(section_course_href)
         self.testapp.delete(section_course_href2)
         res = self.testapp.get(subinstances_href).json_body
         assert_that(res.get('Items'), none())
+
+        # After deleting section, section instr can no longer access parent course entry
+        # (but instr in both courses can).
+        self.testapp.get(new_course_entry_href, extra_environ=inst_environ)
+        self.testapp.get(new_course_entry_href, extra_environ=section2_inst_environ, status=403)
 
         # Delete
         self.testapp.delete(course_delete_href)
