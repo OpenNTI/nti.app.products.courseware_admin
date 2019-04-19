@@ -23,7 +23,12 @@ does_not = is_not
 
 import shutil
 
+from six.moves import urllib_parse
+
 from zope import component
+
+from nti.app.contenttypes.presentation import VIEW_CONTENTS,\
+    VIEW_OVERVIEW_CONTENT
 
 from nti.app.products.courseware.views import VIEW_COURSE_ACCESS_TOKENS
 
@@ -109,6 +114,42 @@ class TestCourseManagement(ApplicationLayerTest):
         admin_href = self.require_link_href_with_rel(courses_workspace,
                                                      VIEW_COURSE_ADMIN_LEVELS)
         return admin_href
+
+    def _check_default_outline(self, course_href):
+        """
+        New courses should have a default outline template
+        (see nti.app.contenttypes.presentation.subscribers).
+        """
+        course = self.testapp.get(course_href).json_body
+        outline = course['Outline']
+        outline_href = self.require_link_href_with_rel(outline, VIEW_CONTENTS)
+        parsed = urllib_parse.urlparse(outline_href)
+        parsed = parsed._replace(query="omit_unpublished=False")
+        outline_href = parsed.geturl()
+
+        outline_res = self.testapp.get(outline_href)
+        outline_res = outline_res.json_body
+        assert_that(outline_res, has_length(1))
+        unit_node = outline_res[0]
+        assert_that(unit_node['title'], is_(u'Unit 1'))
+        assert_that(unit_node['PublicationState'], none())
+
+        lesson_nodes = unit_node['contents']
+        assert_that(lesson_nodes, has_length(1))
+        lesson_node = lesson_nodes[0]
+        assert_that(lesson_node['title'], is_(u'Lesson 1'))
+        assert_that(lesson_node['PublicationState'], none())
+
+        lesson_href = self.require_link_href_with_rel(lesson_node, VIEW_OVERVIEW_CONTENT)
+        parsed = urllib_parse.urlparse(lesson_href)
+        parsed = parsed._replace(query="omit_unpublished=False")
+        lesson_href = parsed.geturl()
+        lesson_res = self.testapp.get(lesson_href).json_body
+
+        groups = lesson_res['Items']
+        assert_that(groups, has_length(1))
+        group = groups[0]
+        assert_that(group['title'], is_(u'Section 1'))
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_admin_views(self):
@@ -269,6 +310,7 @@ class TestCourseManagement(ApplicationLayerTest):
 
         new_course = new_course.json_body
         new_course_href = new_course['href']
+        self._check_default_outline(new_course_href)
         self.require_link_href_with_rel(new_course, VIEW_COURSE_ACCESS_TOKENS)
         course_delete_href = self.require_link_href_with_rel(new_course,
                                                              'delete')
