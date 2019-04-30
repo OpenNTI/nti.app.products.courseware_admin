@@ -27,8 +27,8 @@ from six.moves import urllib_parse
 
 from zope import component
 
-from nti.app.contenttypes.presentation import VIEW_CONTENTS,\
-    VIEW_OVERVIEW_CONTENT
+from nti.app.contenttypes.presentation import VIEW_CONTENTS
+from nti.app.contenttypes.presentation import VIEW_OVERVIEW_CONTENT
 
 from nti.app.products.courseware.views import VIEW_COURSE_ACCESS_TOKENS
 
@@ -132,13 +132,13 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(outline_res, has_length(1))
         unit_node = outline_res[0]
         assert_that(unit_node['title'], is_(u'Unit 1'))
-        assert_that(unit_node['PublicationState'], none())
+        assert_that(unit_node['PublicationState'], is_('DefaultPublished'))
 
         lesson_nodes = unit_node['contents']
         assert_that(lesson_nodes, has_length(1))
         lesson_node = lesson_nodes[0]
         assert_that(lesson_node['title'], is_(u'Lesson 1'))
-        assert_that(lesson_node['PublicationState'], none())
+        assert_that(lesson_node['PublicationState'], is_('DefaultPublished'))
 
         lesson_href = self.require_link_href_with_rel(lesson_node, VIEW_OVERVIEW_CONTENT)
         parsed = urllib_parse.urlparse(lesson_href)
