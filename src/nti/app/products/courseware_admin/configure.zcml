@@ -53,12 +53,10 @@
                 for="nti.contenttypes.courses.interfaces.ICourseCatalogEntry
                      pyramid.interfaces.IRequest" />
 
-    <configure zcml:condition="have testmode">
-        <subscriber factory=".decorators._CourseCatalogCollectionDecorator"
-                    provides="nti.externalization.interfaces.IExternalObjectDecorator"
-                    for="nti.app.products.courseware.interfaces.ICoursesCatalogCollection
-                         pyramid.interfaces.IRequest"  />
-    </configure>
+    <subscriber factory=".decorators._CourseCatalogCollectionDecorator"
+                provides="nti.externalization.interfaces.IExternalObjectDecorator"
+                for="nti.app.products.courseware.interfaces.ICoursesCatalogCollection
+                     pyramid.interfaces.IRequest"  />
 
 	<subscriber factory=".decorators._CoursePolicyLinksDecorator"
 				provides="nti.externalization.interfaces.IExternalMappingDecorator"
