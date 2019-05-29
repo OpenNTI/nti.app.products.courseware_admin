@@ -607,7 +607,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # User tags
         res = self.testapp.get(entry_href, extra_environ=user_environ)
         res = res.json_body
-        assert_that(res['tags'], has_length(non_hidden_tag_count))
+        assert_that(res['tags'], has_length(non_hidden_tag_count - 1))
 
         # Validation
         tags = ('too_long' * 50,)
