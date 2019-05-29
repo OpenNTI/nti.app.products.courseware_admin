@@ -553,7 +553,8 @@ class TestCourseManagement(ApplicationLayerTest):
                 u'gaMMA', u'omega', u'law', u'LAW', u'.hidden']
         lower_tag_set = {x.lower() for x in tags}
         tag_count = len(lower_tag_set)
-        non_hidden_tag_count = tag_count - 1
+        # We now return hidden tags
+        non_hidden_tag_count = tag_count
         entry = self.testapp.put_json(entry_href, {"tags": tags})
         entry = entry.json_body
         assert_that(entry,
@@ -566,7 +567,7 @@ class TestCourseManagement(ApplicationLayerTest):
         tags = tags[ITEMS]
         assert_that(tags, has_length(non_hidden_tag_count))
         assert_that(tags, contains(u'alph', u'alpha', u'beta',
-                                   u'delta', u'gamma', u'law', u'omega'))
+                                   u'delta', u'gamma', u'law', u'omega', u'.hidden'))
 
         tags = self.testapp.get('%s?filter=%s' % (tag_url, 'alph')).json_body
         tags = tags[ITEMS]
