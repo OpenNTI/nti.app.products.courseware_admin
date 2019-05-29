@@ -577,7 +577,7 @@ class TestCourseManagement(ApplicationLayerTest):
         # startswith comes first
         tags = self.testapp.get('%s?filter=%s' % (tag_url, 'a')).json_body
         tags = tags[ITEMS]
-        assert_that(tags, has_length(non_hidden_tag_count))
+        assert_that(tags, has_length(non_hidden_tag_count - 1))
         starts_with = tags[:2]
         other = tags[2:]
         assert_that(starts_with, contains(u'alph', u'alpha'))
