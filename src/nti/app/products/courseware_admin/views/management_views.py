@@ -465,8 +465,8 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView,
         filter - (optional) only include tags with this str
     """
 
-    _DEFAULT_BATCH_SIZE = 10
-    _DEFAULT_BATCH_START = 0
+    _DEFAULT_BATCH_SIZE = None
+    _DEFAULT_BATCH_START = None
 
     def readInput(self):
         result = CaseInsensitiveDict(self.request.params)
@@ -479,8 +479,9 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView,
     @Lazy
     def include_str(self):
         # pylint: disable=no-member
-        return self._params.get('tag') \
-            or self._params.get('filter')
+        result = self._params.get('tag') \
+              or self._params.get('filter')
+        return result and result.lower()
 
     def sort_key(self, tag):
         return (tag != self.include_str,

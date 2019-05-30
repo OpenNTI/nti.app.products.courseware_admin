@@ -569,7 +569,7 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(tags, contains(u'.hidden', u'alph', u'alpha', u'beta',
                                    u'delta', u'gamma', u'law', u'omega'))
 
-        tags = self.testapp.get('%s?filter=%s' % (tag_url, 'alph')).json_body
+        tags = self.testapp.get('%s?filter=%s' % (tag_url, 'ALPH')).json_body
         tags = tags[ITEMS]
         assert_that(tags, has_length(2))
         assert_that(tags, contains(u'alph', u'alpha'))
