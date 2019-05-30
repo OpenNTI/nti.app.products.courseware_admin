@@ -118,8 +118,8 @@ class _EntryTagDecorator(AbstractAuthenticatedRequestAwareDecorator):
     Filter hidden tags on :class:`ICourseCatalogEntry` objects.
     """
 
-    def _predicate(self, unused_context, unused_result):
-        return not is_admin_or_content_admin_or_site_admin(self.remoteUser)
+    def _predicate(self, context, unused_result):
+        return not _can_edit_course(context, self.remoteUser)
 
     def _do_decorate_external(self, unused_context, result):
         if 'tags' in result:
