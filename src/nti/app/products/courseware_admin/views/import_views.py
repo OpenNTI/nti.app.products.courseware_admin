@@ -55,6 +55,7 @@ from nti.contenttypes.courses.creator import install_admin_level
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+from nti.contenttypes.courses.interfaces import CourseImportException
 from nti.contenttypes.courses.interfaces import InvalidCourseArchiveException
 from nti.contenttypes.courses.interfaces import ImportCourseTypeUnsupportedError
 from nti.contenttypes.courses.interfaces import DuplicateImportFromExportException
@@ -183,6 +184,11 @@ class CourseImportMixin(AbstractAuthenticatedView,
             raise_error({
                    'message':  _(u'Import error: unsupported course type'),
                    'code': 'ImportCourseTypeUnsupportedError'
+                })
+        except CourseImportException as exc:
+            raise_error({
+                   'message':  exc.message,
+                   'code': 'CourseImportError'
                 })
         finally:
             restoreInteraction()
