@@ -22,6 +22,7 @@ from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
+from nti.app.products.courseware.views import raise_error
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin.exporter import export_course
@@ -32,6 +33,7 @@ from nti.app.products.courseware_admin.views.view_mixins import parse_course
 
 from nti.common.string import is_true
 
+from nti.contenttypes.courses.interfaces import INonExportable
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
@@ -41,6 +43,12 @@ logger = __import__('logging').getLogger(__name__)
 
 
 def _export_course_response(context, backup, salt, response):
+    course = ICourseInstance(context)
+    if INonExportable.providedBy(course):
+        raise_error({
+                'message': _(u'Cannot export non-exportable course instance.'),
+                'code': 'NonExportableCourseError',
+            })
     path = tempfile.mkdtemp()
     try:
         zip_file = export_course(context, backup, salt, path)
