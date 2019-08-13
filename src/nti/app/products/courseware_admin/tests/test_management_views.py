@@ -16,6 +16,7 @@ from hamcrest import not_none
 from hamcrest import contains
 from hamcrest import has_entry
 from hamcrest import has_length
+from hamcrest import has_entries
 from hamcrest import assert_that
 from hamcrest import contains_inanyorder
 from hamcrest import greater_than_or_equal_to
@@ -114,6 +115,41 @@ class TestCourseManagement(ApplicationLayerTest):
         admin_href = self.require_link_href_with_rel(courses_workspace,
                                                      VIEW_COURSE_ADMIN_LEVELS)
         return admin_href
+
+    def _check_default_forum(self, course_ext):
+        """
+        Check we have a default forum. Validate we can edit board title/description.
+        """
+        discussions = course_ext.get('Discussions')
+        assert_that(discussions, not_none())
+        board_edit_href = self.require_link_href_with_rel(discussions, 'edit')
+        contents_href = self.require_link_href_with_rel(discussions, 'contents')
+        contents_res = self.testapp.get(contents_href).json_body
+        assert_that(contents_res.get('TotalItemCount'), is_(5))
+        forums = contents_res.get('Items')
+        default_forum = None
+        for forum in forums:
+            if forum.get('title') == 'Forum':
+                assert_that(default_forum, none())
+                default_forum = forum
+                assert_that(forum.get('IsDefaultForum'), is_(True))
+            else:
+                assert_that(forum.get('IsDefaultForum'), is_(False))
+
+        new_board_title = u'new board title'
+        new_board_desc = u'new board description'
+        res = self.testapp.put_json(board_edit_href, {'title': new_board_title,
+                                                      'description': new_board_desc})
+        assert_that(res.json_body, has_entries('title', new_board_title,
+                                               'description', new_board_desc))
+
+        new_forum_title = u'new forum title'
+        new_forum_desc = u'new forum description'
+        forum_edit_href = self.require_link_href_with_rel(default_forum, 'edit')
+        res = self.testapp.put_json(forum_edit_href, {'title': new_forum_title,
+                                                      'description': new_forum_desc})
+        assert_that(res.json_body, has_entries('title', new_forum_title,
+                                               'description', new_forum_desc))
 
     def _check_default_outline(self, course_href):
         """
@@ -311,6 +347,7 @@ class TestCourseManagement(ApplicationLayerTest):
         new_course = new_course.json_body
         new_course_href = new_course['href']
         self._check_default_outline(new_course_href)
+        self._check_default_forum(new_course)
         self.require_link_href_with_rel(new_course, VIEW_COURSE_ACCESS_TOKENS)
         course_delete_href = self.require_link_href_with_rel(new_course,
                                                              'delete')
