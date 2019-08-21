@@ -89,7 +89,10 @@ class RebuildEnrollmentCatalogView(AbstractAuthenticatedView):
                     enrollments = ICourseEnrollments(course)
                     # pylint: disable=too-many-function-args
                     for record in enrollments.iter_enrollments():
-                        catalog.index_doc(doc_id, record)
+                        record_id = intids.queryId(record)
+                        if record_id is None:
+                            continue
+                        catalog.index_doc(record_id, record)
                         metadata_queue_add(record)
                         count += 1
                     # index course roles
@@ -200,7 +203,7 @@ class RebuildCourseOutlineCatalogView(AbstractAuthenticatedView):
                     doc_id = intids.queryId(course)
                     if doc_id is None or doc_id in seen:
                         continue
-                    count += 1 
+                    count += 1
                     seen.add(doc_id)
                     self._index_nodes(course, catalog, intids)
                 items[host_site.__name__] = count
