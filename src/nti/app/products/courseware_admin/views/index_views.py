@@ -90,7 +90,7 @@ class RebuildEnrollmentCatalogView(AbstractAuthenticatedView):
                     # pylint: disable=too-many-function-args
                     for record in enrollments.iter_enrollments():
                         record_id = intids.queryId(record)
-                        if record_id is None:
+                        if record_id is None or record.Principal is None:
                             continue
                         catalog.index_doc(record_id, record)
                         metadata_queue_add(record)
