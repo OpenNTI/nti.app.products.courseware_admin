@@ -60,6 +60,8 @@ from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 
 from nti.contenttypes.courses.utils import get_course_editors
 
+from nti.dataserver.contenttypes.forums.forum import DEFAULT_FORUM_NAME
+
 from nti.dataserver.users.communities import Community
 
 from nti.dataserver.tests import mock_dataserver
@@ -129,7 +131,7 @@ class TestCourseManagement(ApplicationLayerTest):
         forums = contents_res.get('Items')
         default_forum = None
         for forum in forums:
-            if forum.get('title') == 'Forum':
+            if forum.get('title') == DEFAULT_FORUM_NAME:
                 assert_that(default_forum, none())
                 default_forum = forum
                 assert_that(forum.get('IsDefaultForum'), is_(True))
