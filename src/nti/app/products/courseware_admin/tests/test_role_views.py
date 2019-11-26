@@ -281,7 +281,7 @@ class TestRoleViews(ApplicationLayerTest):
             if username == 'hero.brown':
                 assert_that(admin_courses[ITEMS], has_length(0))
                 for package_href in package_hrefs:
-                    self.testapp.get(package_href, extra_environ=env, 
+                    self.testapp.get(package_href, extra_environ=env,
                                      status=403)
             else:
                 assert_that(admin_courses[ITEMS], has_length(1))
@@ -318,7 +318,7 @@ class TestRoleViews(ApplicationLayerTest):
         self.testapp.delete_json(remove_instructor_href, {'user': 'yorick.brown'})
         instructors = _instructor_names()
         assert_that(instructors, has_length(3))
-        assert_that(instructors, 
+        assert_that(instructors,
                     contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
         editors = _editor_names()
         assert_that(editors, has_length(4))
@@ -341,8 +341,8 @@ class TestRoleViews(ApplicationLayerTest):
                                  {'user': 'yorick.brown'})
 
         # Remove instructor
-        self.testapp.delete_json(remove_instructor_href, {'user': 'ampersand'})
-        self.testapp.delete_json(remove_instructor_href, {'user': 'ampersand'})
+        self.testapp.post_json(remove_instructor_href, {'user': 'ampersand'})
+        self.testapp.post_json(remove_instructor_href, {'user': 'ampersand'})
         instructors = _instructor_names()
         assert_that(instructors, has_length(2))
         assert_that(instructors, contains_inanyorder('jmadden', 'harp4162'))
@@ -361,8 +361,8 @@ class TestRoleViews(ApplicationLayerTest):
         self._validate_manage_links(amp_environ)
 
         # Remove editor
-        self.testapp.delete_json(remove_editor_href,
-                                 {'user': 'three-fifty-five'})
+        self.testapp.post_json(remove_editor_href,
+                               {'user': 'three-fifty-five'})
 
         self.testapp.delete_json(remove_editor_href,
                                  {'user': 'three-fifty-five'})
