@@ -180,7 +180,11 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
                 'message': _(u"No users given."),
                 'code': 'NoUsersGiven.',
             })
-        result = result.split(',')
+        try:
+            result = result.split(',')
+        except TypeError:
+            # List
+            pass
         return result
 
     @Lazy
@@ -200,6 +204,7 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         self.require_access(self.remoteUser, self.context)
         usernames = self._get_users()
         for username in usernames:
+            username = username.strip()
             user = User.get_user(username)
             if not IUser.providedBy(user):
                 raise_error({
