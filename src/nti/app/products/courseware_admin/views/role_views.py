@@ -182,7 +182,7 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
             })
         try:
             result = result.split(',')
-        except TypeError:
+        except AttributeError:
             # List
             pass
         return result
