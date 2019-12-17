@@ -169,7 +169,7 @@ class CourseImportMixin(AbstractAuthenticatedView,
     def _update_entry_title(self, course):
         entry = ICourseCatalogEntry(course, None)
         if entry is not None:
-            prefix = '[COPIED]'
+            prefix = '[COPIED] '
             max_length = ICourseCatalogEntry['title'].max_length
             old_title = entry.title or ''
             entry.title = '%s%s' % (prefix, old_title[:max_length-len(prefix)])
