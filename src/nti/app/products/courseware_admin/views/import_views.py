@@ -377,9 +377,9 @@ class ImportCourseView(CourseImportMixin):
             if entry is not None:
                 old_title = entry.title or ''
                 if len(old_title) > 42:
-                    entry.title = '%s...[COPIED]' % old_title[:42]
+                    entry.title = '%s... [COPIED]' % old_title[:42]
                 else:
-                    entry.title = '%s[COPIED]' % old_title
+                    entry.title = '%s [COPIED]' % old_title
                 notify(ObjectModifiedFromExternalEvent(entry))
             result['Course'] = course
             result['Elapsed'] = time.time() - now
