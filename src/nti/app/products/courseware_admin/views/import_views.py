@@ -169,11 +169,10 @@ class CourseImportMixin(AbstractAuthenticatedView,
     def _update_entry_title(self, course):
         entry = ICourseCatalogEntry(course, None)
         if entry is not None:
+            prefix = '[COPIED]'
+            max_length = ICourseCatalogEntry['title'].max_length
             old_title = entry.title or ''
-            if len(old_title) > 42:
-                entry.title = '%s... [COPIED]' % old_title[:42]
-            else:
-                entry.title = '%s [COPIED]' % old_title
+            entry.title = '%s%s' % (prefix, old_title[:max_length-len(prefix)])
             notify(ObjectModifiedFromExternalEvent(entry))
 
     def __call__(self):
