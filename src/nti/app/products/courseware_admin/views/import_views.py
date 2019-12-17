@@ -370,10 +370,16 @@ class ImportCourseView(CourseImportMixin):
                 course = self._create_course(admin, key, path, writeout,
                                              lockout, clear, site,
                                              validate_export_hash=validate_export_hash)
+
             notify(ObjectModifiedFromExternalEvent(course))
             # Test safety
             entry = ICourseCatalogEntry(course, None)
             if entry is not None:
+                old_title = entry.title or ''
+                if len(old_title) > 42:
+                    entry.title = '%s...[COPIED]' % old_title[:42]
+                else:
+                    entry.title = '%s[COPIED]' % old_title
                 notify(ObjectModifiedFromExternalEvent(entry))
             result['Course'] = course
             result['Elapsed'] = time.time() - now
