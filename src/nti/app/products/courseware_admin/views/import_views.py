@@ -166,6 +166,16 @@ class CourseImportMixin(AbstractAuthenticatedView,
     def _do_call(self):
         pass
 
+    def _update_entry_title(self, course):
+        entry = ICourseCatalogEntry(course, None)
+        if entry is not None:
+            old_title = entry.title or ''
+            if len(old_title) > 42:
+                entry.title = '%s... [COPIED]' % old_title[:42]
+            else:
+                entry.title = '%s [COPIED]' % old_title
+            notify(ObjectModifiedFromExternalEvent(entry))
+
     def __call__(self):
         endInteraction()
         try:
@@ -247,7 +257,7 @@ class CourseImportView(CourseImportMixin):
             course = ICourseInstance(self.context)
             result['Course'] = course
             notify(ObjectModifiedFromExternalEvent(course))
-            notify(ObjectModifiedFromExternalEvent(entry))
+            self._update_entry_title(course)
         finally:
             delete_directory(tmp_path)
         return result
@@ -372,15 +382,7 @@ class ImportCourseView(CourseImportMixin):
                                              validate_export_hash=validate_export_hash)
 
             notify(ObjectModifiedFromExternalEvent(course))
-            # Test safety
-            entry = ICourseCatalogEntry(course, None)
-            if entry is not None:
-                old_title = entry.title or ''
-                if len(old_title) > 42:
-                    entry.title = '%s... [COPIED]' % old_title[:42]
-                else:
-                    entry.title = '%s [COPIED]' % old_title
-                notify(ObjectModifiedFromExternalEvent(entry))
+            self._update_entry_title(course)
             result['Course'] = course
             result['Elapsed'] = time.time() - now
         except Exception as e:
