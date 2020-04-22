@@ -19,6 +19,7 @@ from pyramid.view import view_defaults
 from requests.structures import CaseInsensitiveDict
 
 from zope import component
+from zope import lifecycleevent
 
 from zope.cachedescriptors.property import Lazy
 
@@ -213,6 +214,10 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
                 })
             self._edit_permissions(user)
             notify(self.EVENT_FACTORY(user, self.course))
+
+        if usernames:
+            # re-indexing instructors/editors.
+            lifecycleevent.modified(self.course)
         return hexc.HTTPNoContent()
 
 
