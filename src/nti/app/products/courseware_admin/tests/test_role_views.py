@@ -22,6 +22,7 @@ from zope.cachedescriptors.property import Lazy
 
 from nti.app.products.courseware.tests import PersistentInstructedCourseApplicationTestLayer
 
+from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
@@ -163,8 +164,10 @@ class TestRoleViews(ApplicationLayerTest):
 
         # Admin links
         course = self._get_course_ext()
-        editor_href = self.require_link_href_with_rel(course,
-                                                      VIEW_COURSE_EDITORS)
+        roles_href = self.require_link_href_with_rel(course,
+                                                     VIEW_COURSE_ROLES)
+
+        self.require_link_href_with_rel(course, VIEW_COURSE_EDITORS)
 
         instructor_href = self.require_link_href_with_rel(course,
                                                           VIEW_COURSE_INSTRUCTORS)
@@ -172,8 +175,7 @@ class TestRoleViews(ApplicationLayerTest):
         remove_editor_href = self.require_link_href_with_rel(course,
                                                              VIEW_COURSE_REMOVE_EDITORS)
 
-        remove_instructor_href = self.require_link_href_with_rel(course,
-                                                                 VIEW_COURSE_REMOVE_INSTRUCTORS)
+        self.require_link_href_with_rel(course, VIEW_COURSE_REMOVE_INSTRUCTORS)
 
         # Validate base state (no admin courses/enrollment)
         for username, env in (('ampersand', amp_environ),
@@ -181,7 +183,8 @@ class TestRoleViews(ApplicationLayerTest):
                               ('yorick.brown', yorick_environ),
                               ('three-fifty-five', three_environ)):
 
-            for rel in (VIEW_COURSE_EDITORS,
+            for rel in (VIEW_COURSE_ROLES,
+                        VIEW_COURSE_EDITORS,
                         VIEW_COURSE_INSTRUCTORS,
                         VIEW_COURSE_REMOVE_EDITORS,
                         VIEW_COURSE_REMOVE_INSTRUCTORS):
@@ -207,11 +210,11 @@ class TestRoleViews(ApplicationLayerTest):
                                      extra_environ=env,
                                      status=403)
 
-        def _get_names(href):
-            result = self.testapp.get(href)
+        def _get_names(role_name):
+            result = self.testapp.get(roles_href)
             result = result.json_body
             usernames = []
-            for ext_user in result[ITEMS]:
+            for ext_user in result.get('roles', {}).get(role_name, {}).get(ITEMS, []):
                 username = ext_user['Username']
                 if username in ('ampersand', 'hero.brown',
                                 'yorick.brown', 'three-fifty-five'):
@@ -221,10 +224,20 @@ class TestRoleViews(ApplicationLayerTest):
             return usernames
 
         def _instructor_names():
-            return _get_names(instructor_href)
+            return _get_names('instructors')
 
         def _editor_names():
-            return _get_names(editor_href)
+            return _get_names('editors')
+
+        update_marker = object()
+        def _update_roles(instructors=update_marker, editors=update_marker):
+            data = dict()
+            data['roles'] = roles = dict()
+            if instructors is not update_marker:
+                roles['instructors'] = list(instructors) if instructors else instructors
+            if editors is not update_marker:
+                roles['editors'] = list(editors) if editors else editors
+            self.testapp.put_json(roles_href, data)
 
         # Error handling; bad input, non-existent user
         self.testapp.post_json(instructor_href, status=422)
@@ -235,8 +248,8 @@ class TestRoleViews(ApplicationLayerTest):
         # Add instructor (twice is ok)
         instructors = _instructor_names()
         assert_that(instructors, has_length(2))
-        self.testapp.post_json(instructor_href, {'user': 'ampersand'})
-        self.testapp.post_json(instructor_href, {'user': 'ampersand'})
+        _update_roles(instructors=['jmadden', 'harp4162', 'ampersand'])
+        _update_roles(instructors=['jmadden', 'harp4162', 'ampersand'])
         instructors = _instructor_names()
         assert_that(instructors, has_length(3))
         assert_that(instructors,
@@ -246,8 +259,8 @@ class TestRoleViews(ApplicationLayerTest):
         # Add editor (twice is ok)
         editors = _editor_names()
         assert_that(editors, has_length(2))
-        self.testapp.post_json(editor_href, {'user': 'three-fifty-five'})
-        self.testapp.post_json(editor_href, {'user': 'three-fifty-five'})
+        _update_roles(editors=['jmadden', 'harp4162', 'three-fifty-five'])
+        _update_roles(editors=['jmadden', 'harp4162', 'three-fifty-five'])
         editors = _editor_names()
         assert_that(editors, has_length(3))
         assert_that(editors,
@@ -255,8 +268,8 @@ class TestRoleViews(ApplicationLayerTest):
         self._validate_manage_links(three_environ, has_editor_links=True)
 
         # Add instructor/editor user
-        self.testapp.post_json(instructor_href, {'user': 'yorick.brown'})
-        self.testapp.post_json(editor_href, {'user': 'yorick.brown'})
+        _update_roles(instructors=['jmadden', 'harp4162', 'ampersand', 'yorick.brown'],
+                      editors=['jmadden', 'harp4162', 'three-fifty-five', 'yorick.brown'])
         instructors = _instructor_names()
         assert_that(instructors, has_length(4))
         assert_that(instructors,
@@ -315,7 +328,7 @@ class TestRoleViews(ApplicationLayerTest):
                                         'yorick.brown', 'three-fifty-five'))
 
         # Remove instructor/editor
-        self.testapp.delete_json(remove_instructor_href, {'user': 'yorick.brown'})
+        _update_roles(instructors=['jmadden', 'harp4162', 'ampersand'])
         instructors = _instructor_names()
         assert_that(instructors, has_length(3))
         assert_that(instructors,
@@ -329,46 +342,29 @@ class TestRoleViews(ApplicationLayerTest):
         # Still an editor; so retain package access.
         for package_href in package_hrefs:
             self.testapp.get(package_href, extra_environ=env)
-        self.testapp.delete_json(remove_editor_href, {'user': 'yorick.brown'})
+        _update_roles(editors=['jmadden', 'harp4162', 'three-fifty-five'])
         self._validate_manage_links(yorick_environ)
         # Re-add instructor and now remove editor (still have package access)
-        self.testapp.post_json(instructor_href, {'user': 'yorick.brown'})
-        self.testapp.delete_json(remove_editor_href, {'user': 'yorick.brown'})
+        _update_roles(instructors=['jmadden', 'harp4162', 'ampersand', 'yorick.brown'],
+                      editors=['jmadden', 'harp4162', 'three-fifty-five'])
         self._validate_manage_links(yorick_environ, has_instructor_links=True)
         for package_href in package_hrefs:
             self.testapp.get(package_href, extra_environ=env)
-        self.testapp.delete_json(remove_instructor_href,
-                                 {'user': 'yorick.brown'})
 
         # Remove instructor
-        self.testapp.post_json(remove_instructor_href, {'user': 'ampersand'})
-        self.testapp.post_json(remove_instructor_href, {'user': 'ampersand'})
-        instructors = _instructor_names()
-        assert_that(instructors, has_length(2))
-        assert_that(instructors, contains_inanyorder('jmadden', 'harp4162'))
-        self._validate_manage_links(amp_environ)
-
-        # Remove instructor via subpath
-        self.testapp.post_json(instructor_href, {'user': 'ampersand'})
-        instructors = _instructor_names()
-        assert_that(instructors, has_length(3))
-        assert_that(instructors,
-                    contains_inanyorder('jmadden', 'harp4162', 'ampersand'))
-        self.testapp.delete('%s/%s' % (remove_instructor_href, 'ampersand'))
+        _update_roles(instructors=['jmadden', 'harp4162'],
+                      editors=['jmadden', 'harp4162', 'three-fifty-five'])
         instructors = _instructor_names()
         assert_that(instructors, has_length(2))
         assert_that(instructors, contains_inanyorder('jmadden', 'harp4162'))
         self._validate_manage_links(amp_environ)
 
         # Remove editor
-        self.testapp.post_json(remove_editor_href,
-                               {'user': 'three-fifty-five'})
-
-        self.testapp.delete_json(remove_editor_href,
-                                 {'user': 'three-fifty-five'})
+        _update_roles(instructors=['jmadden', 'harp4162'],
+                      editors=['jmadden', 'harp4162'])
         editors = _editor_names()
-        assert_that(instructors, has_length(2))
-        assert_that(instructors,
+        assert_that(editors, has_length(2))
+        assert_that(editors,
                     contains_inanyorder('jmadden', 'harp4162'))
         self._validate_manage_links(three_environ)
 

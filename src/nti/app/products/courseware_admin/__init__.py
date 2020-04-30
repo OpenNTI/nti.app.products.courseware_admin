@@ -12,6 +12,7 @@ from nti.app.products.courseware import MessageFactory
 
 VIEW_EXPORT_COURSE = 'Export'
 VIEW_IMPORT_COURSE = 'Import'
+VIEW_COURSE_ROLES = 'Roles'
 VIEW_COURSE_EDITORS = 'Editors'
 VIEW_VENDOR_INFO = 'VendorInfo'
 VIEW_COURSE_INSTRUCTORS = 'Instructors'

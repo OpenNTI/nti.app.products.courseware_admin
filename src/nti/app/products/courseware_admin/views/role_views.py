@@ -42,11 +42,13 @@ from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
+from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
+from nti.app.products.courseware_admin.mixins import RoleManageMixin
 from nti.app.products.courseware_admin.mixins import EditorManageMixin
 from nti.app.products.courseware_admin.mixins import InstructorManageMixin
 
@@ -73,7 +75,7 @@ from nti.contenttypes.courses.interfaces import CourseInstructorRemovedEvent
 from nti.contenttypes.courses.sharing import add_principal_to_course_content_roles
 from nti.contenttypes.courses.sharing import remove_principal_from_course_content_roles
 
-from nti.contenttypes.courses.utils import is_enrolled
+from nti.contenttypes.courses.utils import is_enrolled, is_course_editor
 from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import get_course_instructors
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
@@ -143,6 +145,29 @@ class CourseEditorsView(AbstractAuthenticatedView, EditorManageMixin):
         result[ITEM_COUNT] = len(editors)
         users = (IUser(x) for x in editors)
         result[ITEMS] = _get_external_users(users)
+        return result
+
+
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             context=ICourseInstance,
+             name=VIEW_COURSE_ROLES,
+             request_method='GET')
+class CourseRolesView(AbstractAuthenticatedView, RoleManageMixin):
+    """
+    Fetch all editors for the given course.
+    """
+
+    def __call__(self):
+        self.require_access(self.remoteUser, self.context)
+        editors = [IUser(x) for x in get_course_editors(self.context)]
+        instructors = [User.get_user(x) for x in get_course_instructors(self.context)]
+        result = LocatedExternalDict()
+        result['roles'] = roles = dict()
+        for data_seq, name in ((editors, 'editors'), (instructors, 'instructors')):
+            roles[name] = items = dict()
+            items[ITEM_COUNT] = len(data_seq)
+            items[ITEMS] = _get_external_users(data_seq)
         return result
 
 
@@ -335,13 +360,139 @@ class CourseEditorsRemovalView(AbstractCourseDenyView, EditorManageMixin):
     _edit_permissions = deny_permission
 
 
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             context=ICourseInstance,
+             name=VIEW_COURSE_ROLES,
+             request_method='PUT')
+class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
+    """
+    A view to update all course roles in a single API call. This looks for
+    a `roles` param, containing `instructors` and `editors` (for our current
+    two roles). Each entry will contain a list of usernames of users in that
+    roles. Usernames not in those lists will be removed from those roles if
+    currently in them. An empty list will remove all users from those roles.
+    """
+
+    def deny_permission(self, role_id, user):
+        principal_id = IPrincipal(user).id
+        # Matches what we do during sync.
+        # pylint: disable=no-member
+        self.role_manager.unsetRoleForPrincipal(role_id, principal_id)
+        logger.info('Removed user access to course (%s) (%s) (%s)',
+                    user.username, role_id, self.entry_ntiid)
+
+    def grant_permission(self, role_id, user):
+        # pylint: disable=no-member
+        principal_id = IPrincipal(user).id
+        self.role_manager.assignRoleToPrincipal(role_id, principal_id)
+        logger.info('Granted user access to course (%s) (%s) (%s)',
+                    user.username, role_id, self.entry_ntiid)
+
+    def maybe_remove_user_from_content_roles(self, user):
+        # If not editor, instructor, and enrollmed, remove content access.
+        prin = IPrincipal(user)
+        if      prin not in self.course.instructors \
+            and not is_course_editor(self.course, user) \
+            and not is_enrolled(self.course, user):
+            remove_principal_from_course_content_roles(user,
+                                                       self.course,
+                                                       unenroll=True)
+
+    @Lazy
+    def _roles(self):
+        return self.readInput().get('roles')
+
+    def _get_usernames(self, usernames):
+        """
+        Validate given usernames
+        """
+        result = set()
+        for username in usernames:
+            username = username.strip()
+            user = User.get_user(username)
+            if not IUser.providedBy(user):
+                raise_error({
+                    'message': _(u"User does not exist."),
+                    'code': 'UserDoesNotExist',
+                })
+            result.add(username)
+        return result
+
+    def update_instructors(self, input_instructor_usernames):
+        input_instructor_usernames = self._get_usernames(input_instructor_usernames)
+        current_instructors = set(get_course_instructors(self.course))
+        instructors_to_add = input_instructor_usernames - current_instructors
+        instructors_to_remove = current_instructors - input_instructor_usernames
+        for to_add in instructors_to_add:
+            user = User.get_user(to_add)
+            self.grant_permission(RID_INSTRUCTOR, user)
+            grant_instructor_access_to_course(user, self.course)
+            notify(CourseInstructorAddedEvent(user, self.course))
+        for to_remove in instructors_to_remove:
+            user = User.get_user(to_remove)
+            self.deny_permission(RID_INSTRUCTOR, user)
+            deny_instructor_access_to_course(user, self.course)
+            self.maybe_remove_user_from_content_roles(user)
+            notify(CourseInstructorRemovedEvent(user, self.course))
+        logger.info("Updating course instructors (%s) (added=%s) (removed=%s)",
+                    self.entry_ntiid,
+                    instructors_to_add,
+                    instructors_to_remove)
+        self.course.instructors = tuple(IPrincipal(User.get_user(x)) for x in input_instructor_usernames)
+
+    def update_editors(self, input_editor_usernames):
+        input_editor_usernames = self._get_usernames(input_editor_usernames)
+        current_editors = set(x.id for x in get_course_editors(self.course))
+        editors_to_add = input_editor_usernames - current_editors
+        editors_to_remove = current_editors - input_editor_usernames
+        for to_add in editors_to_add:
+            user = User.get_user(to_add)
+            self.grant_permission(RID_CONTENT_EDITOR, user)
+            add_principal_to_course_content_roles(user, self.course)
+            notify(CourseEditorAddedEvent(user, self.course))
+        for to_remove in editors_to_remove:
+            user = User.get_user(to_remove)
+            self.deny_permission(RID_CONTENT_EDITOR, user)
+            self.maybe_remove_user_from_content_roles(user)
+            notify(CourseEditorRemovedEvent(user, self.course))
+        logger.info("Updating course editors (%s) (added=%s) (removed=%s)",
+                    self.entry_ntiid,
+                    editors_to_add,
+                    editors_to_remove)
+
+    def __call__(self):
+        # pylint: disable=no-member
+        self.require_access(self.remoteUser, self.context)
+        role_dict = self._roles
+        if not role_dict:
+            raise_error({
+                    'message': _(u"Must provide roles"),
+                    'code': 'RolesNotProvidedError',
+                })
+        input_editors = role_dict.get('editors')
+        input_instructors = role_dict.get('instructors')
+        instructors_updated = editors_updated = False
+
+        if input_editors is not None:
+            editors_updated = self.update_editors(input_editors)
+
+        if input_instructors is not None:
+            instructors_updated = self.update_instructors(input_instructors)
+
+        if instructors_updated or editors_updated:
+            # re-indexing instructors/editors.
+            lifecycleevent.modified(self.course)
+        return hexc.HTTPNoContent()
+
+
 @view_config(name='CourseRoles')
 @view_config(name='course_roles')
 @view_defaults(route_name='objects.generic.traversal',
                renderer='rest',
                context=CourseAdminPathAdapter,
                request_method='GET')
-class CourseRolesView(AbstractAuthenticatedView):
+class CourseRolesCSVView(AbstractAuthenticatedView):
     """
     Return a CSV with current course roles.
     """
