@@ -21,6 +21,7 @@ from nti.app.products.courseware.interfaces import ICoursesWorkspace
 from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
 
 from nti.app.products.courseware_admin import VIEW_VENDOR_INFO
+from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
@@ -32,6 +33,7 @@ from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
+from nti.app.products.courseware_admin.mixins import RoleManageMixin
 from nti.app.products.courseware_admin.mixins import EditorManageMixin
 from nti.app.products.courseware_admin.mixins import InstructorManageMixin
 
@@ -193,6 +195,28 @@ class _CourseEditorManagementLinkDecorator(AbstractAuthenticatedRequestAwareDeco
     def _do_decorate_external(self, context, result):
         for rel in (VIEW_COURSE_EDITORS,
                     VIEW_COURSE_REMOVE_EDITORS):
+            _links = result.setdefault(LINKS, [])
+            link = Link(context, rel=rel, elements=('@@%s' % rel,))
+            interface.alsoProvides(link, ILocation)
+            link.__name__ = ''
+            link.__parent__ = context
+            _links.append(link)
+
+
+@component.adapter(ICourseInstance)
+@interface.implementer(IExternalMappingDecorator)
+class _CourseRoleManagementLinkDecorator(AbstractAuthenticatedRequestAwareDecorator,
+                                         RoleManageMixin):
+    """
+    A decorator that provides links for course role management.
+    """
+
+    def _predicate(self, context, unused_result):
+        return self._is_authenticated \
+           and self.has_access(self.remoteUser, context)
+
+    def _do_decorate_external(self, context, result):
+        for rel in (VIEW_COURSE_ROLES,):
             _links = result.setdefault(LINKS, [])
             link = Link(context, rel=rel, elements=('@@%s' % rel,))
             interface.alsoProvides(link, ILocation)

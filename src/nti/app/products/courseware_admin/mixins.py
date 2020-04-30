@@ -63,3 +63,24 @@ class EditorManageMixin(object):
                                  'message': _(u"Do not have permission to manage editors."),
                              },
                              None)
+
+
+class RoleManageMixin(object):
+    """
+    Defines who has access to manage course roles. Only course
+    editors *and* instructors, admins, and global editors can manage roles.
+    """
+
+    def has_access(self, user, course):
+        return is_admin_or_content_admin_or_site_admin(user) \
+            or (    is_course_instructor(course, user) \
+                and is_course_editor(course, user))
+
+    def require_access(self, user, course):
+        if not self.has_access(user, course):
+            raise_json_error(get_current_request(),
+                             hexc.HTTPForbidden,
+                             {
+                                 'message': _(u"Do not have permission to manage course roles."),
+                             },
+                             None)

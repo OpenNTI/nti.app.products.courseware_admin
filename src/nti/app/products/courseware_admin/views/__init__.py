@@ -9,6 +9,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 from nti.app.products.courseware_admin import VIEW_VENDOR_INFO
+from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
