@@ -172,8 +172,8 @@ class TestRoleViews(ApplicationLayerTest):
         instructor_href = self.require_link_href_with_rel(course,
                                                           VIEW_COURSE_INSTRUCTORS)
 
-        remove_editor_href = self.require_link_href_with_rel(course,
-                                                             VIEW_COURSE_REMOVE_EDITORS)
+        self.require_link_href_with_rel(course,
+                                        VIEW_COURSE_REMOVE_EDITORS)
 
         self.require_link_href_with_rel(course, VIEW_COURSE_REMOVE_INSTRUCTORS)
 
