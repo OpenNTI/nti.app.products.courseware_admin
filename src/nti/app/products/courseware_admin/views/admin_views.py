@@ -116,8 +116,8 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
 
             prm = IPrincipalRoleManager(course)
             for role in (RID_TA, RID_INSTRUCTOR, RID_CONTENT_EDITOR,):
-                roles[role] = [p[0] for p in prm.getPrincipalsForRole(role)
-                               if p[1] == Allow and User.get_user(p[0]) is not None]
+                roles[role] = [pid for (pid, setting) in prm.getPrincipalsForRole(role)
+                               if setting == Allow and User.get_user(pid) is not None]
 
             course_summary['roles'] = roles
             
