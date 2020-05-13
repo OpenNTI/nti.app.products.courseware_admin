@@ -73,6 +73,8 @@ from nti.links.interfaces import ILinkExternalHrefOnly
 
 from nti.links.links import Link
 
+from nti.links.externalization import render_link
+
 from nti.site.hostpolicy import get_host_site
 
 from nti.site.site import get_component_hierarchy_names
@@ -95,24 +97,32 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
 
     def __call__(self):
         items = {}
-        for course in self.context.iterCatalogEntries():
+
+        provenance_link_cache = {}
+        
+        for catalog_entry in self.context.iterCatalogEntries():
 
             # We want to indicate what catalog each course comes from
             # for this admin view. We look for the ICourseCatalog and render a link to it.
             # We can't render links to the global catalog so if a course
             # is global we omit the provenance
             provenance = None
-            owner_catalog = find_interface(course, ICourseCatalog)
+            owner_catalog = find_interface(catalog_entry, ICourseCatalog)
 
             if not IGlobalCourseCatalog.providedBy(owner_catalog):
-                owner_catalog_link = Link(owner_catalog)
-                interface.alsoProvides(owner_catalog_link, ILinkExternalHrefOnly)
-                provenance = owner_catalog_link
+                provenance = provenance_link_cache.get(owner_catalog, None)
+                if provenance is None:
+                    owner_catalog_link = Link(owner_catalog)
+                    interface.alsoProvides(owner_catalog_link, ILinkExternalHrefOnly)
+                    provenance = render_link(owner_catalog_link)
+                    provenance_link_cache[owner_catalog] = provenance
 
             course_summary = {}
             course_summary['provenance'] = provenance
 
             roles = {}
+
+            course = ICourseInstance(catalog_entry)
 
             prm = IPrincipalRoleManager(course)
             for role in (RID_TA, RID_INSTRUCTOR, RID_CONTENT_EDITOR,):
@@ -121,7 +131,7 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
 
             course_summary['roles'] = roles
             
-            items[course.ntiid] = course_summary
+            items[catalog_entry.ntiid] = course_summary
 
         result = LocatedExternalDict()
         result.__parent__ = self.context
