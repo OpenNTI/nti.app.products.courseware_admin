@@ -9,6 +9,7 @@ from __future__ import absolute_import
 
 from hamcrest import has_entries
 from hamcrest import assert_that
+from hamcrest import contains_inanyorder
 
 from six.moves import urllib_parse
 
@@ -72,3 +73,20 @@ class TestAdminViews(ApplicationLayerTest):
     def test_sync_instructors(self):
         href = "/dataserver2/Objects/%s/@@SyncInstructors" % self.entry_ntiid
         self.testapp.post(href, status=204)
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_catalog_audit_usage(self):
+        href = '/dataserver2/++etc++hostsites/platform.ou.edu/++etc++site/Courses/@@AuditUsageInfo'
+        res = self.testapp.get(href, status=200)
+
+        res = res.json_body
+
+        assert_that(res, has_entries('Total', 8 ,
+                                     'Items',
+                                     has_entries('tag:nextthought.com,2011-10:OU-HTML-ENGR1510_Intro_to_Water.course_info', has_entries('provenance', None),
+                                                 'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2015_CS_1323_SubInstances_995', has_entries('provenance', '/dataserver2/++etc++hostsites/platform.ou.edu/++etc++site/Courses'))))
+
+        roles = res['Items']['tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2015_CS_1323']['roles']
+        assert_that(roles, has_entries('nti.roles.course_content_editor', contains_inanyorder('tryt3968'),
+                                       'nti.roles.course_instructor', contains_inanyorder('cs1323_instructor', 'tryt3968'),
+                                       'nti.roles.course_ta', []))
