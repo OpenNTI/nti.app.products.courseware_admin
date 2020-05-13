@@ -17,6 +17,8 @@ from requests.structures import CaseInsensitiveDict
 
 from zope import component
 
+from zope import interface
+
 from zope.component.hooks import site as current_site
 
 from zope.event import notify
@@ -41,6 +43,7 @@ from nti.contenttypes.courses.common import get_course_packages
 
 from nti.contenttypes.courses.interfaces import RID_TA
 from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
+from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
 
 from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
@@ -48,6 +51,7 @@ from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
+from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 
 from nti.contenttypes.courses.sharing import update_package_permissions
 
@@ -65,15 +69,66 @@ from nti.dataserver.users.users import User
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
 
+from nti.links.interfaces import ILinkExternalHrefOnly
+
+from nti.links.links import Link
+
 from nti.site.hostpolicy import get_host_site
 
 from nti.site.site import get_component_hierarchy_names
 
+from nti.traversal.traversal import find_interface
+
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
+TOTAL = StandardExternalFields.TOTAL
 
 logger = __import__('logging').getLogger(__name__)
 
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             request_method='GET',
+             name='AuditUsageInfo',
+             permission=nauth.ACT_NTI_ADMIN,
+             context=ICourseCatalog)
+class CatalogUsageSummary(AbstractAuthenticatedView):
+
+    def __call__(self):
+        items = {}
+        for course in self.context.iterCatalogEntries():
+
+            # We want to indicate what catalog each course comes from
+            # for this admin view. We look for the ICourseCatalog and render a link to it.
+            # We can't render links to the global catalog so if a course
+            # is global we omit the provenance
+            provenance = None
+            owner_catalog = find_interface(course, ICourseCatalog)
+
+            if not IGlobalCourseCatalog.providedBy(owner_catalog):
+                owner_catalog_link = Link(owner_catalog)
+                interface.alsoProvides(owner_catalog_link, ILinkExternalHrefOnly)
+                provenance = owner_catalog_link
+
+            course_summary = {}
+            course_summary['provenance'] = provenance
+
+            roles = {}
+
+            prm = IPrincipalRoleManager(course)
+            for role in (RID_TA, RID_INSTRUCTOR, RID_CONTENT_EDITOR,):
+                roles[role] = [p[0] for p in prm.getPrincipalsForRole(role)
+                               if p[1] == Allow and User.get_user(p[0]) is not None]
+
+            course_summary['roles'] = roles
+            
+            items[course.ntiid] = course_summary
+
+        result = LocatedExternalDict()
+        result.__parent__ = self.context
+        result.__name__ = self.request.view_name
+        result[ITEMS] = items
+        result[ITEM_COUNT] = result[TOTAL] = len(items)
+        return result
 
 @view_config(context=ICourseInstance)
 @view_config(context=ICourseCatalogEntry)
