@@ -68,6 +68,7 @@ from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import CourseEditorAddedEvent
+from nti.contenttypes.courses.interfaces import CourseRolesUpdatedEvent
 from nti.contenttypes.courses.interfaces import CourseEditorRemovedEvent
 from nti.contenttypes.courses.interfaces import CourseInstructorAddedEvent
 from nti.contenttypes.courses.interfaces import CourseInstructorRemovedEvent
@@ -75,7 +76,8 @@ from nti.contenttypes.courses.interfaces import CourseInstructorRemovedEvent
 from nti.contenttypes.courses.sharing import add_principal_to_course_content_roles
 from nti.contenttypes.courses.sharing import remove_principal_from_course_content_roles
 
-from nti.contenttypes.courses.utils import is_enrolled, is_course_editor
+from nti.contenttypes.courses.utils import is_enrolled
+from nti.contenttypes.courses.utils import is_course_editor
 from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import get_course_instructors
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
@@ -420,6 +422,9 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
         return result
 
     def update_instructors(self, input_instructor_usernames):
+        """
+        Returns a bool if instructors are updated
+        """
         input_instructor_usernames = self._get_usernames(input_instructor_usernames)
         current_instructors = set(get_course_instructors(self.course))
         instructors_to_add = input_instructor_usernames - current_instructors
@@ -428,20 +433,23 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
             user = User.get_user(to_add)
             self.grant_permission(RID_INSTRUCTOR, user)
             grant_instructor_access_to_course(user, self.course)
-            notify(CourseInstructorAddedEvent(user, self.course))
+        # Must update this here before the following check
+        self.course.instructors = tuple(IPrincipal(User.get_user(x)) for x in input_instructor_usernames)
         for to_remove in instructors_to_remove:
             user = User.get_user(to_remove)
             self.deny_permission(RID_INSTRUCTOR, user)
             deny_instructor_access_to_course(user, self.course)
             self.maybe_remove_user_from_content_roles(user)
-            notify(CourseInstructorRemovedEvent(user, self.course))
         logger.info("Updating course instructors (%s) (added=%s) (removed=%s)",
                     self.entry_ntiid,
                     instructors_to_add,
                     instructors_to_remove)
-        self.course.instructors = tuple(IPrincipal(User.get_user(x)) for x in input_instructor_usernames)
+        return bool(instructors_to_add or instructors_to_remove)
 
     def update_editors(self, input_editor_usernames):
+        """
+        Returns a bool if editors are updated
+        """
         input_editor_usernames = self._get_usernames(input_editor_usernames)
         current_editors = set(x.id for x in get_course_editors(self.course))
         editors_to_add = input_editor_usernames - current_editors
@@ -450,16 +458,15 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
             user = User.get_user(to_add)
             self.grant_permission(RID_CONTENT_EDITOR, user)
             add_principal_to_course_content_roles(user, self.course)
-            notify(CourseEditorAddedEvent(user, self.course))
         for to_remove in editors_to_remove:
             user = User.get_user(to_remove)
             self.deny_permission(RID_CONTENT_EDITOR, user)
             self.maybe_remove_user_from_content_roles(user)
-            notify(CourseEditorRemovedEvent(user, self.course))
         logger.info("Updating course editors (%s) (added=%s) (removed=%s)",
                     self.entry_ntiid,
                     editors_to_add,
                     editors_to_remove)
+        return bool(editors_to_add or editors_to_remove)
 
     def __call__(self):
         # pylint: disable=no-member
@@ -482,6 +489,7 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
 
         if instructors_updated or editors_updated:
             # re-indexing instructors/editors.
+            notify(CourseRolesUpdatedEvent(self.course))
             lifecycleevent.modified(self.course)
         return hexc.HTTPNoContent()
 
