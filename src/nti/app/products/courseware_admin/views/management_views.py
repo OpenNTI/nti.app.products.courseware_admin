@@ -49,6 +49,8 @@ from nti.base._compat import text_
 
 from nti.common.string import is_true
 
+from nti.coremetadata.interfaces import IMarkedForDeletion
+
 from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legacy_json
 
 from nti.contenttypes.courses.courses import ContentCourseInstance
@@ -76,6 +78,7 @@ from nti.contenttypes.courses.sharing import add_principal_to_course_content_rol
 from nti.contenttypes.courses.utils import get_course_tags
 from nti.contenttypes.courses.utils import get_parent_course
 from nti.contenttypes.courses.utils import get_course_editors
+from nti.contenttypes.courses.utils import get_course_subinstances
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
 
 from nti.coremetadata.interfaces import IUser
@@ -431,6 +434,9 @@ class DeleteCourseView(AbstractAuthenticatedView):
             logger.info('Deleting path (%s)', course.root.absolute_path)
         except AttributeError:
             pass
+        interface.alsoProvides(course, IMarkedForDeletion)
+        for subinstance in get_course_subinstances(course):
+            interface.alsoProvides(subinstance, IMarkedForDeletion)
         del course.__parent__[course.__name__]
         notify(CourseInstanceRemovedEvent(course, entry, folder))
         return hexc.HTTPNoContent()
