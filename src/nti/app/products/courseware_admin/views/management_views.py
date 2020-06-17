@@ -10,6 +10,8 @@ from __future__ import absolute_import
 
 import time
 import shutil
+import gevent
+import functools
 
 from pyramid import httpexceptions as hexc
 
@@ -23,6 +25,7 @@ from zope import interface
 
 from zope.cachedescriptors.property import Lazy
 
+from zope.component.hooks import getSite
 from zope.component.hooks import site as current_site
 
 from zope.event import notify
@@ -63,11 +66,13 @@ from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
 from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
+from nti.contenttypes.courses.interfaces import IDeletedCourse
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseSubInstances
 from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
+from nti.contenttypes.courses.interfaces import ICourseEnrollmentManager
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
 from nti.contenttypes.courses.interfaces import CourseInstanceRemovedEvent
 from nti.contenttypes.courses.interfaces import CourseInstanceAvailableEvent
@@ -86,6 +91,8 @@ from nti.coremetadata.interfaces import IUser
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
+
+from nti.dataserver.interfaces import IDataserverTransactionRunner
 
 from nti.externalization.externalization import to_external_object
 
@@ -423,22 +430,76 @@ class CreateCourseSubinstanceView(CreateCourseView):
                renderer='rest',
                request_method='DELETE')
 class DeleteCourseView(AbstractAuthenticatedView):
+    """
+    Delete a course instance. Since these objects may contain a massive tree
+    of objects, this can be transactionally expensive. Therefore, we spawn a
+    greenlet that will split this up into multiple transactions.
+    """
 
-    def _delete_course(self, context):
-        course = ICourseInstance(context)
-        entry = ICourseCatalogEntry(context)
+    @Lazy
+    def site_name(self):
+        return getattr(getSite(), '__name__', '')
+
+    def _do_delete_course(self, course):
+        entry = ICourseCatalogEntry(course)
         folder = IHostPolicyFolder(course)
-        logger.info('Deleting course (%s)', entry.ntiid)
-        try:
-            shutil.rmtree(course.root.absolute_path, ignore_errors=True)
-            logger.info('Deleting path (%s)', course.root.absolute_path)
-        except AttributeError:
-            pass
-        interface.alsoProvides(course, IMarkedForDeletion)
-        for subinstance in get_course_subinstances(course):
-            interface.alsoProvides(subinstance, IMarkedForDeletion)
+        logger.info("[%s] Deleting course (%s) (%s)",
+                    self.site_name,
+                    entry.ntiid,
+                    self.remoteUser)
         del course.__parent__[course.__name__]
         notify(CourseInstanceRemovedEvent(course, entry, folder))
+        try:
+            shutil.rmtree(course.root.absolute_path, ignore_errors=True)
+            logger.info('[%s] Deleting path (%s)',
+                        self.site_name,
+                        course.root.absolute_path)
+        except AttributeError:
+            pass
+
+    def _unenroll_all(self, course):
+        manager = ICourseEnrollmentManager(course)
+        dropped_records = manager.drop_all()
+        logger.info("[%s] Dropped users from course during deletion (%s) (%s)",
+                    self.site_name,
+                    len(dropped_records),
+                    ICourseCatalogEntry(course).ntiid)
+
+    def _run_deletion(self, courses):
+        """
+        Performs the actual work of deleting the course. This could be
+        split into more transactions if needed.
+
+        - unenrolling all users
+        - delete course
+        """
+        for course in courses:
+            unenroll_func = functools.partial(self._unenroll_all, course)
+            delete_func = functools.partial(self._do_delete_course, course)
+            tx_runner = component.getUtility(IDataserverTransactionRunner)
+            for func in (unenroll_func, delete_func):
+                tx_runner(func, retries=5, sleep=0.1, site_names=(self.site_name,))
+            logger.info("[%s] Finished course deletion (%s)",
+                        self.site_name,
+                        ICourseCatalogEntry(course).ntiid)
+
+    def _delete_course(self, context):
+        """
+        Marks the course as deleted, spawning a greenlet that will actually
+        perform the course deletion steps.
+        """
+        course = ICourseInstance(context)
+        entry = ICourseCatalogEntry(context)
+        logger.info('[%s] Marking course deleted (%s) (%s)',
+                    self.site_name, entry.ntiid, self.remoteUser)
+        courses = []
+        # Make sure we operate on subinstances first
+        courses.extend(get_course_subinstances(course) or ())
+        courses.append(course)
+        for course in courses:
+            interface.alsoProvides(course, IMarkedForDeletion)
+            interface.alsoProvides(course, IDeletedCourse)
+        gevent.spawn(self._run_deletion, courses)
         return hexc.HTTPNoContent()
 
     def _check_access(self):
