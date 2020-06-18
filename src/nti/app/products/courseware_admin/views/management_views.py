@@ -106,6 +106,8 @@ from nti.site.interfaces import IHostPolicyFolder
 from nti.traversal.traversal import find_interface
 
 from nti.zodb.containers import time_to_64bit_int
+from nti.ntiids.oids import to_external_ntiid_oid
+from nti.ntiids.ntiids import find_object_with_ntiid
 
 ITEMS = StandardExternalFields.ITEMS
 TOTAL = StandardExternalFields.TOTAL
@@ -440,7 +442,8 @@ class DeleteCourseView(AbstractAuthenticatedView):
     def site_name(self):
         return getattr(getSite(), '__name__', '')
 
-    def _do_delete_course(self, course):
+    def _do_delete_course(self, course_ntiid):
+        course = find_object_with_ntiid(course_ntiid)
         entry = ICourseCatalogEntry(course)
         folder = IHostPolicyFolder(course)
         logger.info("[%s] Deleting course (%s) (%s)",
@@ -450,22 +453,23 @@ class DeleteCourseView(AbstractAuthenticatedView):
         del course.__parent__[course.__name__]
         notify(CourseInstanceRemovedEvent(course, entry, folder))
         try:
-            shutil.rmtree(course.root.absolute_path, ignore_errors=True)
             logger.info('[%s] Deleting path (%s)',
                         self.site_name,
                         course.root.absolute_path)
+            shutil.rmtree(course.root.absolute_path, ignore_errors=True)
         except AttributeError:
             pass
 
-    def _unenroll_all(self, course):
+    def _unenroll_all(self, entry_ntiid, course_ntiid):
+        course = find_object_with_ntiid(course_ntiid)
         manager = ICourseEnrollmentManager(course)
         dropped_records = manager.drop_all()
         logger.info("[%s] Dropped users from course during deletion (%s) (%s)",
                     self.site_name,
                     len(dropped_records),
-                    ICourseCatalogEntry(course).ntiid)
+                    entry_ntiid)
 
-    def _run_deletion(self, courses):
+    def _run_deletion(self, course_ntiids):
         """
         Performs the actual work of deleting the course. This could be
         split into more transactions if needed.
@@ -473,15 +477,16 @@ class DeleteCourseView(AbstractAuthenticatedView):
         - unenrolling all users
         - delete course
         """
-        for course in courses:
-            unenroll_func = functools.partial(self._unenroll_all, course)
-            delete_func = functools.partial(self._do_delete_course, course)
+        for entry_ntiid, course_ntiid in course_ntiids:
+            unenroll_func = functools.partial(self._unenroll_all,
+                                              entry_ntiid, course_ntiid)
+            delete_func = functools.partial(self._do_delete_course, course_ntiid)
             tx_runner = component.getUtility(IDataserverTransactionRunner)
             for func in (unenroll_func, delete_func):
                 tx_runner(func, retries=5, sleep=0.1, site_names=(self.site_name,))
             logger.info("[%s] Finished course deletion (%s)",
                         self.site_name,
-                        ICourseCatalogEntry(course).ntiid)
+                        entry_ntiid)
 
     def _delete_course(self, context):
         """
@@ -496,10 +501,15 @@ class DeleteCourseView(AbstractAuthenticatedView):
         # Make sure we operate on subinstances first
         courses.extend(get_course_subinstances(course) or ())
         courses.append(course)
+        course_ntiids = []
         for course in courses:
+            entry_ntiid = ICourseCatalogEntry(course).ntiid
+            course_ntiid = to_external_ntiid_oid(course)
+            course_ntiids.append((entry_ntiid, course_ntiid))
+
             interface.alsoProvides(course, IMarkedForDeletion)
             interface.alsoProvides(course, IDeletedCourse)
-        gevent.spawn(self._run_deletion, courses)
+        gevent.spawn(self._run_deletion, course_ntiids)
         return hexc.HTTPNoContent()
 
     def _check_access(self):
