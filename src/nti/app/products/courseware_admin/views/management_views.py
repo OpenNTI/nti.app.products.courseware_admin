@@ -12,6 +12,7 @@ import time
 import shutil
 import gevent
 import functools
+import transaction
 
 from pyramid import httpexceptions as hexc
 
@@ -568,7 +569,9 @@ class DeleteCourseView(AbstractAuthenticatedView):
             interface.alsoProvides(course, IDeletedCourse)
 
         # Now commit the work we've done (or we've failed)
-        # <commit>
+        tx = transaction.get()
+        transaction.commit()
+        transaction.begin()
         try:
             glet = gevent.spawn(self._delete_course_data, course_ntiids)
             glet.get()
@@ -576,6 +579,9 @@ class DeleteCourseView(AbstractAuthenticatedView):
             logger.exception("[%s] Error during course data deletion",
                              self.site_name)
             raise
+        finally:
+            self.request.environ['nti.commit_veto'] = 'abort'
+            transaction.manager.manager._txn = tx
 
     def _check_access(self):
         if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
