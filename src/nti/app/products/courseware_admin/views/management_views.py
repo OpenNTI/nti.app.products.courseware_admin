@@ -473,8 +473,7 @@ class DeleteCourseView(AbstractAuthenticatedView):
         except AttributeError:
             pass
 
-    def _unenroll_all(self, entry_ntiid, course_ntiid):
-        course = find_object_with_ntiid(course_ntiid)
+    def _unenroll_all(self, entry_ntiid, course):
         dropped_records = remove_enrollment_records(course)
         unindex_enrollment_records(course)
         logger.info("[%s] Dropped users from course during course deletion (%s) (%s)",
@@ -487,12 +486,11 @@ class DeleteCourseView(AbstractAuthenticatedView):
         for permission_id in allPermissions(None):
             rpm.denyPermissionToRole(permission_id, ROLE_SITE_ADMIN.id)
 
-    def _remove_course_admins(self, entry_ntiid, course_ntiid):
+    def _remove_course_admins(self, entry_ntiid, course):
         # XXX: We need to ensure this works correctly if we are on a course
         # subinstance. We do not want admins to lose access when the section
         # course goes away, and the user is still an admin of the parent
         # course.
-        course = find_object_with_ntiid(course_ntiid)
         role_manager = IPrincipalRoleManager(course)
         def remove_access(prin, role_id, is_instructor=False):
             user = IUser(prin)
@@ -516,7 +514,12 @@ class DeleteCourseView(AbstractAuthenticatedView):
                     self.site_name,
                     entry_ntiid)
 
-    def _run_deletion(self, course_ntiids):
+    def _remove_user_access(self, entry_ntiid, course):
+        self._deny_site_admins(course)
+        self._remove_course_admins(entry_ntiid, course)
+        self._unenroll_all(entry_ntiid, course)
+
+    def _delete_course_data(self, course_ntiids):
         """
         Performs the actual work of deleting the course. This could be
         split into more transactions if needed.
@@ -526,20 +529,15 @@ class DeleteCourseView(AbstractAuthenticatedView):
         admins (and make auxiliary API like search work as expected). After
         that, we're left with cleaning up content and db cruft.
 
-        - deny to site admins
-        - remove instructors/editors
-        - unenrolling all users
         - delete course
         """
         for entry_ntiid, course_ntiid in course_ntiids:
-            remove_course_admins_func = functools.partial(self._remove_course_admins,
-                                                          entry_ntiid, course_ntiid)
-            unenroll_func = functools.partial(self._unenroll_all,
-                                              entry_ntiid, course_ntiid)
+            logger.info("[%s] Deleting course data (%s)",
+                        self.site_name, entry_ntiid)
             delete_func = functools.partial(self._do_delete_course, course_ntiid)
 
             tx_runner = component.getUtility(IDataserverTransactionRunner)
-            for func in (remove_course_admins_func, unenroll_func, delete_func):
+            for func in (delete_func,):
                 tx_runner(func, retries=5, sleep=0.1, site_names=(self.site_name,))
             logger.info("[%s] Finished course deletion (%s)",
                         self.site_name,
@@ -547,8 +545,10 @@ class DeleteCourseView(AbstractAuthenticatedView):
 
     def _delete_course(self, course):
         """
-        Marks the course as deleted, spawning a greenlet that will actually
-        perform the course deletion steps.
+        Marks the course as deleted and remove user access to this course
+        (except for NT admins). We then spawn a greenlet that will actually
+        perform the course deletion steps, which should take take of the rest
+        of the course data (outline, completion data, etc).
         """
         entry = ICourseCatalogEntry(course)
         logger.info('[%s] Marking course deleted (%s) (%s)',
@@ -563,10 +563,19 @@ class DeleteCourseView(AbstractAuthenticatedView):
             course_ntiid = to_external_ntiid_oid(course)
             course_ntiids.append((entry_ntiid, course_ntiid))
 
+            self._remove_user_access(entry_ntiid, course)
             interface.alsoProvides(course, IMarkedForDeletion)
             interface.alsoProvides(course, IDeletedCourse)
-        gevent.spawn(self._run_deletion, course_ntiids)
-        return hexc.HTTPNoContent()
+
+        # Now commit the work we've done (or we've failed)
+        # <commit>
+        try:
+            glet = gevent.spawn(self._delete_course_data, course_ntiids)
+            glet.get()
+        except:
+            logger.exception("[%s] Error during course data deletion",
+                             self.site_name)
+            raise
 
     def _check_access(self):
         if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
