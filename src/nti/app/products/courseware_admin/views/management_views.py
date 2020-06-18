@@ -109,6 +109,8 @@ from nti.traversal.traversal import find_interface
 from nti.zodb.containers import time_to_64bit_int
 from nti.ntiids.oids import to_external_ntiid_oid
 from nti.ntiids.ntiids import find_object_with_ntiid
+from nti.contenttypes.courses.subscribers import remove_enrollment_records,\
+    unindex_enrollment_records
 
 ITEMS = StandardExternalFields.ITEMS
 TOTAL = StandardExternalFields.TOTAL
@@ -463,8 +465,8 @@ class DeleteCourseView(AbstractAuthenticatedView):
 
     def _unenroll_all(self, entry_ntiid, course_ntiid):
         course = find_object_with_ntiid(course_ntiid)
-        manager = ICourseEnrollmentManager(course)
-        dropped_records = manager.drop_all()
+        dropped_records = remove_enrollment_records(course)
+        unindex_enrollment_records(course)
         logger.info("[%s] Dropped users from course during deletion (%s) (%s)",
                     self.site_name,
                     len(dropped_records),
