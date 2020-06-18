@@ -90,6 +90,7 @@ from nti.coremetadata.interfaces import IUser
 
 from nti.dataserver import authorization as nauth
 
+from nti.dataserver.authorization import is_admin
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.dataserver.interfaces import IDataserverTransactionRunner
@@ -488,13 +489,12 @@ class DeleteCourseView(AbstractAuthenticatedView):
                         self.site_name,
                         entry_ntiid)
 
-    def _delete_course(self, context):
+    def _delete_course(self, course):
         """
         Marks the course as deleted, spawning a greenlet that will actually
         perform the course deletion steps.
         """
-        course = ICourseInstance(context)
-        entry = ICourseCatalogEntry(context)
+        entry = ICourseCatalogEntry(course)
         logger.info('[%s] Marking course deleted (%s) (%s)',
                     self.site_name, entry.ntiid, self.remoteUser)
         courses = []
@@ -521,7 +521,12 @@ class DeleteCourseView(AbstractAuthenticatedView):
 
     def __call__(self):
         self._check_access()
-        self._delete_course(self.context)
+        # Do not go through the process if another tx beat us to it, unless we
+        # are an NT admin.
+        course = ICourseInstance(self.context)
+        if     not IDeletedCourse.providedBy(course) \
+            or is_admin(self.remoteUser):
+            self._delete_course(course)
         return hexc.HTTPNoContent()
 
 
