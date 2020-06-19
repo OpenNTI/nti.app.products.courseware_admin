@@ -89,7 +89,7 @@ from nti.contenttypes.courses.sharing import add_principal_to_course_content_rol
 from nti.contenttypes.courses.subscribers import remove_enrollment_records
 from nti.contenttypes.courses.subscribers import unindex_enrollment_records
 
-from nti.contenttypes.courses.utils import get_course_tags,
+from nti.contenttypes.courses.utils import get_course_tags
 from nti.contenttypes.courses.utils import get_parent_course
 from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import clear_course_outline
