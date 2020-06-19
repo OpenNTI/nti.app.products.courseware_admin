@@ -460,8 +460,13 @@ class DeleteCourseView(AbstractAuthenticatedView):
     def site_name(self):
         return getattr(getSite(), '__name__', '')
 
-    def _do_delete_course(self, course_ntiid):
+    def _do_delete_course(self, entry_ntiid, course_ntiid):
         course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        self.site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
         entry = ICourseCatalogEntry(course)
         folder = IHostPolicyFolder(course)
         logger.info("[%s] Deleting course (%s) (%s)",
@@ -523,6 +528,11 @@ class DeleteCourseView(AbstractAuthenticatedView):
         logger.info("[%s] Removing course access (%s)",
                     self.site_name, entry_ntiid)
         course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        self.site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
         self._deny_site_admins(course)
         self._remove_course_admins(entry_ntiid, course)
         self._unenroll_all(entry_ntiid, course)
@@ -539,7 +549,8 @@ class DeleteCourseView(AbstractAuthenticatedView):
         for entry_ntiid, course_ntiid in course_ntiids:
             logger.info("[%s] Deleting course data (%s)",
                         self.site_name, entry_ntiid)
-            delete_func = functools.partial(self._do_delete_course, course_ntiid)
+            delete_func = functools.partial(self._do_delete_course,
+                                            entry_ntiid, course_ntiid)
 
             tx_runner = component.getUtility(IDataserverTransactionRunner)
             for func in (delete_func,):
