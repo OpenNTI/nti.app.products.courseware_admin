@@ -448,8 +448,12 @@ class CreateCourseSubinstanceView(CreateCourseView):
 class DeleteCourseView(AbstractAuthenticatedView):
     """
     Delete a course instance. Since these objects may contain a massive tree
-    of objects, this can be transactionally expensive. Therefore, we spawn a
-    greenlet that will split this up into multiple transactions.
+    of objects, this can be transactionally expensive.
+
+    Therefore, we will perform the course deletion in multiple steps. The first
+    is to remove all user access via an isolated transaction. Only if that
+    succeeds do we spawn a greenlet to handle cleaning up the course and its
+    underlying datastructures.
     """
 
     @Lazy
@@ -515,20 +519,20 @@ class DeleteCourseView(AbstractAuthenticatedView):
                     self.site_name,
                     entry_ntiid)
 
-    def _remove_user_access(self, entry_ntiid, course):
+    def _remove_course_access(self, entry_ntiid, course_ntiid):
+        logger.info("[%s] Removing course access (%s)",
+                    self.site_name, entry_ntiid)
+        course = find_object_with_ntiid(course_ntiid)
         self._deny_site_admins(course)
         self._remove_course_admins(entry_ntiid, course)
         self._unenroll_all(entry_ntiid, course)
+        interface.alsoProvides(course, IMarkedForDeletion)
+        interface.alsoProvides(course, IDeletedCourse)
 
     def _delete_course_data(self, course_ntiids):
         """
         Performs the actual work of deleting the course. This could be
         split into more transactions if needed.
-
-        The first priority is removing access (admins, instructors, enrolled
-        users). That should effectively cut off access to everyone except NT
-        admins (and make auxiliary API like search work as expected). After
-        that, we're left with cleaning up content and db cruft.
 
         - delete course
         """
@@ -544,16 +548,46 @@ class DeleteCourseView(AbstractAuthenticatedView):
                         self.site_name,
                         entry_ntiid)
 
-    def _delete_course(self, course):
+    def delete_courses(self, course_ntiids):
         """
-        Marks the course as deleted and remove user access to this course
-        (except for NT admins). We then spawn a greenlet that will actually
-        perform the course deletion steps, which should take take of the rest
-        of the course data (outline, completion data, etc).
+        Spawn a greenlet that will actually perform the course deletion steps,
+        which should take take of the rest of the course data (outline,
+        completion data, etc).
         """
-        entry = ICourseCatalogEntry(course)
-        logger.info('[%s] Marking course deleted (%s) (%s)',
-                    self.site_name, entry.ntiid, self.remoteUser)
+        try:
+            glet = gevent.spawn(self._delete_course_data, course_ntiids)
+            glet.get()
+        except:
+            logger.exception("[%s] Error during course data deletion",
+                             self.site_name)
+            raise
+        finally:
+            # Our request transaction is unused
+            self.request.environ['nti.commit_veto'] = 'abort'
+
+    def _check_access(self):
+        if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
+            raise_error({
+                'message': _(u'Cannot delete course.'),
+                'code': 'CannotDeleteCourse',
+            })
+
+    def _do_remove_access_to_courses(self, course_ntiids):
+        for entry_ntiid, course_ntiid in course_ntiids:
+            self._remove_course_access(entry_ntiid, course_ntiid)
+
+    def remove_access_to_courses(self, course_ntiids):
+        """
+        This transaction must succeed before we do further course deletion.
+        This needs to ensure users lose access to the courses.
+        """
+        remove_access_func = functools.partial(self._do_remove_access_to_courses,
+                                               course_ntiids)
+        tx_runner = component.getUtility(IDataserverTransactionRunner)
+        tx_runner(remove_access_func, retries=5, sleep=0.1,
+                  site_names=(self.site_name,))
+
+    def get_course_ntiids(self, course):
         courses = []
         # Make sure we operate on subinstances first
         courses.extend(get_course_subinstances(course) or ())
@@ -563,32 +597,7 @@ class DeleteCourseView(AbstractAuthenticatedView):
             entry_ntiid = ICourseCatalogEntry(course).ntiid
             course_ntiid = to_external_ntiid_oid(course)
             course_ntiids.append((entry_ntiid, course_ntiid))
-
-            self._remove_user_access(entry_ntiid, course)
-            interface.alsoProvides(course, IMarkedForDeletion)
-            interface.alsoProvides(course, IDeletedCourse)
-
-        # Now commit the work we've done (or we've failed)
-        tx = transaction.get()
-        transaction.commit()
-        transaction.begin()
-        try:
-            glet = gevent.spawn(self._delete_course_data, course_ntiids)
-            glet.get()
-        except:
-            logger.exception("[%s] Error during course data deletion",
-                             self.site_name)
-            raise
-        finally:
-            self.request.environ['nti.commit_veto'] = 'abort'
-            transaction.manager.manager._txn = tx
-
-    def _check_access(self):
-        if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
-            raise_error({
-                'message': _(u'Cannot delete course.'),
-                'code': 'CannotDeleteCourse',
-            })
+        return course_ntiids
 
     def __call__(self):
         self._check_access()
@@ -597,7 +606,9 @@ class DeleteCourseView(AbstractAuthenticatedView):
         course = ICourseInstance(self.context)
         if     not IDeletedCourse.providedBy(course) \
             or is_admin(self.remoteUser):
-            self._delete_course(course)
+            course_ntiids = self.get_course_ntiids(course)
+            self.remove_access_to_courses(course_ntiids)
+            self.delete_courses(course_ntiids)
         return hexc.HTTPNoContent()
 
 
