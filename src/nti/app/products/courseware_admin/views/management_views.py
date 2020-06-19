@@ -37,6 +37,9 @@ from zope.security.permission import allPermissions
 from zope.securitypolicy.interfaces import IPrincipalRoleManager
 from zope.securitypolicy.interfaces import IRolePermissionManager
 
+from nti.app.assessment.subscribers import delete_course_data
+from nti.app.assessment.subscribers import unindex_course_data
+
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.view_mixins import BatchingUtilsMixin
@@ -50,6 +53,8 @@ from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin.views import VIEW_COURSE_SUGGESTED_TAGS
+
+from nti.app.products.gradebook.gradebook import gradebook_for_course
 
 from nti.appserver.ugd_edit_views import UGDDeleteView
 
@@ -486,6 +491,27 @@ class DeleteCourseView(AbstractAuthenticatedView):
         except AttributeError:
             pass
 
+    def _clear_assignment_history(self, entry_ntiid, course_ntiid):
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        self.site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        delete_course_data(course)
+        unindex_course_data(course)
+
+    def _clear_gradebook(self, entry_ntiid, course_ntiid):
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        self.site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        book = gradebook_for_course(course, False)
+        if book is not None:
+            book.clear()
+
     def _clear_outline(self, entry_ntiid, course_ntiid):
         course = find_object_with_ntiid(course_ntiid)
         if course is None:
@@ -562,18 +588,31 @@ class DeleteCourseView(AbstractAuthenticatedView):
         enrollments and access. This could be split into more transactions if
         needed.
 
+        The caveat with making this too fine grained is there may be some
+        implicit ordering that things used to occur when courses are deleted. If
+        operations occur in a new order, there may be issues. It is best if these
+        granular data cleanups occur by functionality.
+
+        - clear gradebook
+        - clear assignment history
+        - clear outline
         - delete course
         """
         for entry_ntiid, course_ntiid in course_ntiids:
             logger.info("[%s] Deleting course data (%s)",
                         self.site_name, entry_ntiid)
+            clear_gradebook_func = functools.partial(self._clear_gradebook,
+                                                     entry_ntiid, course_ntiid)
+            clear_assignment_history_func = functools.partial(self._clear_assignment_history,
+                                                              entry_ntiid, course_ntiid)
             clear_outline_func = functools.partial(self._clear_outline,
                                                    entry_ntiid, course_ntiid)
             delete_func = functools.partial(self._do_delete_course,
                                             entry_ntiid, course_ntiid)
 
             tx_runner = component.getUtility(IDataserverTransactionRunner)
-            for func in (clear_outline_func, delete_func):
+            for func in (clear_gradebook_func, clear_assignment_history_func,
+                         clear_outline_func, delete_func):
                 tx_runner(func, retries=5, sleep=0.1, site_names=(self.site_name,))
             logger.info("[%s] Finished course deletion (%s)",
                         self.site_name,
