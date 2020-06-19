@@ -477,7 +477,7 @@ class DeleteCourseView(AbstractAuthenticatedView):
             return
         entry = ICourseCatalogEntry(course)
         folder = IHostPolicyFolder(course)
-        logger.info("[%s] Deleting course data (%s) (%s)",
+        logger.info("[%s] Deleting course (%s) (%s)",
                     self.site_name,
                     entry.ntiid,
                     self.remoteUser)
