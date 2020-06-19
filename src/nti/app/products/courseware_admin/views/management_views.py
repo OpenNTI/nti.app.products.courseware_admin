@@ -12,7 +12,6 @@ import time
 import shutil
 import gevent
 import functools
-import transaction
 
 from pyramid import httpexceptions as hexc
 
@@ -74,6 +73,7 @@ from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import IDeletedCourse
 from nti.contenttypes.courses.interfaces import ICourseInstance
+from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseSubInstances
 from nti.contenttypes.courses.interfaces import CourseRolesUpdatedEvent
@@ -89,9 +89,10 @@ from nti.contenttypes.courses.sharing import add_principal_to_course_content_rol
 from nti.contenttypes.courses.subscribers import remove_enrollment_records
 from nti.contenttypes.courses.subscribers import unindex_enrollment_records
 
-from nti.contenttypes.courses.utils import get_course_tags
+from nti.contenttypes.courses.utils import get_course_tags,
 from nti.contenttypes.courses.utils import get_parent_course
 from nti.contenttypes.courses.utils import get_course_editors
+from nti.contenttypes.courses.utils import clear_course_outline
 from nti.contenttypes.courses.utils import get_course_subinstances
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
@@ -101,7 +102,9 @@ from nti.coremetadata.interfaces import IUser
 
 from nti.dataserver import authorization as nauth
 
-from nti.dataserver.authorization import is_admin, ROLE_SITE_ADMIN
+from nti.dataserver.authorization import ROLE_SITE_ADMIN
+
+from nti.dataserver.authorization import is_admin
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.dataserver.interfaces import IDataserverTransactionRunner
@@ -469,7 +472,7 @@ class DeleteCourseView(AbstractAuthenticatedView):
             return
         entry = ICourseCatalogEntry(course)
         folder = IHostPolicyFolder(course)
-        logger.info("[%s] Deleting course (%s) (%s)",
+        logger.info("[%s] Deleting course data (%s) (%s)",
                     self.site_name,
                     entry.ntiid,
                     self.remoteUser)
@@ -482,6 +485,19 @@ class DeleteCourseView(AbstractAuthenticatedView):
             shutil.rmtree(course.root.absolute_path, ignore_errors=True)
         except AttributeError:
             pass
+
+    def _clear_outline(self, entry_ntiid, course_ntiid):
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        self.site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        if     not ICourseSubInstance.providedBy(course) \
+            or course.Outline != get_parent_course(course).Outline:
+            logger.info("[%s] Removing course outline (%s)",
+                        self.site_name, entry_ntiid)
+            clear_course_outline(course)
 
     def _unenroll_all(self, entry_ntiid, course):
         dropped_records = remove_enrollment_records(course)
@@ -551,11 +567,13 @@ class DeleteCourseView(AbstractAuthenticatedView):
         for entry_ntiid, course_ntiid in course_ntiids:
             logger.info("[%s] Deleting course data (%s)",
                         self.site_name, entry_ntiid)
+            clear_outline_func = functools.partial(self._clear_outline,
+                                                   entry_ntiid, course_ntiid)
             delete_func = functools.partial(self._do_delete_course,
                                             entry_ntiid, course_ntiid)
 
             tx_runner = component.getUtility(IDataserverTransactionRunner)
-            for func in (delete_func,):
+            for func in (clear_outline_func, delete_func):
                 tx_runner(func, retries=5, sleep=0.1, site_names=(self.site_name,))
             logger.info("[%s] Finished course deletion (%s)",
                         self.site_name,
