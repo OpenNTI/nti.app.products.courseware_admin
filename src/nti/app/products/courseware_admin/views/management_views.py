@@ -541,8 +541,10 @@ class DeleteCourseView(AbstractAuthenticatedView):
 
     def _delete_course_data(self, course_ntiids):
         """
-        Performs the actual work of deleting the course. This could be
-        split into more transactions if needed.
+        Performs the actual work of deleting the course, which should take care
+        of the rest of the course data (outline, completion data, etc) besides
+        enrollments and access. This could be split into more transactions if
+        needed.
 
         - delete course
         """
@@ -558,23 +560,6 @@ class DeleteCourseView(AbstractAuthenticatedView):
             logger.info("[%s] Finished course deletion (%s)",
                         self.site_name,
                         entry_ntiid)
-
-    def delete_courses(self, course_ntiids):
-        """
-        Spawn a greenlet that will actually perform the course deletion steps,
-        which should take take of the rest of the course data (outline,
-        completion data, etc).
-        """
-        try:
-            glet = gevent.spawn(self._delete_course_data, course_ntiids)
-            glet.get()
-        except:
-            logger.exception("[%s] Error during course data deletion",
-                             self.site_name)
-            raise
-        finally:
-            # Our request transaction is unused
-            self.request.environ['nti.commit_veto'] = 'abort'
 
     def _check_access(self):
         if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
@@ -598,6 +583,18 @@ class DeleteCourseView(AbstractAuthenticatedView):
         tx_runner(remove_access_func, retries=5, sleep=0.1,
                   site_names=(self.site_name,))
 
+    def _run_in_greenlet(self, func, course_ntiids):
+        """
+        Spawn a greenlet that will run the given func with the course ntiids.
+        """
+        try:
+            glet = gevent.spawn(func, course_ntiids)
+            glet.get()
+        except:
+            logger.exception("[%s] Error during course removal",
+                             self.site_name)
+            raise
+
     def get_course_ntiids(self, course):
         courses = []
         # Make sure we operate on subinstances first
@@ -618,8 +615,13 @@ class DeleteCourseView(AbstractAuthenticatedView):
         if     not IDeletedCourse.providedBy(course) \
             or is_admin(self.remoteUser):
             course_ntiids = self.get_course_ntiids(course)
-            self.remove_access_to_courses(course_ntiids)
-            self.delete_courses(course_ntiids)
+            try:
+                # Each of these occur in their own transaction
+                self._run_in_greenlet(self.remove_access_to_courses,
+                                      course_ntiids)
+                self._run_in_greenlet(self._delete_course_data, course_ntiids)
+            finally:
+                self.request.environ['nti.commit_veto'] = 'abort'
         return hexc.HTTPNoContent()
 
 
