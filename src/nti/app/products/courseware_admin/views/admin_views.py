@@ -99,7 +99,7 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
         items = {}
 
         provenance_link_cache = {}
-        
+
         for catalog_entry in self.context.iterCatalogEntries():
 
             # We want to indicate what catalog each course comes from
@@ -130,7 +130,7 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
                                if setting == Allow and User.get_user(pid) is not None]
 
             course_summary['roles'] = roles
-            
+
             items[catalog_entry.ntiid] = course_summary
 
         result = LocatedExternalDict()
@@ -335,11 +335,13 @@ class DeleteAllSectionCoursesView(DeleteCourseView):
         self._check_access()
         result = LocatedExternalDict()
         result[ITEMS] = items = []
+        course_ntiids = []
         catalog = component.getUtility(ICourseCatalog)
         for entry in catalog.iterCatalogEntries():
             course = ICourseInstance(entry, None)
             if ICourseSubInstance.providedBy(course):
                 items.append(entry.ntiid)
-                self._delete_course(course)
+                course_ntiids.extend(self.get_course_ntiids(course))
+        self._delete_courses(course_ntiids)
         result[ITEM_COUNT] = len(items)
         return result

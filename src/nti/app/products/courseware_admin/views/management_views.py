@@ -664,6 +664,15 @@ class DeleteCourseView(AbstractAuthenticatedView):
             course_ntiids.append((entry_ntiid, course_ntiid))
         return course_ntiids
 
+    def _delete_courses(self, course_ntiids):
+        try:
+            # Each of these occur in their own transaction
+            self._run_in_greenlet(self.remove_access_to_courses,
+                                  course_ntiids)
+            self._run_in_greenlet(self._delete_course_data, course_ntiids)
+        finally:
+            self.request.environ['nti.commit_veto'] = 'abort'
+
     def __call__(self):
         self._check_access()
         # Do not go through the process if another tx beat us to it, unless we
@@ -672,13 +681,7 @@ class DeleteCourseView(AbstractAuthenticatedView):
         if     not IDeletedCourse.providedBy(course) \
             or is_admin(self.remoteUser):
             course_ntiids = self.get_course_ntiids(course)
-            try:
-                # Each of these occur in their own transaction
-                self._run_in_greenlet(self.remove_access_to_courses,
-                                      course_ntiids)
-                self._run_in_greenlet(self._delete_course_data, course_ntiids)
-            finally:
-                self.request.environ['nti.commit_veto'] = 'abort'
+            self._delete_courses(course_ntiids)
         return hexc.HTTPNoContent()
 
 
