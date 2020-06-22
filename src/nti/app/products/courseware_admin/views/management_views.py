@@ -10,6 +10,8 @@ from __future__ import absolute_import
 
 import time
 import shutil
+import gevent
+import functools
 
 from pyramid import httpexceptions as hexc
 
@@ -23,11 +25,20 @@ from zope import interface
 
 from zope.cachedescriptors.property import Lazy
 
+from zope.component.hooks import getSite
 from zope.component.hooks import site as current_site
 
 from zope.event import notify
 
+from zope.security.interfaces import IPrincipal
+
+from zope.security.permission import allPermissions
+
 from zope.securitypolicy.interfaces import IPrincipalRoleManager
+from zope.securitypolicy.interfaces import IRolePermissionManager
+
+from nti.app.assessment.subscribers import delete_course_data
+from nti.app.assessment.subscribers import unindex_course_data
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
@@ -42,6 +53,8 @@ from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.app.products.courseware_admin.views import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin.views import VIEW_COURSE_SUGGESTED_TAGS
+
+from nti.app.products.gradebook.gradebook import gradebook_for_course
 
 from nti.appserver.ugd_edit_views import UGDDeleteView
 
@@ -63,9 +76,12 @@ from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
 from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
+from nti.contenttypes.courses.interfaces import IDeletedCourse
 from nti.contenttypes.courses.interfaces import ICourseInstance
+from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 from nti.contenttypes.courses.interfaces import ICourseSubInstances
+from nti.contenttypes.courses.interfaces import CourseRolesUpdatedEvent
 from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
 from nti.contenttypes.courses.interfaces import INonPublicCourseInstance
 from nti.contenttypes.courses.interfaces import ICourseAdministrativeLevel
@@ -75,17 +91,28 @@ from nti.contenttypes.courses.interfaces import CourseAlreadyExistsException
 
 from nti.contenttypes.courses.sharing import add_principal_to_course_content_roles
 
+from nti.contenttypes.courses.subscribers import remove_enrollment_records
+from nti.contenttypes.courses.subscribers import unindex_enrollment_records
+
 from nti.contenttypes.courses.utils import get_course_tags
 from nti.contenttypes.courses.utils import get_parent_course
 from nti.contenttypes.courses.utils import get_course_editors
+from nti.contenttypes.courses.utils import clear_course_outline
 from nti.contenttypes.courses.utils import get_course_subinstances
+from nti.contenttypes.courses.utils import deny_instructor_access_to_course
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
+from nti.contenttypes.courses.utils import remove_principal_from_course_content_roles
 
 from nti.coremetadata.interfaces import IUser
 
 from nti.dataserver import authorization as nauth
 
+from nti.dataserver.authorization import ROLE_SITE_ADMIN
+
+from nti.dataserver.authorization import is_admin
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
+
+from nti.dataserver.interfaces import IDataserverTransactionRunner
 
 from nti.externalization.externalization import to_external_object
 
@@ -94,11 +121,17 @@ from nti.externalization.internalization import find_factory_for
 from nti.externalization.interfaces import LocatedExternalDict
 from nti.externalization.interfaces import StandardExternalFields
 
+from nti.ntiids.oids import to_external_ntiid_oid
+
+from nti.ntiids.ntiids import find_object_with_ntiid
+
 from nti.site.interfaces import IHostPolicyFolder
 
 from nti.traversal.traversal import find_interface
 
 from nti.zodb.containers import time_to_64bit_int
+
+from nti.site.site import get_site_for_site_names
 
 ITEMS = StandardExternalFields.ITEMS
 TOTAL = StandardExternalFields.TOTAL
@@ -423,23 +456,185 @@ class CreateCourseSubinstanceView(CreateCourseView):
                renderer='rest',
                request_method='DELETE')
 class DeleteCourseView(AbstractAuthenticatedView):
+    """
+    Delete a course instance. Since these objects may contain a massive tree
+    of objects, this can be transactionally expensive.
 
-    def _delete_course(self, context):
-        course = ICourseInstance(context)
-        entry = ICourseCatalogEntry(context)
+    Therefore, we will perform the course deletion in multiple steps. The first
+    is to remove all user access via an isolated transaction. Only if that
+    succeeds do we spawn a greenlet to handle cleaning up the course and its
+    underlying datastructures.
+    """
+
+    def _execute_in_site(self, func, site_name, *args, **kwargs):
+        """
+        Used to execute our tx runner in a specific site.
+        """
+        exec_site = get_site_for_site_names((site_name,))
+        with current_site(exec_site):
+            func(*args, **kwargs)
+
+    @Lazy
+    def site_name(self):
+        return getattr(getSite(), '__name__', '')
+
+    def _do_delete_course(self, entry_ntiid, course_ntiid, site_name):
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        entry = ICourseCatalogEntry(course)
         folder = IHostPolicyFolder(course)
-        logger.info('Deleting course (%s)', entry.ntiid)
-        try:
-            shutil.rmtree(course.root.absolute_path, ignore_errors=True)
-            logger.info('Deleting path (%s)', course.root.absolute_path)
-        except AttributeError:
-            pass
-        interface.alsoProvides(course, IMarkedForDeletion)
-        for subinstance in get_course_subinstances(course):
-            interface.alsoProvides(subinstance, IMarkedForDeletion)
+        logger.info("[%s] Deleting course (%s) (%s)",
+                    site_name,
+                    entry.ntiid,
+                    self.remoteUser)
         del course.__parent__[course.__name__]
         notify(CourseInstanceRemovedEvent(course, entry, folder))
-        return hexc.HTTPNoContent()
+        try:
+            logger.info('[%s] Deleting path (%s)',
+                        site_name,
+                        course.root.absolute_path)
+            shutil.rmtree(course.root.absolute_path, ignore_errors=True)
+        except AttributeError:
+            pass
+
+    def _clear_assignment_history(self, entry_ntiid, course_ntiid, site_name):
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        delete_course_data(course)
+        unindex_course_data(course)
+
+    def _clear_gradebook(self, entry_ntiid, course_ntiid, site_name):
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        book = gradebook_for_course(course, False)
+        if book is not None:
+            book.clear()
+
+    def _clear_outline(self, entry_ntiid, course_ntiid, site_name):
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        if     not ICourseSubInstance.providedBy(course) \
+            or course.Outline != get_parent_course(course).Outline:
+            logger.info("[%s] Removing course outline (%s)",
+                        site_name, entry_ntiid)
+            clear_course_outline(course)
+
+    def _unenroll_all(self, entry_ntiid, course, site_name):
+        dropped_records = remove_enrollment_records(course)
+        unindex_enrollment_records(course)
+        logger.info("[%s] Dropped users from course during course deletion (%s) (%s)",
+                    site_name,
+                    len(dropped_records),
+                    entry_ntiid)
+
+    def _deny_site_admins(self, course):
+        rpm = IRolePermissionManager(course)
+        for permission_id in allPermissions(None):
+            rpm.denyPermissionToRole(permission_id, ROLE_SITE_ADMIN.id)
+
+    def _remove_course_admins(self, entry_ntiid, course, site_name):
+        # XXX: We need to ensure this works correctly if we are on a course
+        # subinstance. We do not want admins to lose access when the section
+        # course goes away, and the user is still an admin of the parent
+        # course.
+        role_manager = IPrincipalRoleManager(course)
+        def remove_access(prin, role_id, is_instructor=False):
+            user = IUser(prin)
+            principal_id = IPrincipal(user).id
+            role_manager.unsetRoleForPrincipal(role_id, principal_id)
+            if is_instructor:
+                deny_instructor_access_to_course(user, course)
+                remove_principal_from_course_content_roles(user,
+                                                           course,
+                                                           unenroll=True)
+
+        for instructor in course.instructors:
+            remove_access(instructor, RID_INSTRUCTOR, is_instructor=True)
+        course.instructors = ()
+
+        for editor in get_course_editors(course):
+            remove_access(editor, RID_CONTENT_EDITOR, is_instructor=False)
+
+        notify(CourseRolesUpdatedEvent(course))
+        logger.info("[%s] Removed course admins during course deletion (%s)",
+                    site_name,
+                    entry_ntiid)
+
+    def _remove_course_access(self, entry_ntiid, course_ntiid, site_name):
+        logger.info("[%s] Removing course access (%s)",
+                    site_name, entry_ntiid)
+        course = find_object_with_ntiid(course_ntiid)
+        if course is None:
+            logger.info("[%s] Course is already deleted (%s)",
+                        site_name, entry_ntiid)
+            # Another transaction may have beat us
+            return
+        self._deny_site_admins(course)
+        self._remove_course_admins(entry_ntiid, course, site_name)
+        self._unenroll_all(entry_ntiid, course, site_name)
+        interface.alsoProvides(course, IMarkedForDeletion)
+        interface.alsoProvides(course, IDeletedCourse)
+
+    def _delete_course_data(self, course_ntiids, site_name):
+        """
+        Performs the actual work of deleting the course, which should take care
+        of the rest of the course data (outline, completion data, etc) besides
+        enrollments and access. This could be split into more transactions if
+        needed.
+
+        The caveat with making this too fine grained is there may be some
+        implicit ordering that things used to occur when courses are deleted. If
+        operations occur in a new order, there may be issues. It is best if these
+        granular data cleanups occur by functionality.
+
+        - clear gradebook
+        - clear assignment history
+        - clear outline
+        - delete course
+        """
+        for entry_ntiid, course_ntiid in course_ntiids:
+            logger.info("[%s] Deleting course data (%s)",
+                        site_name, entry_ntiid)
+            clear_gradebook_func = functools.partial(self._execute_in_site,
+                                                     self._clear_gradebook,
+                                                     site_name,
+                                                     entry_ntiid, course_ntiid, site_name)
+            clear_assignment_history_func = functools.partial(self._execute_in_site,
+                                                              self._clear_assignment_history,
+                                                              site_name,
+                                                              entry_ntiid, course_ntiid, site_name)
+            clear_outline_func = functools.partial(self._execute_in_site,
+                                                   self._clear_outline,
+                                                   site_name,
+                                                   entry_ntiid, course_ntiid, site_name)
+            delete_func = functools.partial(self._execute_in_site,
+                                            self._do_delete_course,
+                                            site_name,
+                                            entry_ntiid, course_ntiid, site_name)
+
+            tx_runner = component.getUtility(IDataserverTransactionRunner)
+            for func in (clear_gradebook_func, clear_assignment_history_func,
+                         clear_outline_func, delete_func):
+                tx_runner(func, retries=5, sleep=0.1)
+            logger.info("[%s] Finished course deletion (%s)",
+                        site_name,
+                        entry_ntiid)
 
     def _check_access(self):
         if not is_admin_or_content_admin_or_site_admin(self.remoteUser):
@@ -448,9 +643,66 @@ class DeleteCourseView(AbstractAuthenticatedView):
                 'code': 'CannotDeleteCourse',
             })
 
+    def _do_remove_access_to_courses(self, course_ntiids, site_name):
+        for entry_ntiid, course_ntiid in course_ntiids:
+            self._remove_course_access(entry_ntiid, course_ntiid, site_name)
+
+    def remove_access_to_courses(self, course_ntiids, site_name):
+        """
+        This transaction must succeed before we do further course deletion.
+        This needs to ensure users lose access to the courses.
+        """
+        remove_access_func = functools.partial(self._execute_in_site,
+                                               self._do_remove_access_to_courses,
+                                               site_name,
+                                               course_ntiids,
+                                               site_name)
+        tx_runner = component.getUtility(IDataserverTransactionRunner)
+        tx_runner(remove_access_func, retries=5, sleep=0.1)
+
+    def _run_in_greenlet(self, func, course_ntiids):
+        """
+        Spawn a greenlet that will run the given func with the course ntiids.
+        """
+        site_name = self.site_name
+        try:
+            glet = gevent.spawn(func, course_ntiids, site_name)
+            glet.get()
+        except:
+            logger.exception("[%s] Error during course removal",
+                             site_name)
+            raise
+
+    def get_course_ntiids(self, course):
+        courses = []
+        # Make sure we operate on subinstances first
+        courses.extend(get_course_subinstances(course) or ())
+        courses.append(course)
+        course_ntiids = []
+        for course in courses:
+            entry_ntiid = ICourseCatalogEntry(course).ntiid
+            course_ntiid = to_external_ntiid_oid(course)
+            course_ntiids.append((entry_ntiid, course_ntiid))
+        return course_ntiids
+
+    def _delete_courses(self, course_ntiids):
+        try:
+            # Each of these occur in their own transaction
+            self._run_in_greenlet(self.remove_access_to_courses,
+                                  course_ntiids)
+            self._run_in_greenlet(self._delete_course_data, course_ntiids)
+        finally:
+            self.request.environ['nti.commit_veto'] = 'abort'
+
     def __call__(self):
         self._check_access()
-        self._delete_course(self.context)
+        # Do not go through the process if another tx beat us to it, unless we
+        # are an NT admin.
+        course = ICourseInstance(self.context)
+        if     not IDeletedCourse.providedBy(course) \
+            or is_admin(self.remoteUser):
+            course_ntiids = self.get_course_ntiids(course)
+            self._delete_courses(course_ntiids)
         return hexc.HTTPNoContent()
 
 

@@ -32,12 +32,9 @@ from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.error import raise_json_error
 
-from nti.app.products.courseware.views import raise_error
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
-
-from nti.app.products.courseware_admin.views.management_views import DeleteCourseView
 
 from nti.contenttypes.courses.common import get_course_packages
 
@@ -45,7 +42,6 @@ from nti.contenttypes.courses.interfaces import RID_TA
 from nti.contenttypes.courses.interfaces import RID_INSTRUCTOR
 from nti.contenttypes.courses.interfaces import RID_CONTENT_EDITOR
 
-from nti.contenttypes.courses.interfaces import ICourseSubInstance
 from nti.contenttypes.courses.interfaces import CourseRolesSynchronized
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
@@ -59,7 +55,6 @@ from nti.contenttypes.courses.utils import get_course_instructors
 
 from nti.dataserver import authorization as nauth
 
-from nti.dataserver.authorization import is_admin
 from nti.dataserver.authorization import is_admin_or_site_admin
 
 from nti.dataserver.interfaces import IUser
@@ -99,7 +94,7 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
         items = {}
 
         provenance_link_cache = {}
-        
+
         for catalog_entry in self.context.iterCatalogEntries():
 
             # We want to indicate what catalog each course comes from
@@ -130,7 +125,7 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
                                if setting == Allow and User.get_user(pid) is not None]
 
             course_summary['roles'] = roles
-            
+
             items[catalog_entry.ntiid] = course_summary
 
         result = LocatedExternalDict()
@@ -310,36 +305,3 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
                permission=nauth.ACT_NTI_ADMIN)
 class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
     pass
-
-
-@view_config(request_method='GET')
-@view_config(request_method='POST')
-@view_defaults(route_name='objects.generic.traversal',
-              context=CourseAdminPathAdapter,
-              name='DeleteSiteSectionCourses',
-              renderer='rest')
-class DeleteAllSectionCoursesView(DeleteCourseView):
-    """
-    An admin view to delete all section courses from a site.
-    A GET will act us a dry-run.
-    """
-
-    def _check_access(self):
-        if not is_admin(self.remoteUser):
-            raise_error({
-                'message': _(u'Cannot delete courses.'),
-                'code': 'CannotDeleteCourses',
-            })
-
-    def __call__(self):
-        self._check_access()
-        result = LocatedExternalDict()
-        result[ITEMS] = items = []
-        catalog = component.getUtility(ICourseCatalog)
-        for entry in catalog.iterCatalogEntries():
-            course = ICourseInstance(entry, None)
-            if ICourseSubInstance.providedBy(course):
-                items.append(entry.ntiid)
-                self._delete_course(course)
-        result[ITEM_COUNT] = len(items)
-        return result
