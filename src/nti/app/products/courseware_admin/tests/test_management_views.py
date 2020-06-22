@@ -23,6 +23,7 @@ from hamcrest import greater_than_or_equal_to
 does_not = is_not
 
 import shutil
+import transaction
 
 from six.moves import urllib_parse
 
@@ -838,13 +839,3 @@ class TestDeleteAllCourses(ApplicationLayerTest):
 
         section_course = section_course.json_body
         section_course_href2 = section_course['href']
-
-        # Delete all sections
-        self.testapp.get('/dataserver2/CourseAdmin/DeleteSiteSectionCourses')
-        self.testapp.get(new_course_href)
-        self.testapp.get(section_course_href)
-        self.testapp.get(section_course_href2)
-        self.testapp.post('/dataserver2/CourseAdmin/DeleteSiteSectionCourses')
-        self.testapp.get(new_course_href)
-        self.testapp.get(section_course_href, status=404)
-        self.testapp.get(section_course_href2, status=404)
