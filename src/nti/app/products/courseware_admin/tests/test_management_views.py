@@ -317,6 +317,19 @@ class TestCourseManagement(ApplicationLayerTest):
 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_course_views(self):
+        # Our course deletion runs in a greenlet. Since we are not monkey
+        # patched here, we temporarily override our transaction manager to
+        # be gevent aware.
+        from gevent._patcher import import_patched
+        manager = import_patched('transaction._manager').module.ThreadTransactionManager()
+        old_manager = transaction.manager
+        transaction.manager = manager
+        try:
+            self._do_test_course_views()
+        finally:
+            transaction.manager = old_manager
+
+    def _do_test_course_views(self):
         """
         Validate basic course management.
         """
