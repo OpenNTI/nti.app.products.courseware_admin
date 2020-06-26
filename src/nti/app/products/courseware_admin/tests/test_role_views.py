@@ -8,10 +8,13 @@ from __future__ import absolute_import
 # pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import is_
+from hamcrest import none
 from hamcrest import is_not
+from hamcrest import has_items
 from hamcrest import has_entry
 from hamcrest import has_length
 from hamcrest import assert_that
+from hamcrest import has_entries
 from hamcrest import contains_string
 from hamcrest import contains_inanyorder
 does_not = is_not
@@ -49,6 +52,8 @@ from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.dataserver.tests import mock_dataserver
 
 from nti.dataserver.users.interfaces import IUserProfile
+
+from nti.dataserver.users import User
 
 from nti.externalization.interfaces import StandardExternalFields
 
@@ -230,14 +235,19 @@ class TestRoleViews(ApplicationLayerTest):
             return _get_names('editors')
 
         update_marker = object()
-        def _update_roles(instructors=update_marker, editors=update_marker):
+        def _update_roles(instructors=update_marker, editors=update_marker, status=None, force=False):
             data = dict()
             data['roles'] = roles = dict()
             if instructors is not update_marker:
                 roles['instructors'] = list(instructors) if instructors else instructors
             if editors is not update_marker:
                 roles['editors'] = list(editors) if editors else editors
-            self.testapp.put_json(roles_href, data)
+            tmp_roles_href = roles_href
+            if force:
+                tmp_roles_href = '%s?force=True' % tmp_roles_href
+            if status:
+                return self.testapp.put_json(tmp_roles_href, data, status=status)
+            return self.testapp.put_json(tmp_roles_href, data)
 
         # Error handling; bad input, non-existent user
         self.testapp.post_json(instructor_href, status=422)
@@ -383,3 +393,101 @@ class TestRoleViews(ApplicationLayerTest):
             assert_that(enroll_courses[ITEMS], has_length(0))
             for package_href in package_hrefs:
                 self.testapp.get(package_href, extra_environ=env, status=403)
+
+        # Admin seat limit restrictions
+        res = self.testapp.get('/dataserver2/@@SeatLimit')
+        res = res.json_body
+        # The synced instructors/editors are in platform, but not janux (our site)
+        # It's not clear how child sites should affect seat limits, but the
+        # answer is probably not-at-all since child sites is an enterprise feature.
+        # It should be noted that sync does not validate against limits.
+        assert_that(res, has_entries('hard_admin_limit', True,
+                                     'max_seats', none(),
+                                     'max_admin_seats', none(),
+                                     'MaxAdminSeats', none(),
+                                     'admin_used_seats', 4,
+                                     'used_seats', 0))
+
+        self.testapp.post_json('/dataserver2/@@SeatLimit',
+                               {'max_admin_seats': 5})
+
+        _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown'],
+                      editors=['jmadden', 'harp4162', 'yorick.brown'])
+
+        res = _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
+                            status=422)
+        res = res.json_body
+        assert_that(res, has_entries(u'code', u'MaxAdminSeatsExceeded',
+                                      u'message', u'Admin seats exceeded. 6 used out of 5 available'))
+
+
+        res = _update_roles(editors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
+                            status=422)
+        res = res.json_body
+        assert_that(res, has_entries(u'code', u'MaxAdminSeatsExceeded',
+                                      u'message', u'Admin seats exceeded. 6 used out of 5 available'))
+
+        # Test site admin *and* instructor or editor
+        self.testapp.post('/dataserver2/SiteAdmins/%s' % 'yorick.brown')
+
+        res = self.testapp.post('/dataserver2/SiteAdmins/%s' % 'hero.brown',
+                                status=422)
+        res = res.json_body
+        assert_that(res, has_entries(u'code', u'MaxAdminSeatsExceeded',
+                                      u'message', u'Admin seats exceeded. 6 used out of 5 available'))
+
+        # Can force override
+        _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
+                       force=True)
+        _update_roles(editors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
+                       force=True)
+
+        res = self.testapp.get('/dataserver2/@@SeatLimit')
+        res = res.json_body
+        assert_that(res, has_entries('hard_admin_limit', True,
+                                     'max_seats', none(),
+                                     'max_admin_seats', 5,
+                                     'MaxAdminSeats', 5,
+                                     'admin_used_seats', 6,
+                                     'used_seats', 0))
+
+        # Remove the hard limit
+        self.testapp.post_json('/dataserver2/@@SeatLimit',
+                               {'hard_admin_limit': False})
+
+        _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown', 'ampersand'])
+        _update_roles(editors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown', 'three-fifty-five'])
+
+        res = self.testapp.get('/dataserver2/@@SeatLimit')
+        res = res.json_body
+        assert_that(res, has_entries('hard_admin_limit', False,
+                                     'max_seats', none(),
+                                     'max_admin_seats', 5,
+                                     'MaxAdminSeats', 5,
+                                     'admin_used_seats', 8,
+                                     'AdminUsernames', has_items('ampersand', 'hero.brown',
+                                                                 'jmadden', 'harp4162',
+                                                                 'three-fifty-five', 'yorick.brown'),
+                                     'used_seats', 0))
+
+        # Deleting user
+        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+            User.delete_user('yorick.brown')
+
+        res = self.testapp.get('/dataserver2/@@SeatLimit')
+        res = res.json_body
+        assert_that(res, has_entries('hard_admin_limit', False,
+                                     'max_admin_seats', 5,
+                                     'MaxAdminSeats', 5,
+                                     'admin_used_seats', 7,
+                                     'AdminUsernames', has_items('ampersand', 'hero.brown',
+                                                                 'jmadden', 'harp4162',
+                                                                 'three-fifty-five'),
+                                     'used_seats', 0))
+
+        # Reset
+        self.testapp.post_json('/dataserver2/@@SeatLimit',
+                               {'max_admin_seats': None,
+                                'hard_admin_limit': True})
+        _update_roles(instructors=['jmadden', 'harp4162'],
+                      editors=['jmadden', 'harp4162'])
