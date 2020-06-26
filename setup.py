@@ -55,6 +55,7 @@ setup(
         'nti.app.contentlibrary',
         'nti.app.products.courseware',
         'nti.app.products.gradebook',
+        'nti.app.site',
         'nti.base',
         'nti.common',
         'nti.contentlibrary',

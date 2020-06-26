@@ -9,6 +9,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import csv
+
 from io import BytesIO
 
 from pyramid import httpexceptions as hexc
@@ -54,6 +55,11 @@ from nti.app.products.courseware_admin.mixins import InstructorManageMixin
 
 from nti.app.products.courseware_admin.views.view_mixins import tx_string
 
+from nti.app.site.interfaces import ISiteSeatLimit
+from nti.app.site.interfaces import SiteAdminSeatLimitExceededError
+
+from nti.common.string import is_true
+
 from nti.contenttypes.courses.index import IX_SITE
 from nti.contenttypes.courses.index import IX_SCOPE
 from nti.contenttypes.courses.index import IX_USERNAME
@@ -82,6 +88,8 @@ from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import get_course_instructors
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
+
+from nti.dataserver.authorization import is_admin
 
 from nti.dataserver.interfaces import IUser
 
@@ -227,6 +235,24 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
     def role_manager(self):
         return IPrincipalRoleManager(self.course)
 
+    def post_validate(self):
+        """
+        Validate admin seat counts
+        """
+        if is_admin(self.remoteUser):
+            values = self.request.params
+            params = CaseInsensitiveDict(values)
+            if is_true(params.get('force')):
+                return
+        seat_limit = component.queryUtility(ISiteSeatLimit)
+        try:
+            seat_limit.validate_admin_seats()
+        except SiteAdminSeatLimitExceededError as e:
+            raise_error({
+                    'message': e.message,
+                    'code': 'MaxAdminSeatsExceeded',
+                    })
+
     def __call__(self):
         # pylint: disable=no-member
         self.require_access(self.remoteUser, self.context)
@@ -245,6 +271,7 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         if usernames:
             # re-indexing instructors/editors.
             lifecycleevent.modified(self.course)
+        self.post_validate()
         return hexc.HTTPNoContent()
 
 
@@ -491,6 +518,7 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
             # re-indexing instructors/editors.
             notify(CourseRolesUpdatedEvent(self.course))
             lifecycleevent.modified(self.course)
+        self.post_validate()
         return hexc.HTTPNoContent()
 
 
