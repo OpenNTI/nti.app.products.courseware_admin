@@ -450,7 +450,7 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
 
     def update_instructors(self, input_instructor_usernames):
         """
-        Returns a bool if instructors are updated
+        Returns (added, removed) instructors
         """
         input_instructor_usernames = self._get_usernames(input_instructor_usernames)
         current_instructors = set(get_course_instructors(self.course))
@@ -471,11 +471,11 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
                     self.entry_ntiid,
                     instructors_to_add,
                     instructors_to_remove)
-        return bool(instructors_to_add or instructors_to_remove)
+        return instructors_to_add, instructors_to_remove
 
     def update_editors(self, input_editor_usernames):
         """
-        Returns a bool if editors are updated
+        Returns (added, removed) editors
         """
         input_editor_usernames = self._get_usernames(input_editor_usernames)
         current_editors = set(x.id for x in get_course_editors(self.course))
@@ -493,7 +493,7 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
                     self.entry_ntiid,
                     editors_to_add,
                     editors_to_remove)
-        return bool(editors_to_add or editors_to_remove)
+        return editors_to_add, editors_to_remove
 
     def __call__(self):
         # pylint: disable=no-member
@@ -506,19 +506,22 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
                 })
         input_editors = role_dict.get('editors')
         input_instructors = role_dict.get('instructors')
-        instructors_updated = editors_updated = False
+        editors_added, editors_removed, instructors_added, instructors_removed = None
 
         if input_editors is not None:
-            editors_updated = self.update_editors(input_editors)
+            editors_added, editors_removed = self.update_editors(input_editors)
 
         if input_instructors is not None:
-            instructors_updated = self.update_instructors(input_instructors)
+            instructors_added, instructors_removed = self.update_instructors(input_instructors)
 
-        if instructors_updated or editors_updated:
+        # Notify on any update
+        if editors_added or editors_removed or instructors_added or instructors_removed:
             # re-indexing instructors/editors.
             notify(CourseRolesUpdatedEvent(self.course))
             lifecycleevent.modified(self.course)
-        self.post_validate()
+        # Only validate if we are adding (removes should be fine)
+        if editors_added or instructors_added:
+            self.post_validate()
         return hexc.HTTPNoContent()
 
 
