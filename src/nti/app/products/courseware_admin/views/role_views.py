@@ -190,6 +190,8 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         user - the username of the person to add to the course role
     """
 
+    POST_VALIDATE = True
+
     def _edit_permissions(self, user):
         """
         Alters permission on the course for the given user.
@@ -271,7 +273,8 @@ class AbstractRoleManagerView(AbstractAuthenticatedView,
         if usernames:
             # re-indexing instructors/editors.
             lifecycleevent.modified(self.course)
-        self.post_validate()
+        if self.POST_VALIDATE:
+            self.post_validate()
         return hexc.HTTPNoContent()
 
 
@@ -329,6 +332,8 @@ class CourseEditorsInsertView(AbstractCourseGrantView, EditorManageMixin):
 
 
 class AbstractCourseDenyView(AbstractRoleManagerView):  # pylint: disable=abstract-method
+
+    POST_VALIDATE = False
 
     def deny_permission(self, user):
         principal_id = IPrincipal(user).id
