@@ -511,7 +511,7 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
                 })
         input_editors = role_dict.get('editors')
         input_instructors = role_dict.get('instructors')
-        editors_added, editors_removed, instructors_added, instructors_removed = None
+        editors_added = editors_removed = instructors_added = instructors_removed = None
 
         if input_editors is not None:
             editors_added, editors_removed = self.update_editors(input_editors)
