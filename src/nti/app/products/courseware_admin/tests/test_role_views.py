@@ -19,6 +19,8 @@ from hamcrest import contains_string
 from hamcrest import contains_inanyorder
 does_not = is_not
 
+import shutil
+
 from zope import component
 
 from zope.cachedescriptors.property import Lazy
@@ -28,6 +30,7 @@ from nti.app.products.courseware.tests import PersistentInstructedCourseApplicat
 from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
+from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
@@ -50,6 +53,8 @@ from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 
 from nti.dataserver.tests import mock_dataserver
+
+from nti.dataserver.users.common import set_user_creation_site
 
 from nti.dataserver.users.interfaces import IUserProfile
 
@@ -76,6 +81,43 @@ class TestRoleViews(ApplicationLayerTest):
     enrolled_courses_href = '/dataserver2/users/%s/Courses/EnrolledCourses'
     admin_courses_href = '/dataserver2/users/%s/Courses/AdministeredCourses'
     course_ntiid = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2013_CLC3403_LawAndJustice'
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def tearDown(self):
+        """
+        Our janux.ou.edu site should have no courses in it.
+        """
+        with mock_dataserver.mock_db_trans(site_name='janux.ou.edu'):
+            library = component.getUtility(IContentPackageLibrary)
+            enumeration = IDelimitedHierarchyContentPackageEnumeration(library)
+            # pylint: disable=no-member
+            shutil.rmtree(enumeration.root.absolute_path, True)
+
+    def _get_admin_href(self):
+        service_res = self.fetch_service_doc()
+        workspaces = service_res.json_body['Items']
+        courses_workspace = next(
+            x for x in workspaces if x['Title'] == 'Courses'
+        )
+        admin_href = self.require_link_href_with_rel(courses_workspace,
+                                                     VIEW_COURSE_ADMIN_LEVELS)
+        return admin_href
+
+    def _create_course(self):
+        """
+        Create course and return ext
+        """
+        admin_href = self._get_admin_href()
+        test_admin_key = 'AdminRolesTestKey'
+        admin_res = self.testapp.post_json(admin_href, {'key': test_admin_key}).json_body
+        new_admin_href = admin_res['href']
+        new_course = self.testapp.post_json(new_admin_href,
+                                            {'ProviderUniqueID': 'AdminRolesTestCourse',
+                                             'title': 'AdminRolesTestCourse',
+                                             'RichDescription': 'AdminRolesTestCourse'})
+
+        new_course = new_course.json_body
+        return new_course
 
     def _sync(self):
         with mock_dataserver.mock_db_trans(site_name='janux.ou.edu'):
@@ -109,6 +151,7 @@ class TestRoleViews(ApplicationLayerTest):
         with mock_dataserver.mock_db_trans(self.ds):
             user = self._create_user(username)
             IUserProfile(user).email = '%s@gmail.com' % username
+            set_user_creation_site(user, 'janux.ou.edu')
 
     def _get_course_package_hrefs(self):
         with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
@@ -235,19 +278,19 @@ class TestRoleViews(ApplicationLayerTest):
             return _get_names('editors')
 
         update_marker = object()
-        def _update_roles(instructors=update_marker, editors=update_marker, status=None, force=False):
+        def _update_roles(instructors=update_marker, editors=update_marker,
+                          status=None, force=False, update_roles_href=roles_href):
             data = dict()
             data['roles'] = roles = dict()
             if instructors is not update_marker:
                 roles['instructors'] = list(instructors) if instructors else instructors
             if editors is not update_marker:
                 roles['editors'] = list(editors) if editors else editors
-            tmp_roles_href = roles_href
             if force:
-                tmp_roles_href = '%s?force=True' % tmp_roles_href
+                update_roles_href = '%s?force=True' % update_roles_href
             if status:
-                return self.testapp.put_json(tmp_roles_href, data, status=status)
-            return self.testapp.put_json(tmp_roles_href, data)
+                return self.testapp.put_json(update_roles_href, data, status=status)
+            return self.testapp.put_json(update_roles_href, data)
 
         # Error handling; bad input, non-existent user
         self.testapp.post_json(instructor_href, status=422)
@@ -395,37 +438,46 @@ class TestRoleViews(ApplicationLayerTest):
                 self.testapp.get(package_href, extra_environ=env, status=403)
 
         # Admin seat limit restrictions
+
+        # Create a course in this site
+        new_course_ext = self._create_course()
+        new_roles_href = self.require_link_href_with_rel(new_course_ext,
+                                                         VIEW_COURSE_ROLES)
         res = self.testapp.get('/dataserver2/@@SeatLimit')
         res = res.json_body
         # The synced instructors/editors are in platform, but not janux (our site)
         # It's not clear how child sites should affect seat limits, but the
         # answer is probably not-at-all since child sites is an enterprise feature.
         # It should be noted that sync does not validate against limits.
+        # We only get admin users for the current site.
         assert_that(res, has_entries('hard_admin_limit', True,
                                      'max_seats', none(),
                                      'max_admin_seats', none(),
                                      'MaxAdminSeats', none(),
-                                     'admin_used_seats', 4,
+                                     'admin_used_seats', 0,
                                      'used_seats', 0))
 
         self.testapp.post_json('/dataserver2/@@SeatLimit',
-                               {'max_admin_seats': 5})
+                               {'max_admin_seats': 3})
 
-        _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown'],
-                      editors=['jmadden', 'harp4162', 'yorick.brown'])
+        _update_roles(instructors=['ampersand', 'three-fifty-five', 'yorick.brown'],
+                      editors=['ampersand', 'three-fifty-five', 'yorick.brown'],
+                      update_roles_href=new_roles_href)
 
-        res = _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
-                            status=422)
+        res = _update_roles(instructors=['ampersand', 'three-fifty-five', 'yorick.brown', 'hero.brown'],
+                            status=422,
+                            update_roles_href=new_roles_href)
         res = res.json_body
         assert_that(res, has_entries(u'code', u'MaxAdminSeatsExceeded',
-                                      u'message', u'Admin seats exceeded. 6 used out of 5 available'))
+                                      u'message', u'Admin seats exceeded. 4 used out of 3 available. Please contact sales@nextthought.com for additional seats.'))
 
 
-        res = _update_roles(editors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
-                            status=422)
+        res = _update_roles(editors=['ampersand', 'three-fifty-five', 'yorick.brown', 'hero.brown'],
+                            status=422,
+                            update_roles_href=new_roles_href)
         res = res.json_body
         assert_that(res, has_entries(u'code', u'MaxAdminSeatsExceeded',
-                                      u'message', u'Admin seats exceeded. 6 used out of 5 available'))
+                                      u'message', u'Admin seats exceeded. 4 used out of 3 available. Please contact sales@nextthought.com for additional seats.'))
 
         # Test site admin *and* instructor or editor
         self.testapp.post('/dataserver2/SiteAdmins/%s' % 'yorick.brown')
@@ -434,39 +486,43 @@ class TestRoleViews(ApplicationLayerTest):
                                 status=422)
         res = res.json_body
         assert_that(res, has_entries(u'code', u'MaxAdminSeatsExceeded',
-                                      u'message', u'Admin seats exceeded. 6 used out of 5 available'))
+                                      u'message', u'Admin seats exceeded. 4 used out of 3 available. Please contact sales@nextthought.com for additional seats.'))
 
         # Can force override
-        _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
-                       force=True)
-        _update_roles(editors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown'],
-                       force=True)
+        _update_roles(instructors=['ampersand', 'three-fifty-five', 'yorick.brown', 'hero.brown'],
+                      force=True,
+                      update_roles_href=new_roles_href)
+        _update_roles(editors=['ampersand', 'three-fifty-five', 'yorick.brown', 'hero.brown'],
+                      force=True,
+                      update_roles_href=new_roles_href)
 
         res = self.testapp.get('/dataserver2/@@SeatLimit')
         res = res.json_body
         assert_that(res, has_entries('hard_admin_limit', True,
                                      'max_seats', none(),
-                                     'max_admin_seats', 5,
-                                     'MaxAdminSeats', 5,
-                                     'admin_used_seats', 6,
+                                     'max_admin_seats', 3,
+                                     'MaxAdminSeats', 3,
+                                     'admin_used_seats', 4,
                                      'used_seats', 0))
 
         # Remove the hard limit
         self.testapp.post_json('/dataserver2/@@SeatLimit',
-                               {'hard_admin_limit': False})
+                               {'hard_admin_limit': False,
+                                'max_admin_seats': 1})
 
-        _update_roles(instructors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown', 'ampersand'])
-        _update_roles(editors=['jmadden', 'harp4162', 'yorick.brown', 'hero.brown', 'three-fifty-five'])
+        _update_roles(instructors=['ampersand', 'three-fifty-five', 'yorick.brown'],
+                      update_roles_href=new_roles_href)
+        _update_roles(editors=['ampersand', 'three-fifty-five', 'hero.brown'],
+                      update_roles_href=new_roles_href)
 
         res = self.testapp.get('/dataserver2/@@SeatLimit')
         res = res.json_body
         assert_that(res, has_entries('hard_admin_limit', False,
                                      'max_seats', none(),
-                                     'max_admin_seats', 5,
-                                     'MaxAdminSeats', 5,
-                                     'admin_used_seats', 8,
+                                     'max_admin_seats', 1,
+                                     'MaxAdminSeats', 1,
+                                     'admin_used_seats', 4,
                                      'AdminUsernames', has_items('ampersand', 'hero.brown',
-                                                                 'jmadden', 'harp4162',
                                                                  'three-fifty-five', 'yorick.brown'),
                                      'used_seats', 0))
 
@@ -477,11 +533,10 @@ class TestRoleViews(ApplicationLayerTest):
         res = self.testapp.get('/dataserver2/@@SeatLimit')
         res = res.json_body
         assert_that(res, has_entries('hard_admin_limit', False,
-                                     'max_admin_seats', 5,
-                                     'MaxAdminSeats', 5,
-                                     'admin_used_seats', 7,
+                                     'max_admin_seats', 1,
+                                     'MaxAdminSeats', 1,
+                                     'admin_used_seats', 3,
                                      'AdminUsernames', has_items('ampersand', 'hero.brown',
-                                                                 'jmadden', 'harp4162',
                                                                  'three-fifty-five'),
                                      'used_seats', 0))
 
@@ -490,4 +545,5 @@ class TestRoleViews(ApplicationLayerTest):
                                {'max_admin_seats': None,
                                 'hard_admin_limit': True})
         _update_roles(instructors=['jmadden', 'harp4162'],
-                      editors=['jmadden', 'harp4162'])
+                      editors=['jmadden', 'harp4162'],
+                      update_roles_href=new_roles_href)
