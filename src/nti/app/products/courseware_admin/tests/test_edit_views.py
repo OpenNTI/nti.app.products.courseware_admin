@@ -8,7 +8,6 @@ from __future__ import absolute_import
 # pylint: disable=protected-access,too-many-public-methods
 
 from hamcrest import is_
-from hamcrest import is_not
 from hamcrest import contains
 from hamcrest import has_entries
 from hamcrest import assert_that
