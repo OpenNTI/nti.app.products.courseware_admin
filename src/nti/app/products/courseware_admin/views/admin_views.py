@@ -53,6 +53,8 @@ from nti.contenttypes.courses.sharing import update_package_permissions
 
 from nti.contenttypes.courses.utils import get_course_instructors
 
+from nti.coremetadata.interfaces import IDeactivatedUser
+
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
@@ -81,6 +83,7 @@ ITEM_COUNT = StandardExternalFields.ITEM_COUNT
 TOTAL = StandardExternalFields.TOTAL
 
 logger = __import__('logging').getLogger(__name__)
+
 
 @view_config(route_name='objects.generic.traversal',
              renderer='rest',
@@ -121,8 +124,11 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
 
             prm = IPrincipalRoleManager(course)
             for role in (RID_TA, RID_INSTRUCTOR, RID_CONTENT_EDITOR,):
-                roles[role] = [pid for (pid, setting) in prm.getPrincipalsForRole(role)
-                               if setting == Allow and User.get_user(pid) is not None]
+                pids = (pid for (pid, setting) in prm.getPrincipalsForRole(role)
+                        if setting == Allow)
+                pids = [pid for pid in pids if User.get_user(pid) is not None
+                        and not IDeactivatedUser.providedBy(User.get_user(pid))]
+                roles[role] = pids
 
             course_summary['roles'] = roles
 
@@ -134,6 +140,7 @@ class CatalogUsageSummary(AbstractAuthenticatedView):
         result[ITEMS] = items
         result[ITEM_COUNT] = result[TOTAL] = len(items)
         return result
+
 
 @view_config(context=ICourseInstance)
 @view_config(context=ICourseCatalogEntry)
