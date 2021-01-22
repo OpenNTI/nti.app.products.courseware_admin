@@ -221,7 +221,8 @@ class CourseImportView(CourseImportMixin):
         try:
             path, tmp_path = self._get_source_paths(values)
             clear = is_true(values.get('clear'))
-            writeout = is_true(values.get('writeout') or values.get('save'))
+            # Default to true
+            writeout = is_true(values.get('writeout') or values.get('save', 'true'))
             lockout = is_true(values.get('lock') or values.get('lockout'))
             validate_export_hash = self._get_validate_export_hash(values)
             preview_raw_value = getattr(entry, 'PreviewRawValue', None)
