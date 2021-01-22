@@ -342,7 +342,8 @@ class ImportCourseView(CourseImportMixin):
             path, tmp_path = self._get_source_paths(values)
             path = os.path.abspath(path)
             clear = is_true(values.get('clear'))
-            writeout = is_true(values.get('writeout') or values.get('save'))
+            # Default to true
+            writeout = is_true(values.get('writeout') or values.get('save', 'true'))
             validate_export_hash = self._get_validate_export_hash(values)
             lockout = is_true(   values.get('lock')
                               or values.get('lockout')
