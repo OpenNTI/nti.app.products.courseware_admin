@@ -741,7 +741,13 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView):
 
     @Lazy
     def filter_hidden(self):
+        # Users do not see hidden tags
         return not is_admin_or_site_admin(self.remoteUser)
+
+    @Lazy
+    def exclude_non_public(self):
+        # Users do not see non-public course tags
+        return self.filter_hidden
 
     @Lazy
     def include_str(self):
@@ -759,7 +765,8 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView):
         result = LocatedExternalDict()
         result[ITEMS] = items = []
         tag_dict = get_course_tags(filter_str=self.include_str,
-                                   filter_hidden=self.filter_hidden)
+                                   filter_hidden=self.filter_hidden,
+                                   exclude_non_public=self.exclude_non_public)
         if self.include_str:
             tag_keys = sorted(tag_dict, key=self.sort_key)
         else:
