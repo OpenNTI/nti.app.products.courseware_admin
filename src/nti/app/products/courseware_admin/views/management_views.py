@@ -30,6 +30,8 @@ from zope.component.hooks import site as current_site
 
 from zope.event import notify
 
+from zope.lifecycleevent import ObjectModifiedEvent
+
 from zope.security.interfaces import IPrincipal
 
 from zope.security.permission import allPermissions
@@ -42,7 +44,6 @@ from nti.app.assessment.subscribers import unindex_course_data
 
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
-from nti.app.externalization.view_mixins import BatchingUtilsMixin
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
 from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
@@ -110,6 +111,7 @@ from nti.dataserver import authorization as nauth
 from nti.dataserver.authorization import ROLE_SITE_ADMIN
 
 from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_admin_or_site_admin
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
 
 from nti.dataserver.interfaces import IDataserverTransactionRunner
@@ -590,6 +592,10 @@ class DeleteCourseView(AbstractAuthenticatedView):
         self._unenroll_all(entry_ntiid, course, site_name)
         interface.alsoProvides(course, IMarkedForDeletion)
         interface.alsoProvides(course, IDeletedCourse)
+        entry = ICourseCatalogEntry(course)
+        interface.alsoProvides(entry, IDeletedCourse)
+        notify(ObjectModifiedEvent(course))
+        notify(ObjectModifiedEvent(entry))
 
     def _delete_course_data(self, course_ntiids, site_name):
         """
@@ -712,10 +718,9 @@ class DeleteCourseView(AbstractAuthenticatedView):
              context=ICoursesCatalogCollection,
              name=VIEW_COURSE_SUGGESTED_TAGS,
              permission=nauth.ACT_READ)
-class CourseSuggestedTagsView(AbstractAuthenticatedView,
-                              BatchingUtilsMixin):
+class CourseSuggestedTagsView(AbstractAuthenticatedView):
     """
-    Get suggested course tags, optionally batched and filtered.
+    Get suggested course tags, optionally filtered.
     The results are sorted by exact matches first, and then starting
     with the optional filter str.
 
@@ -735,6 +740,10 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView,
         return self.readInput()
 
     @Lazy
+    def filter_hidden(self):
+        return not is_admin_or_site_admin(self.remoteUser)
+
+    @Lazy
     def include_str(self):
         # pylint: disable=no-member
         result = self._params.get('tag') \
@@ -748,14 +757,16 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView,
 
     def __call__(self):
         result = LocatedExternalDict()
-        # Only editors should use this for now
-        tags = get_course_tags(filter_str=self.include_str,
-                               filter_hidden=False)
+        result[ITEMS] = items = []
+        tag_dict = get_course_tags(filter_str=self.include_str,
+                                   filter_hidden=self.filter_hidden)
         if self.include_str:
-            tags = sorted(tags, key=self.sort_key)
+            tag_keys = sorted(tag_dict, key=self.sort_key)
         else:
-            tags = sorted(tags, key=lambda x: x.lower())
-        result[TOTAL] = len(tags)
-        self._batch_items_iterable(result, tags)
-        result[ITEM_COUNT] = len(tags)
+            tag_keys = sorted(tag_dict, key=lambda x: x.lower())
+        for tag_key in tag_keys:
+            items.append({'name': tag_key,
+                          'count': tag_dict.get(tag_key)})
+        result[TOTAL] = len(tag_dict)
+        result[ITEM_COUNT] = len(tag_dict)
         return result
