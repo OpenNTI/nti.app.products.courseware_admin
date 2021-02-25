@@ -29,6 +29,8 @@ from six.moves import urllib_parse
 
 from zope import component
 
+from zope.intid.interfaces import IIntIds
+
 from nti.app.contenttypes.presentation import VIEW_CONTENTS
 from nti.app.contenttypes.presentation import VIEW_OVERVIEW_CONTENT
 
@@ -53,6 +55,11 @@ from nti.contentlibrary.interfaces import IDelimitedHierarchyContentPackageEnume
 from nti.contenttypes.completion.interfaces import ICompletableItemDefaultRequiredPolicy
 
 from nti.contenttypes.courses._synchronize import synchronize_catalog_from_root
+
+from nti.contenttypes.courses.index import IX_COURSE_TO_ENTRY_INTID
+from nti.contenttypes.courses.index import IX_ENTRY_TO_COURSE_INTID
+
+from nti.contenttypes.courses.index import get_courses_catalog
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
@@ -374,6 +381,21 @@ class TestCourseManagement(ApplicationLayerTest):
         assert_that(new_course['NTIID'], not_none())
         assert_that(new_course['TotalEnrolledCount'], is_(0))
         assert_that(new_course['ContentPackageBundle']['title'], is_(new_course_title))
+
+        with mock_dataserver.mock_db_trans(self.ds):
+            # Validate index mapping after creation
+            intids = component.getUtility(IIntIds)
+            courses_catalog = get_courses_catalog()
+            course = find_object_with_ntiid(new_course.get('OID'))
+            idx1 = courses_catalog.get(IX_COURSE_TO_ENTRY_INTID)
+            idx2 = courses_catalog.get(IX_ENTRY_TO_COURSE_INTID)
+            rs = idx2.apply({'any_of': (course._ds_intid,)})
+            assert_that(rs, has_length(1))
+            entry = ICourseCatalogEntry(course)
+            assert_that(intids.queryObject(rs[0]), is_(entry))
+            rs = idx1.apply({'any_of': (entry._ds_intid,)})
+            assert_that(rs, has_length(1))
+            assert_that(intids.queryObject(rs[0]), is_(course))
 
         catalog = self.testapp.get('%s/CourseCatalogEntry' % new_course_href)
         catalog = catalog.json_body
