@@ -765,7 +765,7 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView):
         else:
             tag_keys = sorted(tag_dict, key=lambda x: x.lower())
         for tag_key in tag_keys:
-            items.append({'name': tag_key,
+            items.append({'tag': tag_key,
                           'count': tag_dict.get(tag_key)})
         result[TOTAL] = len(tag_dict)
         result[ITEM_COUNT] = len(tag_dict)
