@@ -86,6 +86,7 @@ from nti.contenttypes.courses.utils import is_enrolled
 from nti.contenttypes.courses.utils import is_course_editor
 from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import get_course_instructors
+from nti.contenttypes.courses.utils import get_course_editors_as_users
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
 
@@ -150,11 +151,10 @@ class CourseEditorsView(AbstractAuthenticatedView, EditorManageMixin):
 
     def __call__(self):
         self.require_access(self.remoteUser, self.context)
-        editors = get_course_editors(self.context)
+        editors = get_course_editors_as_users(self.context)
         result = LocatedExternalDict()
         result[ITEM_COUNT] = len(editors)
-        users = (IUser(x) for x in editors)
-        result[ITEMS] = _get_external_users(users)
+        result[ITEMS] = _get_external_users(editors)
         return result
 
 
@@ -170,7 +170,7 @@ class CourseRolesView(AbstractAuthenticatedView, RoleManageMixin):
 
     def __call__(self):
         self.require_access(self.remoteUser, self.context)
-        editors = [IUser(x) for x in get_course_editors(self.context)]
+        editors = get_course_editors_as_users(self.context)
         instructors = [User.get_user(x) for x in get_course_instructors(self.context)]
         result = LocatedExternalDict()
         result['roles'] = roles = dict()
