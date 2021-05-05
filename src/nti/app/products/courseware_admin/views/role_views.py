@@ -86,7 +86,6 @@ from nti.contenttypes.courses.sharing import remove_principal_from_course_conten
 
 from nti.contenttypes.courses.utils import is_enrolled
 from nti.contenttypes.courses.utils import is_course_editor
-from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import get_course_instructors
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
@@ -484,7 +483,7 @@ class CourseRolesUpdateView(AbstractRoleManagerView, RoleManageMixin):
         Returns (added, removed) editors
         """
         input_editor_usernames = self._get_usernames(input_editor_usernames)
-        current_editors = set(x.id for x in get_course_editors(self.course))
+        current_editors = set(x.username for x in get_course_editors_as_users(self.course))
         editors_to_add = input_editor_usernames - current_editors
         editors_to_remove = current_editors - input_editor_usernames
         for to_add in editors_to_add:
