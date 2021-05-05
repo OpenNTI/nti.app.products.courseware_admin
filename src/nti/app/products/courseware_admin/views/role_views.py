@@ -60,6 +60,8 @@ from nti.app.site.interfaces import SiteAdminSeatLimitExceededError
 
 from nti.common.string import is_true
 
+from nti.contenttypes.courses.common import get_course_editors_as_users
+
 from nti.contenttypes.courses.index import IX_SITE
 from nti.contenttypes.courses.index import IX_SCOPE
 from nti.contenttypes.courses.index import IX_USERNAME
@@ -86,7 +88,6 @@ from nti.contenttypes.courses.utils import is_enrolled
 from nti.contenttypes.courses.utils import is_course_editor
 from nti.contenttypes.courses.utils import get_course_editors
 from nti.contenttypes.courses.utils import get_course_instructors
-from nti.contenttypes.courses.utils import get_course_editors_as_users
 from nti.contenttypes.courses.utils import deny_instructor_access_to_course
 from nti.contenttypes.courses.utils import grant_instructor_access_to_course
 
