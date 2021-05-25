@@ -557,7 +557,7 @@ class DeleteCourseView(AbstractAuthenticatedView):
         # course.
         role_manager = IPrincipalRoleManager(course)
         def remove_access(prin, role_id, is_instructor=False):
-            user = IUser(prin)
+            user = IUser(prin, prin)
             principal_id = IPrincipal(user).id
             role_manager.unsetRoleForPrincipal(role_id, principal_id)
             if is_instructor:
