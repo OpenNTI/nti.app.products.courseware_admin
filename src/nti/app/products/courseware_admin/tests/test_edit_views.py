@@ -214,3 +214,16 @@ class TestCourseEdits(ApplicationLayerTest):
             #assert_that(get_asset_last_mods(), is_not(last_mods))
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_course_catalog_edit(self):
+        catalog_path = '/dataserver2/%2B%2Betc%2B%2Bhostsites/janux.ou.edu/%2B%2Betc%2B%2Bsite/Courses'
+        res = self.testapp.put_json(catalog_path,
+                                    {'anonymously_accessible': True})
+        res = res.json_body
+        assert_that(res['anonymously_accessible'], is_(True))
+
+        res = self.testapp.put_json(catalog_path,
+                                    {'anonymously_accessible': False})
+        res = res.json_body
+        assert_that(res['anonymously_accessible'], is_(False))

@@ -24,6 +24,7 @@ from nti.app.contentlibrary.views.bundle_views import ContentPackageBundleMixin
 
 from nti.app.externalization.error import raise_json_error
 
+from nti.app.externalization.view_mixins import ModeledContentEditRequestUtilsMixin
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
 from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
@@ -32,6 +33,7 @@ from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.contenttypes.courses._catalog_entry_parser import fill_entry_from_legacy_json
 
+from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.contenttypes.courses.interfaces import ICourseCatalogEntry
 
@@ -125,4 +127,20 @@ class CatalogEntryPutView(CatalogEntryPresentationAssetsPutView):
         fill_entry_from_legacy_json(self.context, values,
                                     notify=True, delete=False)
         # Return new catalog entry object
+        return self.context
+
+
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             context=ICourseCatalog,
+             permission=nauth.ACT_UPDATE,
+             request_method='PUT')
+class CourseCatalogFolderPutView(AbstractAuthenticatedView,
+                                 ModeledContentEditRequestUtilsMixin,
+                                 ModeledContentUploadRequestUtilsMixin):
+
+    def __call__(self):
+        value = self.readInput()
+        self._check_object_unmodified_since(value)
+        self.updateContentObject(self.context, value)
         return self.context
