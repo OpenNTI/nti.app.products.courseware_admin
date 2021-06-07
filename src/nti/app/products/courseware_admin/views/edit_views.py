@@ -133,7 +133,7 @@ class CatalogEntryPutView(CatalogEntryPresentationAssetsPutView):
 @view_config(route_name='objects.generic.traversal',
              renderer='rest',
              context=ICourseCatalog,
-             permission=nauth.ACT_CONTENT_EDIT,
+             permission=nauth.ACT_UPDATE,
              request_method='PUT')
 class CourseCatalogFolderPutView(AbstractAuthenticatedView,
                                  ModeledContentEditRequestUtilsMixin,
