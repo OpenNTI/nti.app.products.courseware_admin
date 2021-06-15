@@ -37,6 +37,7 @@ from nti.app.products.courseware_admin.mixins import RoleManageMixin
 from nti.app.products.courseware_admin.mixins import EditorManageMixin
 from nti.app.products.courseware_admin.mixins import InstructorManageMixin
 
+from nti.app.renderers.decorators import AbstractRequestAwareDecorator
 from nti.app.renderers.decorators import AbstractAuthenticatedRequestAwareDecorator
 
 from nti.appserver.pyramid_authorization import has_permission
@@ -293,7 +294,7 @@ class _AdminCourseLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
 
 @interface.implementer(IExternalObjectDecorator)
 @component.adapter(ICoursesCatalogCollection)
-class _CourseCatalogCollectionDecorator(AbstractAuthenticatedRequestAwareDecorator):
+class _CourseCatalogCollectionDecorator(AbstractRequestAwareDecorator):
     """
     Decorate the :class:``ICoursesCatalogCollection`` with a `SuggestedTags` rel.
     """
