@@ -329,11 +329,12 @@ class CreateCourseView(AbstractAuthenticatedView,
 
     def _post_create(self, course):
         catalog_entry = ICourseCatalogEntry(course)
-        fill_entry_from_legacy_json(catalog_entry, self._params,
-                                    notify=True, delete=False)
+        # Set these attrs before we notify in the next step
         catalog_entry.Preview = True
         interface.alsoProvides(course, INonPublicCourseInstance)
         interface.alsoProvides(catalog_entry, INonPublicCourseInstance)
+        fill_entry_from_legacy_json(catalog_entry, self._params,
+                                    notify=True, delete=False)
         notify(CourseInstanceAvailableEvent(course))
         return catalog_entry
 
