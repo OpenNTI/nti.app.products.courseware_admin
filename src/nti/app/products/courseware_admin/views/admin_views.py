@@ -22,6 +22,7 @@ from zope import interface
 from zope.cachedescriptors.property import Lazy
 
 from zope.component.hooks import site as current_site
+from zope.component.hooks import getSite
 
 from zope.event import notify
 
@@ -42,11 +43,11 @@ from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
-from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
-from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
+from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
+
+from nti.app.users.utils import get_user_creation_site
 
 from nti.app.users.views.view_mixins import AbstractEntityViewMixin
-from nti.app.users.views.view_mixins import UsersCSVExportMixin
 
 from nti.common.string import is_true
 
@@ -66,6 +67,9 @@ from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 from nti.contenttypes.courses.sharing import update_package_permissions
 
 from nti.contenttypes.courses.utils import get_course_instructors
+from nti.contenttypes.courses.utils import get_instructors
+from nti.contenttypes.courses.utils import get_editors
+from nti.contenttypes.courses.utils import get_instructors_and_editors
 
 from nti.coremetadata.interfaces import IDeactivatedUser
 from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
@@ -73,8 +77,20 @@ from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
+from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_site_admin
 
 from nti.dataserver.interfaces import IUser
+from nti.dataserver.interfaces import ISiteAdminUtility
+
+from nti.dataserver.metadata.index import IX_CREATEDTIME
+from nti.dataserver.metadata.index import get_metadata_catalog
+
+from nti.dataserver.users.index import IX_ALIAS
+from nti.dataserver.users.index import IX_REALNAME
+from nti.dataserver.users.index import IX_DISPLAYNAME
+
+from nti.dataserver.users.index import get_entity_catalog
 
 from nti.dataserver.metadata.index import IX_CREATEDTIME
 from nti.dataserver.metadata.index import get_metadata_catalog
@@ -101,6 +117,7 @@ from nti.site.hostpolicy import get_host_site
 from nti.site.site import get_component_hierarchy_names
 
 from nti.traversal.traversal import find_interface
+from nti.app.products.courseware.scripts.nti_acl_forum_creator import _get_instructors
 
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
@@ -337,12 +354,12 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
 class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
     pass
 
-@view_config(context=ICourseAdminsContainer)
-@view_defaults(route_name='objects.generic.traversal',
+@view_config(route_name='objects.generic.traversal',
              renderer='rest',
-             request_method='GET',
-             permission=nauth.ACT_CONTENT_EDIT)
-class CourseAdminsGetView(AbstractEntityViewMixin):
+             context=ICourseCatalog,
+             name=VIEW_COURSE_ADMINS,
+             request_method='GET')
+class CourseAdminGetView(AbstractEntityViewMixin):
     """
     Return all course admins (instructors and editors of any course in the site)
     Filter by only instructors or only editors if requested
@@ -352,15 +369,71 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
     _NUMERIC_SORTING = AbstractEntityViewMixin._NUMERIC_SORTING + (IX_LASTSEEN_TIME,)
     
     @Lazy
+    def is_admin(self):
+        return is_admin(self.remoteUser)
+    
+    @Lazy
     def filterInstructors(self):
         # pylint: disable=no-member
         return is_true(self.params.get('filterInstructors', 'False'))
     
     @Lazy
+    def instructor_intids(self):
+        """
+        Return a set of site editor intids.
+        """
+        intids = component.getUtility(IIntIds)
+        instructors = get_instructors(getSite())
+        result = set()
+        for user in instructors:
+            result.add(intids.getId(user))
+        return result
+    
+    @Lazy
     def filterEditors(self):
         # pylint: disable=no-member
         return is_true(self.params.get('filterEditors', 'False'))
+    
+    @Lazy
+    def editor_intids(self):
+        """
+        Return a set of site editor intids.
+        """
+        intids = component.getUtility(IIntIds)
+        editors = get_editors(getSite())
+        result = set()
+        for user in editors:
+            result.add(intids.getId(user))
+        return result
 
+    def _predicate(self):
+        if not self.is_admin and not is_site_admin(self.remoteUser):
+            raise hexc.HTTPForbidden(_('Cannot view course administrators.'))
+
+    def _get_course_admins(self, site=None):
+        course_admins = get_instructors_and_editors(site)
+        result = []
+        site = getSite() if site is None else site
+        for course_admin in course_admins:
+            if      self.can_administer_user(course_admin) \
+                and self.is_user_created_in_site(site, course_admin):
+                result.append(course_admin)
+        return result
+
+    @Lazy
+    def site_admin_utility(self):
+        return component.getUtility(ISiteAdminUtility)
+
+    def is_user_created_in_site(self, site, user):
+        return site == get_user_creation_site(user)
+
+    def can_administer_user(self, user):
+        result = True
+        if not self.is_admin:
+            # pylint: disable=no-member
+            result = self.site_admin_utility.can_administer_user(self.remoteUser, user)
+        return result
+    
     @Lazy
     def sortMap(self):
         return {
@@ -371,78 +444,33 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
             IX_LASTSEEN_TIME: get_metadata_catalog(),
         }
 
-    def get_entity_intids(self, site=None):
-        course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors)
-        for doc_id in course_admin_intids:
-            yield doc_id
-    
-    def _batch_selector(self, user):
-        return CourseAdminSummary(user)
-    
-    def _post_numeric_sorting(self, ext_res, sort_on, reverse):
-        """
-        Sorts the `Items` in the result dict in-place, using the sort_on
-        and reverse params.
-        """
-        ext_res[ITEMS] = sorted(ext_res[ITEMS],
-                                key=lambda x: getattr(x.user, sort_on, 0),
-                                reverse=reverse)
-
-    def __call__(self):
-        return self._do_call()
-
-@view_config(context=ICourseAdminsContainer)
-@view_defaults(route_name='objects.generic.traversal',
-               request_method='GET',
-               accept='text/csv',
-               permission=nauth.ACT_CONTENT_EDIT)
-class CourseAdminsCSVView(CourseAdminsGetView,
-                       UsersCSVExportMixin):
-
-    def _get_filename(self):
-        return u'users_export.csv'
-
-    def __call__(self):
-        self.check_access()
-        return self._create_csv_response()
-
-
-@view_config(context=ICourseAdminsContainer)
-@view_defaults(route_name='objects.generic.traversal',
-               request_method='POST',
-               renderer='rest',
-               permission=nauth.ACT_CONTENT_EDIT,
-               request_param='format=text/csv')
-class CourseAdminsCSVPOSTView(CourseAdminsGetView, 
-                           ModeledContentUploadRequestUtilsMixin):
-    
-    def readInput(self):
-        if self.request.POST:
-            result = {'usernames': self.request.params.getall('usernames') or []}
-        elif self.request.body:
-            result = super(CourseAdminsCSVPOSTView, self).readInput()
-        else:
-            result = self.request.params
-        return CaseInsensitiveDict(result)
+    def search_include(self, doc_id):
+        # Filter by only instructors or editors if requested
+        if self.filterEditors:
+            result = doc_id not in self.editor_intids
+        if self.filterInstructors():
+            result = doc_id not in self.instructor_intids
+        return result
     
     @Lazy
-    def _params(self):
-        return self.readInput()
+    def site_name(self):
+        # pylint: disable=no-member
+        site = self.params.get('site') or getSite().__name__
+        if site not in get_component_hierarchy_names():
+            raise_json_error(self.request,
+                             hexc.HTTPUnprocessableEntity,
+                             {
+                                 'message': _(u'Invalid site.'),
+                             },
+                             None)
+        return site
 
-    def _get_result_iter(self):
-        usernames = self._params.get('usernames', ())
-        if not usernames:
-            return super(CourseAdminsCSVPOSTView, self)._get_result_iter()
+    def get_entity_intids(self, site=None):
         intids = component.getUtility(IIntIds)
-        result = []
-        for username in usernames:
-            user = User.get_user(username)
-            if user is None:
-                continue
-            user_intid = intids.queryId(user)
-            if user_intid is None:
-                continue
-            # Validate the user is in the original result set
-            if user_intid in self.filtered_intids:
-                result.append(user) 
-        return result
+        for user in self._get_course_admins(site):
+            doc_id = intids.getId(user)
+            yield doc_id
+
+    def __call__(self):
+        self._predicate()
+        return self._do_call()
