@@ -30,6 +30,7 @@ from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 from nti.app.products.courseware_admin import VIEW_ASSESSMENT_POLICIES
+from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
@@ -160,10 +161,14 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
         link.__parent__ = context
         _links.append(link)
         
-        link = Link(getSite().getSiteManager(),
-                        rel=VIEW_COURSE_ADMINS,
-                        elements=(VIEW_COURSE_ADMINS,))
+        link = Link(self.catalog,
+                    rel=VIEW_COURSE_ADMINS,
+                    elements=('@@%s' % VIEW_COURSE_ADMINS,))
+        interface.alsoProvides(link, ILocation)
+        link.__name__ = ''
+        link.__parent__ = context
         _links.append(link)
+
 
 @component.adapter(ICourseInstance)
 @interface.implementer(IExternalMappingDecorator)
