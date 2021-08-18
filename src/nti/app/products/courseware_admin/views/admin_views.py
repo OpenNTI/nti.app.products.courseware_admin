@@ -19,9 +19,14 @@ from zope import component
 
 from zope import interface
 
+from zope.cachedescriptors.property import Lazy
+
 from zope.component.hooks import site as current_site
+from zope.component.hooks import getSite
 
 from zope.event import notify
+
+from zope.intid.interfaces import IIntIds
 
 from zope.security.interfaces import IPrincipal
 
@@ -35,6 +40,14 @@ from nti.app.externalization.error import raise_json_error
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
+
+from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
+
+from nti.app.users.utils import get_user_creation_site
+
+from nti.app.users.views.view_mixins import AbstractEntityViewMixin
+
+from nti.common.string import is_true
 
 from nti.contenttypes.courses.common import get_course_packages
 
@@ -52,14 +65,30 @@ from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 from nti.contenttypes.courses.sharing import update_package_permissions
 
 from nti.contenttypes.courses.utils import get_course_instructors
+from nti.contenttypes.courses.utils import get_instructors
+from nti.contenttypes.courses.utils import get_editors
+from nti.contenttypes.courses.utils import get_instructors_and_editors
 
 from nti.coremetadata.interfaces import IDeactivatedUser
+from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
 
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
+from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_site_admin
 
 from nti.dataserver.interfaces import IUser
+from nti.dataserver.interfaces import ISiteAdminUtility
+
+from nti.dataserver.metadata.index import IX_CREATEDTIME
+from nti.dataserver.metadata.index import get_metadata_catalog
+
+from nti.dataserver.users.index import IX_ALIAS
+from nti.dataserver.users.index import IX_REALNAME
+from nti.dataserver.users.index import IX_DISPLAYNAME
+
+from nti.dataserver.users.index import get_entity_catalog
 
 from nti.dataserver.users.users import User
 
@@ -77,6 +106,7 @@ from nti.site.hostpolicy import get_host_site
 from nti.site.site import get_component_hierarchy_names
 
 from nti.traversal.traversal import find_interface
+from nti.app.products.courseware.scripts.nti_acl_forum_creator import _get_instructors
 
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
@@ -312,3 +342,124 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
                permission=nauth.ACT_NTI_ADMIN)
 class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
     pass
+
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             context=ICourseCatalog,
+             name=VIEW_COURSE_ADMINS,
+             request_method='GET')
+class CourseAdminGetView(AbstractEntityViewMixin):
+    """
+    Return all course admins (instructors and editors of any course in the site)
+    Filter by only instructors or only editors if requested
+    """
+    
+    _ALLOWED_SORTING = AbstractEntityViewMixin._ALLOWED_SORTING + (IX_LASTSEEN_TIME,)
+    _NUMERIC_SORTING = AbstractEntityViewMixin._NUMERIC_SORTING + (IX_LASTSEEN_TIME,)
+    
+    @Lazy
+    def is_admin(self):
+        return is_admin(self.remoteUser)
+    
+    @Lazy
+    def filterInstructors(self):
+        # pylint: disable=no-member
+        return is_true(self.params.get('filterInstructors', 'False'))
+    
+    @Lazy
+    def instructor_intids(self):
+        """
+        Return a set of site editor intids.
+        """
+        intids = component.getUtility(IIntIds)
+        instructors = get_instructors(getSite())
+        result = set()
+        for user in instructors:
+            result.add(intids.getId(user))
+        return result
+    
+    @Lazy
+    def filterEditors(self):
+        # pylint: disable=no-member
+        return is_true(self.params.get('filterEditors', 'False'))
+    
+    @Lazy
+    def editor_intids(self):
+        """
+        Return a set of site editor intids.
+        """
+        intids = component.getUtility(IIntIds)
+        editors = get_editors(getSite())
+        result = set()
+        for user in editors:
+            result.add(intids.getId(user))
+        return result
+
+    def _predicate(self):
+        if not self.is_admin and not is_site_admin(self.remoteUser):
+            raise hexc.HTTPForbidden(_('Cannot view course administrators.'))
+
+    def _get_course_admins(self, site=None):
+        course_admins = get_instructors_and_editors(site)
+        result = []
+        site = getSite() if site is None else site
+        for course_admin in course_admins:
+            if      self.can_administer_user(course_admin) \
+                and self.is_user_created_in_site(site, course_admin):
+                result.append(course_admin)
+        return result
+
+    @Lazy
+    def site_admin_utility(self):
+        return component.getUtility(ISiteAdminUtility)
+
+    def is_user_created_in_site(self, site, user):
+        return site == get_user_creation_site(user)
+
+    def can_administer_user(self, user):
+        result = True
+        if not self.is_admin:
+            # pylint: disable=no-member
+            result = self.site_admin_utility.can_administer_user(self.remoteUser, user)
+        return result
+    
+    @Lazy
+    def sortMap(self):
+        return {
+            IX_ALIAS: get_entity_catalog(),
+            IX_REALNAME: get_entity_catalog(),
+            IX_DISPLAYNAME: get_entity_catalog(),
+            IX_CREATEDTIME: get_metadata_catalog(),
+            IX_LASTSEEN_TIME: get_metadata_catalog(),
+        }
+
+    def search_include(self, doc_id):
+        # Filter by only instructors or editors if requested
+        if self.filterEditors:
+            result = doc_id not in self.editor_intids
+        if self.filterInstructors():
+            result = doc_id not in self.instructor_intids
+        return result
+    
+    @Lazy
+    def site_name(self):
+        # pylint: disable=no-member
+        site = self.params.get('site') or getSite().__name__
+        if site not in get_component_hierarchy_names():
+            raise_json_error(self.request,
+                             hexc.HTTPUnprocessableEntity,
+                             {
+                                 'message': _(u'Invalid site.'),
+                             },
+                             None)
+        return site
+
+    def get_entity_intids(self, site=None):
+        intids = component.getUtility(IIntIds)
+        for user in self._get_course_admins(site):
+            doc_id = intids.getId(user)
+            yield doc_id
+
+    def __call__(self):
+        self._predicate()
+        return self._do_call()
