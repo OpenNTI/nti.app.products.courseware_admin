@@ -106,7 +106,6 @@ from nti.site.hostpolicy import get_host_site
 from nti.site.site import get_component_hierarchy_names
 
 from nti.traversal.traversal import find_interface
-from nti.app.products.courseware.scripts.nti_acl_forum_creator import _get_instructors
 
 ITEMS = StandardExternalFields.ITEMS
 ITEM_COUNT = StandardExternalFields.ITEM_COUNT
@@ -367,61 +366,23 @@ class CourseAdminGetView(AbstractEntityViewMixin):
         return is_true(self.params.get('filterInstructors', 'False'))
     
     @Lazy
-    def instructor_intids(self):
-        """
-        Return a set of site editor intids.
-        """
-        intids = component.getUtility(IIntIds)
-        instructors = get_instructors(getSite())
-        result = set()
-        for user in instructors:
-            result.add(intids.getId(user))
-        return result
-    
-    @Lazy
     def filterEditors(self):
         # pylint: disable=no-member
         return is_true(self.params.get('filterEditors', 'False'))
-    
-    @Lazy
-    def editor_intids(self):
-        """
-        Return a set of site editor intids.
-        """
-        intids = component.getUtility(IIntIds)
-        editors = get_editors(getSite())
-        result = set()
-        for user in editors:
-            result.add(intids.getId(user))
-        return result
 
     def _predicate(self):
         if not self.is_admin and not is_site_admin(self.remoteUser):
             raise hexc.HTTPForbidden(_('Cannot view course administrators.'))
 
     def _get_course_admins(self, site=None):
-        course_admins = get_instructors_and_editors(site)
-        result = []
-        site = getSite() if site is None else site
-        for course_admin in course_admins:
-            if      self.can_administer_user(course_admin) \
-                and self.is_user_created_in_site(site, course_admin):
-                result.append(course_admin)
-        return result
-
-    @Lazy
-    def site_admin_utility(self):
-        return component.getUtility(ISiteAdminUtility)
-
-    def is_user_created_in_site(self, site, user):
-        return site == get_user_creation_site(user)
-
-    def can_administer_user(self, user):
-        result = True
-        if not self.is_admin:
-            # pylint: disable=no-member
-            result = self.site_admin_utility.can_administer_user(self.remoteUser, user)
-        return result
+        if self.filterInstructors and self.filterEditors:
+            return {}
+        elif self.filterInstructors:
+            return get_editors(site)
+        elif self.filterEditors:
+            return get_instructors(site)
+        else:
+            return get_instructors_and_editors(site)
     
     @Lazy
     def sortMap(self):
@@ -434,10 +395,11 @@ class CourseAdminGetView(AbstractEntityViewMixin):
         }
 
     def search_include(self, doc_id):
+        result = doc_id
         # Filter by only instructors or editors if requested
         if self.filterEditors:
             result = doc_id not in self.editor_intids
-        if self.filterInstructors():
+        if self.filterInstructors:
             result = doc_id not in self.instructor_intids
         return result
     
