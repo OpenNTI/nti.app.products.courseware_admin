@@ -729,9 +729,6 @@ class CourseSuggestedTagsView(AbstractAuthenticatedView):
         filter - (optional) only include tags with this str
     """
 
-    _DEFAULT_BATCH_SIZE = None
-    _DEFAULT_BATCH_START = None
-
     def readInput(self):
         result = CaseInsensitiveDict(self.request.params)
         return result
