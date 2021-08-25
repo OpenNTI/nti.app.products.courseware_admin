@@ -134,8 +134,6 @@ class RebuildCoursesCatalogView(AbstractAuthenticatedView):
         for host_site in get_all_host_sites():  # check all sites
             with current_site(host_site):
                 library = component.queryUtility(ICourseCatalog)
-                if library is None or library.isEmpty():
-                    continue
                 count = 0
                 for entry in library.iterCatalogEntries():
                     course = ICourseInstance(entry)

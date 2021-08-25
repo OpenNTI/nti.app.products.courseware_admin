@@ -641,12 +641,19 @@ class TestCourseManagement(ApplicationLayerTest):
         tags = self.testapp.get(tag_url).json_body
         tags = tags[ITEMS]
         assert_that(tags, has_length(non_hidden_tag_count))
-        assert_that(tags, contains(u'.hidden', u'alph', u'alpha', u'beta',
-                                   u'delta', u'gamma', u'law', u'omega'))
+        assert_that(tags, contains(has_entries('count', 3, 'tag', '.hidden'),
+                                   has_entries('count', 3, 'tag', u'alph'),
+                                   has_entries('count', 3, 'tag', u'alpha'),
+                                   has_entries('count', 3, 'tag', u'beta'),
+                                   has_entries('count', 3, 'tag', u'delta'),
+                                   has_entries('count', 3, 'tag', u'gamma'),
+                                   has_entries('count', 3, 'tag', u'law'),
+                                   has_entries('count', 3, 'tag', u'omega')))
 
         tags = self.testapp.get('%s?filter=%s' % (tag_url, 'ALPH')).json_body
         tags = tags[ITEMS]
         assert_that(tags, has_length(2))
+        tags = [x.get('tag') for x in tags]
         assert_that(tags, contains(u'alph', u'alpha'))
 
         # startswith comes first
@@ -654,20 +661,11 @@ class TestCourseManagement(ApplicationLayerTest):
         tags = tags[ITEMS]
         assert_that(tags, has_length(non_hidden_tag_count - 1))
         starts_with = tags[:2]
+        starts_with = [x.get('tag') for x in starts_with]
         other = tags[2:]
+        other = [x.get('tag') for x in other]
         assert_that(starts_with, contains(u'alph', u'alpha'))
         assert_that(other,
-                    contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
-
-        # Batching
-        tags = self.testapp.get('%s?filter=%s&batchStart=0&batchSize=2' % (tag_url, 'a'))
-        tags = tags.json_body[ITEMS]
-        assert_that(tags, has_length(2))
-        assert_that(tags, contains(u'alph', u'alpha'))
-        tags = self.testapp.get('%s?filter=%s&batchStart=2&batchSize=10' % (tag_url, 'a'))
-        tags = tags.json_body[ITEMS]
-        assert_that(tags, has_length(5))
-        assert_that(tags,
                     contains_inanyorder(u'beta', u'delta', u'gamma', u'law', u'omega'))
 
         tags = self.testapp.get('%s?filter=%s' % (tag_url, 'xxx')).json_body
