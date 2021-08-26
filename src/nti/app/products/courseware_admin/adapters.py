@@ -30,19 +30,13 @@ from nti.contenttypes.courses.utils import get_instructors_and_editors
 @component.adapter(ICourseCatalog)
 @interface.implementer(ICourseAdminsContainer)
 class CourseAdminsContainer(Contained):
+
     __name__ = VIEW_COURSE_ADMINS
     __parent__ = None
-    __site__ = None
+    __site__ = getSite().__name__
 
-    def __init__(self, context):
-        """
-        Traversal requires __parent__ to be not None, so we set one here;
-        We only want course admins for this site, not all the sites in the heirarchy,
-        so we explicitly pass it to the util functions instead of using their default
-        method (which goes up the heirarchy to find all of the sites therein) 
-        """
-        self.__parent__ = context
-        self.__site__ = getSite()
+    def __init__(self, course_catalog):
+        self.__parent__ = course_catalog
         
     @property
     def course_catalog(self):

@@ -45,6 +45,8 @@ from nti.app.products.courseware_admin import MessageFactory as _
 
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 
+from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
+
 from nti.app.users.utils import get_user_creation_site
 
 from nti.app.users.views.view_mixins import AbstractEntityViewMixin
@@ -353,10 +355,9 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
 class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
     pass
 
-@view_config(route_name='objects.generic.traversal',
+@view_config(context=ICourseAdminsContainer)
+@view_defaults(route_name='objects.generic.traversal',
              renderer='rest',
-             context=ICourseCatalog,
-             name=VIEW_COURSE_ADMINS,
              request_method='GET')
 class CourseAdminGetView(AbstractEntityViewMixin):
     """
@@ -368,10 +369,6 @@ class CourseAdminGetView(AbstractEntityViewMixin):
     _NUMERIC_SORTING = AbstractEntityViewMixin._NUMERIC_SORTING + (IX_LASTSEEN_TIME,)
     
     @Lazy
-    def is_admin(self):
-        return is_admin(self.remoteUser)
-    
-    @Lazy
     def filterInstructors(self):
         # pylint: disable=no-member
         return is_true(self.params.get('filterInstructors', 'False'))
@@ -380,21 +377,11 @@ class CourseAdminGetView(AbstractEntityViewMixin):
     def filterEditors(self):
         # pylint: disable=no-member
         return is_true(self.params.get('filterEditors', 'False'))
-
+    """
     def _predicate(self):
-        if not self.is_admin and not is_site_admin(self.remoteUser):
+        if not is_admin(self.remoteUser) and not is_site_admin(self.remoteUser):
             raise hexc.HTTPForbidden(_('Cannot view course administrators.'))
-
-    def _get_course_admins(self, site=None):
-        if self.filterInstructors and self.filterEditors:
-            return {}
-        elif self.filterInstructors:
-            return get_editors(site)
-        elif self.filterEditors:
-            return get_instructors(site)
-        else:
-            return get_instructors_and_editors(site)
-    
+    """
     @Lazy
     def sortMap(self):
         return {
@@ -428,9 +415,8 @@ class CourseAdminGetView(AbstractEntityViewMixin):
         return site
 
     def get_entity_intids(self, site=None):
-        intids = component.getUtility(IIntIds)
-        for user in self._get_course_admins(site):
-            doc_id = intids.getId(user)
+        course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors(), filterEditors=self.filterEditors())
+        for doc_id in course_admin_intids:
             yield doc_id
 
     def __call__(self):

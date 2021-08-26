@@ -30,12 +30,13 @@ from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 from nti.app.products.courseware_admin import VIEW_ASSESSMENT_POLICIES
-from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
+
+from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
 
 from nti.app.products.courseware_admin.mixins import RoleManageMixin
 from nti.app.products.courseware_admin.mixins import EditorManageMixin
@@ -64,6 +65,7 @@ from nti.externalization.interfaces import IExternalObjectDecorator
 from nti.externalization.interfaces import IExternalMappingDecorator
 
 from nti.links.links import Link
+from nti.links.links import LinkExternalHrefOnly
 
 LINKS = StandardExternalFields.LINKS
 
@@ -162,9 +164,8 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
         _links.append(link)
         
         link = Link(self.catalog,
-                    rel=VIEW_COURSE_ADMINS,
-                    elements=('@@%s' % VIEW_COURSE_ADMINS,))
-        interface.alsoProvides(link, ILocation)
+                        rel=VIEW_COURSE_ADMINS,
+                        elements=(VIEW_COURSE_ADMINS,))
         link.__name__ = ''
         link.__parent__ = context
         _links.append(link)
