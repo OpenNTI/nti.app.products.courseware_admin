@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from hamcrest import contains
 from hamcrest import has_length
 from hamcrest import has_entries
+from hamcrest import has_items
 from hamcrest import assert_that
 from hamcrest import contains_inanyorder
 from hamcrest import none
@@ -164,7 +165,7 @@ class TestCourseAdminView(ApplicationLayerTest):
     default_origin = 'http://janux.ou.edu'
 
     course_ntiid = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2013_CLC3403_LawAndJustice'
-    
+        
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def tearDown(self):
         """
@@ -213,11 +214,8 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_admins_href = self.require_link_href_with_rel(courses_workspace,
                                                      VIEW_COURSE_ADMINS)
         return course_admins_href
-    
+    """
     def _create_course(self):
-        """
-        Create course and return ext
-        """
         admin_href = self._get_admin_href()
         test_admin_key = 'CourseAdminTestKey'
         admin_res = self.testapp.post_json(admin_href, {'key': test_admin_key}).json_body
@@ -229,7 +227,7 @@ class TestCourseAdminView(ApplicationLayerTest):
 
         new_course = new_course.json_body
         return new_course
-        
+    """   
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_get_course_admins(self):
         """
@@ -240,19 +238,21 @@ class TestCourseAdminView(ApplicationLayerTest):
         
         with mock_dataserver.mock_db_trans(self.ds):
             site_admin = self._create_user(test_site_admin_username)
-            set_user_creation_site(site_admin, 'janux.ou.edu')
+            set_user_creation_site(site_admin, 'platform.ou.edu')
             
-        with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
+        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
             principal_role_manager = IPrincipalRoleManager(getSite())
-            #principal_role_manager.assignRoleToPrincipal(ROLE_SITE_ADMIN.id,
-            #                                             test_site_admin_username)
+            principal_role_manager.assignRoleToPrincipal(ROLE_SITE_ADMIN.id,
+                                                         test_site_admin_username)
+            
+        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
             entry = find_object_with_ntiid(self.course_ntiid)
             course_oid = to_external_ntiid_oid(ICourseInstance(entry))
             
         nt_admin_environ = self._make_extra_environ()
-        nt_admin_environ['HTTP_ORIGIN'] = 'http://janux.ou.edu'
+        nt_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'
         site_admin_environ = self._make_extra_environ(user=test_site_admin_username)
-        site_admin_environ['HTTP_ORIGIN'] = 'http://janux.ou.edu'       
+        site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'       
         
         # Instructor
         self.create_user(u'shota.aizawa')
@@ -264,18 +264,42 @@ class TestCourseAdminView(ApplicationLayerTest):
         self.create_user(u'toshinori.yagi')
 
         # Admin links
-        course = self._create_course()
-        course_roles_href = self.require_link_href_with_rel(course, VIEW_COURSE_ROLES)
+        """
+        admin_href = self._get_admin_href()
+        test_admin_key = 'CourseAdminTestKey'
+        admin_res = self.testapp.post_json(admin_href, {'key': test_admin_key}).json_body
+        new_admin_href = admin_res['href']
+        new_course = self.testapp.post_json(new_admin_href,
+                                            {'ProviderUniqueID': 'CourseAdminTestCourse',
+                                             'title': 'CourseAdminTestCourse',
+                                             'RichDescription': 'CourseAdminTestCourse'})
+
+        new_course = new_course.json_body
+        """
+        course = self.testapp.get('/dataserver2/Objects/%s' % course_oid)
+        course_ext = course.json_body
+        course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
         course_admins_href = self._get_course_admins_href()
-        course_admins = self.testapp.get(course_admins_href, extra_environ=nt_admin_environ)
+        
         data = dict()
         data['roles'] = roles = dict()
         roles['instructors'] = list(['jmadden', 'harp4162', 'shota.aizawa', 'toshinori.yagi'])
         roles['editors'] = list(['jmadden', 'harp4162', 'tenya.ida', 'toshinori.yagi'])
         self.testapp.put_json(course_roles_href, data)
+        
+        #Test for all course admins
         course_admins = self.testapp.get(course_admins_href, extra_environ=nt_admin_environ)
+        res = course_admins.json_body
+        from IPython.terminal.debugger import set_trace;set_trace()
+        usernames = [x['Username'] for x in res['Items']]
+        assert_that(usernames, has_items('shota.aizawa',
+                                                   'toshinori.yagi',
+                                                   'tenya.ida'))
+        
+        #Test for just instructors
+        course_admins = self.testapp.get(course_admins_href, extra_environ=site_admin_environ)
+        res = course_admins.json_body
         #Remove some of the instructors and editors
         roles['instructors'] = list(['jmadden', 'harp4162'])
         roles['editors'] = list(['jmadden', 'harp4162'])
         self.testapp.put_json(course_roles_href, data)
-        self.testapp.delete('/dataserver2/users/%s' % test_site_admin_username)
