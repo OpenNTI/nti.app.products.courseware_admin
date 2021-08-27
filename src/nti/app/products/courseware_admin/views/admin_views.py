@@ -366,11 +366,11 @@ class CourseAdminGetView(AbstractEntityViewMixin):
     def filterEditors(self):
         # pylint: disable=no-member
         return is_true(self.params.get('filterEditors', 'False'))
-    """
+
     def _predicate(self):
         if not is_admin(self.remoteUser) and not is_site_admin(self.remoteUser):
             raise hexc.HTTPForbidden(_('Cannot view course administrators.'))
-    """
+    
     @Lazy
     def sortMap(self):
         return {

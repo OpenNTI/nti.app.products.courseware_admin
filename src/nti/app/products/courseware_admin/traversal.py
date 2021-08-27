@@ -11,4 +11,5 @@ from __future__ import absolute_import
 from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
 
 def _course_admins_path_adapter(context, request):
-    return ICourseAdminsContainer(context)
+    from IPython.terminal.debugger import set_trace;set_trace()
+    return ICourseAdminsContainer(context, request)
