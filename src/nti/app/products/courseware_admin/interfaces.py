@@ -20,3 +20,4 @@ class ICourseAdminsContainer(IContained):
         An iterable of intids for IUser objects which are instructors and/or
         editors of one or more courses in this course catalog
         """
+        pass
