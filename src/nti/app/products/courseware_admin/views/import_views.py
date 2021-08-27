@@ -84,6 +84,9 @@ logger = __import__('logging').getLogger(__name__)
 class CourseImportMixin(AbstractAuthenticatedView,
                         ModeledContentUploadRequestUtilsMixin):
 
+    def copy_title_prefix(self, values):
+        return values.get('titlePrefix', '[COPIED] ')
+    
     def readInput(self, value=None):
         if not self.request.body:
             return CaseInsensitiveDict()
@@ -166,10 +169,9 @@ class CourseImportMixin(AbstractAuthenticatedView,
     def _do_call(self):
         pass
 
-    def _update_entry_title(self, course):
+    def _update_entry_title(self, course, prefix=None):
         entry = ICourseCatalogEntry(course, None)
-        if entry is not None:
-            prefix = '[COPIED] '
+        if entry is not None and prefix is not None:
             max_length = ICourseCatalogEntry['title'].max_length
             old_title = entry.title or ''
             entry.title = '%s%s' % (prefix, old_title[:max_length-len(prefix)])
@@ -257,7 +259,7 @@ class CourseImportView(CourseImportMixin):
             course = ICourseInstance(self.context)
             result['Course'] = course
             notify(ObjectModifiedFromExternalEvent(course))
-            self._update_entry_title(course)
+            self._update_entry_title(course, prefix=self.copy_title_prefix(values))
         finally:
             delete_directory(tmp_path)
         return result
@@ -383,7 +385,7 @@ class ImportCourseView(CourseImportMixin):
                                              validate_export_hash=validate_export_hash)
 
             notify(ObjectModifiedFromExternalEvent(course))
-            self._update_entry_title(course)
+            self._update_entry_title(course, prefix=self.copy_title_prefix(values))
             result['Course'] = course
             result['Elapsed'] = time.time() - now
         except Exception as e:
