@@ -181,7 +181,7 @@ class TestCourseAdminView(ApplicationLayerTest):
             shutil.rmtree(enumeration.root.absolute_path, True)
     
     def _sync(self):
-        with mock_dataserver.mock_db_trans(site_name='janux.ou.edu'):
+        with mock_dataserver.mock_db_trans(site_name='platform.ou.edu'):
             library = component.getUtility(IContentPackageLibrary)
             course_catalog = component.getUtility(ICourseCatalog)
             enumeration = IDelimitedHierarchyContentPackageEnumeration(library)
@@ -293,7 +293,6 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Test for all course admins
         course_admins = self.testapp.get(course_admins_href, extra_environ=nt_admin_environ)
         res = course_admins.json_body
-        from IPython.terminal.debugger import set_trace;set_trace()
         usernames = [x['Username'] for x in res['Items']]
         assert_that(usernames, has_items('shota.aizawa',
                                                    'toshinori.yagi',
