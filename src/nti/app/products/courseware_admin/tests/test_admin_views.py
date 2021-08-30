@@ -214,20 +214,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_admins_href = self.require_link_href_with_rel(courses_workspace,
                                                      VIEW_COURSE_ADMINS)
         return course_admins_href
-    """
-    def _create_course(self):
-        admin_href = self._get_admin_href()
-        test_admin_key = 'CourseAdminTestKey'
-        admin_res = self.testapp.post_json(admin_href, {'key': test_admin_key}).json_body
-        new_admin_href = admin_res['href']
-        new_course = self.testapp.post_json(new_admin_href,
-                                            {'ProviderUniqueID': 'CourseAdminTestCourse',
-                                             'title': 'CourseAdminTestCourse',
-                                             'RichDescription': 'CourseAdminTestCourse'})
-
-        new_course = new_course.json_body
-        return new_course
-    """   
+ 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_get_course_admins(self):
         """
@@ -280,7 +267,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_ext = course.json_body
         course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
         course_admins_href = self._get_course_admins_href()
-        
+        from IPython.terminal.debugger import set_trace;set_trace()
         data = dict()
         data['roles'] = roles = dict()
         roles['instructors'] = list(['jmadden', 'harp4162', 'shota.aizawa', 'toshinori.yagi'])
@@ -290,6 +277,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Test for all course admins
         course_admins = self.testapp.get(course_admins_href, extra_environ=nt_admin_environ)
         res = course_admins.json_body
+        
         usernames = [x['Username'] for x in res['Items']]
         assert_that(usernames, has_items('shota.aizawa',
                                                    'toshinori.yagi',
@@ -298,6 +286,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Test for just instructors
         course_admins = self.testapp.get(course_admins_href, extra_environ=site_admin_environ)
         res = course_admins.json_body
+        
         #Remove some of the instructors and editors
         roles['instructors'] = list(['jmadden', 'harp4162'])
         roles['editors'] = list(['jmadden', 'harp4162'])
