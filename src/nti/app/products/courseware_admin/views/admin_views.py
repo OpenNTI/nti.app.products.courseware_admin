@@ -359,7 +359,7 @@ class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
 @view_defaults(route_name='objects.generic.traversal',
              renderer='rest',
              request_method='GET')
-class CourseAdminGetView(AbstractEntityViewMixin):
+class CourseAdminsGetView(AbstractEntityViewMixin):
     """
     Return all course admins (instructors and editors of any course in the site)
     Filter by only instructors or only editors if requested
@@ -415,7 +415,7 @@ class CourseAdminGetView(AbstractEntityViewMixin):
         return site
 
     def get_entity_intids(self, site=None):
-        course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors(), filterEditors=self.filterEditors())
+        course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors)
         for doc_id in course_admin_intids:
             yield doc_id
 

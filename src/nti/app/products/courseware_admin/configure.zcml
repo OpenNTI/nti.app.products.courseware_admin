@@ -87,13 +87,15 @@
 				provides="nti.appserver.workspaces.interfaces.IUserWorkspaceLinkProvider"/>
 				
 	<!-- Traversal stuff -->
+	
+	<adapter factory=".traversal.CourseAdminsTraversable"
+			 for="nti.contenttypes.courses.interfaces.ICourseCatalog pyramid.interfaces.IRequest"
+			 provides="zope.traversing.interfaces.ITraversable" />
 
 	<adapter name="CourseAdmins"
-		 for="nti.app.products.courseware.interfaces.ICoursesWorkspace pyramid.interfaces.IRequest"
-		 factory=".adapters.course_admins_path_adapter"
-		 provides="zope.traversing.interfaces.IPathAdapter" />
+		 	 for="nti.contenttypes.courses.interfaces.ICourseCatalog pyramid.interfaces.IRequest"
+         	 factory=".traversal.course_admins_path_adapter"
+		 	 provides="zope.traversing.interfaces.IPathAdapter" />
 		 
-	<!-- Utilities -->
-	<utility factory=".completables.CourseAdminsCompletables" name="CourseAdmins" />
 
 </configure>
