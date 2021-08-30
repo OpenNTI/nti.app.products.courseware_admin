@@ -68,11 +68,3 @@ class CourseAdminsContainer(Contained):
             userIntids.append(doc_id)
             
         return userIntids
-    
-@interface.implementer(IPathAdapter)
-@component.adapter(ICoursesWorkspace, IRequest)
-def course_admins_path_adapter(course_workspace, request):
-    from IPython.terminal.debugger import set_trace;set_trace()
-    course_catalog = component.queryUtility(ICourseCatalog)
-    course_admins_container = CourseAdminsContainer(course_catalog, request)
-    return course_admins_container(course_catalog, request)
