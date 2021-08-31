@@ -36,8 +36,6 @@ from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
 
-from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
-
 from nti.app.products.courseware_admin.mixins import RoleManageMixin
 from nti.app.products.courseware_admin.mixins import EditorManageMixin
 from nti.app.products.courseware_admin.mixins import InstructorManageMixin
@@ -65,7 +63,6 @@ from nti.externalization.interfaces import IExternalObjectDecorator
 from nti.externalization.interfaces import IExternalMappingDecorator
 
 from nti.links.links import Link
-from nti.links.links import LinkExternalHrefOnly
 
 LINKS = StandardExternalFields.LINKS
 
@@ -163,13 +160,10 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
         link.__parent__ = context
         _links.append(link)
         
-        link = Link(self.catalog,
+        link = Link(getSite().getSiteManager(),
                         rel=VIEW_COURSE_ADMINS,
                         elements=(VIEW_COURSE_ADMINS,))
-        link.__name__ = ''
-        link.__parent__ = context
         _links.append(link)
-
 
 @component.adapter(ICourseInstance)
 @interface.implementer(IExternalMappingDecorator)

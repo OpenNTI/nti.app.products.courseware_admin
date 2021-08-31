@@ -13,8 +13,6 @@ from zope import interface
 
 from zope.container.contained import Contained
 
-from zope.component.hooks import getSite
-
 from zope.intid.interfaces import IIntIds
 
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS

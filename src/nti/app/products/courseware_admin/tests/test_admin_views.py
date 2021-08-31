@@ -15,6 +15,7 @@ from hamcrest import assert_that
 from hamcrest import contains_inanyorder
 from hamcrest import none
 from hamcrest import not_none
+from hamcrest import is_
 
 import shutil
 
@@ -239,9 +240,14 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Site Admin
         test_site_admin_username = u'test_site_admin'
         
+        #Normal User
+        normal_user_username = u'izuku.midoriya'
+        
         with mock_dataserver.mock_db_trans(self.ds):
             site_admin = self._create_user(test_site_admin_username)
+            normal_user = self._create_user(normal_user_username)
             set_user_creation_site(site_admin, 'platform.ou.edu')
+            set_user_creation_site(normal_user, 'platform.ou.edu')
             
         with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
             principal_role_manager = IPrincipalRoleManager(getSite())
@@ -255,7 +261,9 @@ class TestCourseAdminView(ApplicationLayerTest):
         nt_admin_environ = self._make_extra_environ()
         nt_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'
         site_admin_environ = self._make_extra_environ(user=test_site_admin_username)
-        site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'       
+        site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu' 
+        normal_user_environ = self._make_extra_environ(user=normal_user_username)   
+        normal_user_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'    
         
         # Instructor
         self.create_user(u'shota.aizawa')
@@ -267,41 +275,52 @@ class TestCourseAdminView(ApplicationLayerTest):
         self.create_user(u'toshinori.yagi')
 
         # Admin links
-        """
-        admin_href = self._get_admin_href()
-        test_admin_key = 'CourseAdminTestKey'
-        admin_res = self.testapp.post_json(admin_href, {'key': test_admin_key}).json_body
-        new_admin_href = admin_res['href']
-        new_course = self.testapp.post_json(new_admin_href,
-                                            {'ProviderUniqueID': 'CourseAdminTestCourse',
-                                             'title': 'CourseAdminTestCourse',
-                                             'RichDescription': 'CourseAdminTestCourse'})
-
-        new_course = new_course.json_body
-        """
         course = self.testapp.get('/dataserver2/Objects/%s' % course_oid)
         course_ext = course.json_body
         course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
         course_admins_href = self._get_course_admins_href()
-        
+
         data = dict()
         data['roles'] = roles = dict()
         roles['instructors'] = list(['jmadden', 'harp4162', 'shota.aizawa', 'toshinori.yagi'])
         roles['editors'] = list(['jmadden', 'harp4162', 'tenya.ida', 'toshinori.yagi'])
         self.testapp.put_json(course_roles_href, data)
         
+        #Test permissioning
+        self.testapp.get(course_admins_href, extra_environ=normal_user_environ, status=403)
+        
         #Test for all course admins
         course_admins = self.testapp.get(course_admins_href, extra_environ=nt_admin_environ)
         res = course_admins.json_body
-        from IPython.terminal.debugger import set_trace;set_trace()
-        usernames = [x['Username'] for x in res['Items']]
+        usernames = [x['username'] for x in res['Items']]
         assert_that(usernames, has_items('shota.aizawa',
                                                    'toshinori.yagi',
                                                    'tenya.ida'))
         
         #Test for just instructors
-        course_admins = self.testapp.get(course_admins_href, extra_environ=site_admin_environ)
+        params = {"filterEditors": True}
+        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
         res = course_admins.json_body
+        usernames = [x['username'] for x in res['Items']]
+        assert_that(usernames, has_items('shota.aizawa',
+                                                   'toshinori.yagi'))
+        assert_that(usernames, not(has_items('tenya.ida')))
+        
+        #Test for just editors
+        params = {"filterInstructors": True}
+        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        res = course_admins.json_body
+        usernames = [x['username'] for x in res['Items']]
+        assert_that(usernames, has_items('tenya.ida',
+                                                   'toshinori.yagi'))
+        assert_that(usernames, not(has_items('shota.aizawa')))
+        
+        #Test for filtering everything
+        params = {"filterInstructors": True, "filterEditors": True}
+        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        res = course_admins.json_body
+        assert_that(len(res['Items']), is_(0))
+        
         #Remove some of the instructors and editors
         roles['instructors'] = list(['jmadden', 'harp4162'])
         roles['editors'] = list(['jmadden', 'harp4162'])
