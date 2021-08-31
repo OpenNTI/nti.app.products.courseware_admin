@@ -8,32 +8,22 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-from pyramid.interfaces import IRequest
-
 from zope import component
 from zope import interface
 
 from zope.container.contained import Contained
 
-from zope.component.hooks import getSite
-
 from zope.intid.interfaces import IIntIds
-
-from zope.traversing.interfaces import IPathAdapter
 
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 
 from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
-
-from nti.app.products.courseware.interfaces import ICoursesWorkspace
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 
 from nti.contenttypes.courses.utils import get_instructors
 from nti.contenttypes.courses.utils import get_editors
 from nti.contenttypes.courses.utils import get_instructors_and_editors
-
-from nti.externalization.persistence import NoPickle
 
 @component.adapter(ICourseCatalog)
 @interface.implementer(ICourseAdminsContainer)

@@ -86,15 +86,18 @@
 	<subscriber	factory=".providers._CourseImportLinkProvider"
 				provides="nti.appserver.workspaces.interfaces.IUserWorkspaceLinkProvider"/>
 				
-	<!-- Traversal stuff -->
-	
-	<adapter factory=".traversal.CourseAdminsTraversable"
-			 for="nti.contenttypes.courses.interfaces.ICourseCatalog pyramid.interfaces.IRequest"
-			 provides="zope.traversing.interfaces.ITraversable" />
+	<!-- Externalization -->
+	<include package="nti.externalization" file="meta.zcml" />
+	<include package="nti.externalization" />
 
+	<ext:registerAutoPackageIO
+		root_interfaces=".interfaces.ICourseAdminSummary"
+		modules="" />
+				
+	<!-- Traversal -->
 	<adapter name="CourseAdmins"
-		 	 for="nti.contenttypes.courses.interfaces.ICourseCatalog pyramid.interfaces.IRequest"
-         	 factory=".traversal.course_admins_path_adapter"
+    		 factory=".traversal.course_admins_path_adapter"
+		 	 for="nti.site.interfaces.IHostPolicySiteManager pyramid.interfaces.IRequest"
 		 	 provides="zope.traversing.interfaces.IPathAdapter" />
 		 
 
