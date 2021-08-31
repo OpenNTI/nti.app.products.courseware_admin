@@ -11,8 +11,6 @@ from __future__ import absolute_import
 from zope import component
 from zope import interface
 
-from zope.traversing.interfaces import ITraversable
-
 from pyramid.interfaces import IRequest
 
 from zope.traversing.interfaces import IPathAdapter
@@ -21,19 +19,11 @@ from nti.app.products.courseware_admin.adapters import CourseAdminsContainer
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 
-from nti.traversal.traversal import ContainerAdapterTraversable
-
-@interface.implementer(ITraversable)
-@component.adapter(ICourseCatalog, IRequest)
-class CourseAdminsTraversable(ContainerAdapterTraversable):
-    def traverse(self, key, remaining_path):
-        return super(CourseAdminsTraversable, self).traverse(key, remaining_path)
-
-
+from nti.site.interfaces import IHostPolicySiteManager
 
 @interface.implementer(IPathAdapter)
-@component.adapter(ICourseCatalog, IRequest)
-def course_admins_path_adapter(course_catalog, request):
+@component.adapter(IHostPolicySiteManager, IRequest)
+def course_admins_path_adapter(host_site_manager, request):
     course_catalog = component.queryUtility(ICourseCatalog)
     course_admins_container = CourseAdminsContainer(course_catalog, request)
     return course_admins_container

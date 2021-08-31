@@ -26,8 +26,6 @@ from zope.component.hooks import getSite
 
 from zope.event import notify
 
-from zope.intid.interfaces import IIntIds
-
 from zope.security.interfaces import IPrincipal
 
 from zope.securitypolicy.interfaces import Allow
@@ -43,11 +41,8 @@ from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
-from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
-
-from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
-
-from nti.app.users.utils import get_user_creation_site
+from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer,\
+    CourseAdminSummary
 
 from nti.app.users.views.view_mixins import AbstractEntityViewMixin
 
@@ -69,9 +64,6 @@ from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 from nti.contenttypes.courses.sharing import update_package_permissions
 
 from nti.contenttypes.courses.utils import get_course_instructors
-from nti.contenttypes.courses.utils import get_instructors
-from nti.contenttypes.courses.utils import get_editors
-from nti.contenttypes.courses.utils import get_instructors_and_editors
 
 from nti.coremetadata.interfaces import IDeactivatedUser
 from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
@@ -79,11 +71,8 @@ from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
-from nti.dataserver.authorization import is_admin
-from nti.dataserver.authorization import is_site_admin
 
 from nti.dataserver.interfaces import IUser
-from nti.dataserver.interfaces import ISiteAdminUtility
 
 from nti.dataserver.metadata.index import IX_CREATEDTIME
 from nti.dataserver.metadata.index import get_metadata_catalog
@@ -358,7 +347,8 @@ class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
 @view_config(context=ICourseAdminsContainer)
 @view_defaults(route_name='objects.generic.traversal',
              renderer='rest',
-             request_method='GET')
+             request_method='GET',
+             permission=nauth.ACT_CONTENT_EDIT)
 class CourseAdminsGetView(AbstractEntityViewMixin):
     """
     Return all course admins (instructors and editors of any course in the site)
@@ -378,10 +368,6 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
         # pylint: disable=no-member
         return is_true(self.params.get('filterEditors', 'False'))
 
-    def _predicate(self):
-        if not is_admin(self.remoteUser) and not is_site_admin(self.remoteUser):
-            raise hexc.HTTPForbidden(_('Cannot view course administrators.'))
-    
     @Lazy
     def sortMap(self):
         return {
@@ -391,15 +377,6 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
             IX_CREATEDTIME: get_metadata_catalog(),
             IX_LASTSEEN_TIME: get_metadata_catalog(),
         }
-
-    def search_include(self, doc_id):
-        result = doc_id
-        # Filter by only instructors or editors if requested
-        if self.filterEditors:
-            result = doc_id not in self.editor_intids
-        if self.filterInstructors:
-            result = doc_id not in self.instructor_intids
-        return result
     
     @Lazy
     def site_name(self):
@@ -418,7 +395,12 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
         course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors)
         for doc_id in course_admin_intids:
             yield doc_id
+            
+    def user_to_course_admin_summary(self, User):
+        return CourseAdminSummary(User.username)
+    
+    def _batch_selector(self, user):
+        return self.user_to_course_admin_summary(user)
 
     def __call__(self):
-        self._predicate()
         return self._do_call()
