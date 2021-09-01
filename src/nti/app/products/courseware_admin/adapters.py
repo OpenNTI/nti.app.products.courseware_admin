@@ -34,8 +34,8 @@ class CourseAdminsContainer(Contained):
     __parent__ = None
     __site__ = None
 
-    def __init__(self, course_catalog):
-        self.__parent__ = course_catalog
+    def __init__(self, context):
+        self.__parent__ = context
         self.__site__ = getSite()
         
     @property
