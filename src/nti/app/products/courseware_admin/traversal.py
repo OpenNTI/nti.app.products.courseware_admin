@@ -25,5 +25,5 @@ from nti.site.interfaces import IHostPolicySiteManager
 @component.adapter(IHostPolicySiteManager, IRequest)
 def course_admins_path_adapter(host_site_manager, request):
     course_catalog = component.queryUtility(ICourseCatalog)
-    course_admins_container = CourseAdminsContainer(course_catalog, request)
+    course_admins_container = CourseAdminsContainer(course_catalog)
     return course_admins_container

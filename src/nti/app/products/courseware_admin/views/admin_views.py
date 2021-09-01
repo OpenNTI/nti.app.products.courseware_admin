@@ -39,8 +39,8 @@ from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
-from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer,\
-    CourseAdminSummary
+from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
+from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
 
 from nti.app.users.views.view_mixins import AbstractEntityViewMixin
 
@@ -366,30 +366,14 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
             IX_CREATEDTIME: get_metadata_catalog(),
             IX_LASTSEEN_TIME: get_metadata_catalog(),
         }
-    
-    @Lazy
-    def site_name(self):
-        # pylint: disable=no-member
-        site = self.params.get('site') or getSite().__name__
-        if site not in get_component_hierarchy_names():
-            raise_json_error(self.request,
-                             hexc.HTTPUnprocessableEntity,
-                             {
-                                 'message': _(u'Invalid site.'),
-                             },
-                             None)
-        return site
 
     def get_entity_intids(self, site=None):
         course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors)
         for doc_id in course_admin_intids:
             yield doc_id
-            
-    def user_to_course_admin_summary(self, User):
-        return CourseAdminSummary(User.username)
     
     def _batch_selector(self, user):
-        return self.user_to_course_admin_summary(user)
+        return CourseAdminSummary(user.username)
 
     def __call__(self):
         return self._do_call()
