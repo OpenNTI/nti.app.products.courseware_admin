@@ -34,7 +34,7 @@ class ICourseAdminSummary(interface.Interface):
     Wrapper object for course admins that contains their username and
     other useful information
     """
-    _user = Object(IUser,
+    user = Object(IUser,
                    title=u'User object',
                    description=u'The User object for this course admin',
                    required=True)
@@ -42,10 +42,12 @@ class ICourseAdminSummary(interface.Interface):
                            description=u'The username for this course admin',
                            required=True)
     
+    user.setTaggedValue('_ext_excluded_out', True)
+    
 @interface.implementer(ICourseAdminSummary)
 class CourseAdminSummary(object):
     
     def __init__(self, user):
-        self._user = user
+        self.user = user
         self.username = user.username
         
