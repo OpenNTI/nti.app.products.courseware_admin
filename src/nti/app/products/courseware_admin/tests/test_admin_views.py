@@ -234,6 +234,15 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Normal User
         normal_user_username = u'izuku.midoriya'
         
+        #Instructor
+        instructor_username = u'shota.aizawa'
+        
+        #Editor
+        editor_username = u'tenya.ida'
+        
+        #Instructor/Editor
+        instructor_and_editor_username = u'toshinori.yagi'
+        
         with mock_dataserver.mock_db_trans(self.ds):
             site_admin = self._create_user(test_site_admin_username)
             normal_user = self._create_user(normal_user_username)
@@ -256,14 +265,9 @@ class TestCourseAdminView(ApplicationLayerTest):
         normal_user_environ = self._make_extra_environ(user=normal_user_username)   
         normal_user_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'    
         
-        # Instructor
-        self.create_user(u'shota.aizawa')
-
-        # Editor
-        self.create_user(u'tenya.ida')
-
-        # Both
-        self.create_user(u'toshinori.yagi')
+        self.create_user(instructor_username)
+        self.create_user(editor_username)
+        self.create_user(instructor_and_editor_username)
 
         # Admin links
         course = self.testapp.get('/dataserver2/Objects/%s' % course_oid)
@@ -271,22 +275,23 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
         course_admins_href = self._get_course_admins_href()
 
+        headers = {'accept': str('application/json')}
         data = dict()
         data['roles'] = roles = dict()
-        roles['instructors'] = list(['jmadden', 'harp4162', 'shota.aizawa', 'toshinori.yagi'])
-        roles['editors'] = list(['jmadden', 'harp4162', 'tenya.ida', 'toshinori.yagi'])
+        roles['instructors'] = list(['jmadden', 'harp4162', instructor_username, instructor_and_editor_username])
+        roles['editors'] = list(['jmadden', 'harp4162', editor_username, instructor_and_editor_username])
         self.testapp.put_json(course_roles_href, data)
         
         #Test permissioning
         self.testapp.get(course_admins_href, extra_environ=normal_user_environ, status=403)
         
         #Test for all course admins
-        course_admins = self.testapp.get(course_admins_href, extra_environ=nt_admin_environ)
+        course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=nt_admin_environ)
         res = course_admins.json_body
         usernames = [x['username'] for x in res['Items']]
-        assert_that(usernames, has_items('shota.aizawa',
-                                                   'toshinori.yagi',
-                                                   'tenya.ida'))
+        assert_that(usernames, has_items(instructor_username,
+                                                   instructor_and_editor_username,
+                                                   editor_username))
         
         #Save list of all course admins in site to compare for sorting
         with mock_dataserver.mock_db_trans(self.ds):
@@ -296,13 +301,13 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Test Sorting
         sorted_usernames = sorted(usernames) #Sorts usernames alphabetically; equivalent to sortOn: displayName, sortOrder: ascending
         params = {"sortOn": IX_DISPLAYNAME}
-        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body
         for x in range(len(res['Items'])):
             assert_that(res['Items'][x]['username'], is_(sorted_usernames[x]))
         
         params = {"sortOn": IX_CREATEDTIME}
-        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body
         with mock_dataserver.mock_db_trans(self.ds):
             for x in range(len(res['Items'])):
@@ -310,28 +315,40 @@ class TestCourseAdminView(ApplicationLayerTest):
                 
         #Test for just instructors
         params = {"filterEditors": True}
-        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body
         usernames = [x['username'] for x in res['Items']]
-        assert_that(usernames, has_items('shota.aizawa',
-                                                   'toshinori.yagi'))
-        assert_that(usernames, not(has_items('tenya.ida')))
+        assert_that(usernames, has_items(instructor_username,
+                                                   instructor_and_editor_username))
+        assert_that(usernames, not(has_items(editor_username)))
         
         #Test for just editors
         params = {"filterInstructors": True}
-        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body
         usernames = [x['username'] for x in res['Items']]
-        assert_that(usernames, has_items('tenya.ida',
-                                                   'toshinori.yagi'))
-        assert_that(usernames, not(has_items('shota.aizawa')))
+        assert_that(usernames, has_items(editor_username,
+                                                   instructor_and_editor_username))
+        assert_that(usernames, not(has_items(instructor_username)))
         
         #Test for filtering everything
         params = {"filterInstructors": True, "filterEditors": True}
-        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body
         assert_that(len(res['Items']), is_(0))
         
+        # CSV
+        params = {'sortOn': 'createdTime'}
+        headers = {'accept': str('text/csv')}
+        res = self.testapp.get(course_admins_href, params, status=200, headers=headers,
+                               extra_environ=site_admin_environ)
+        csv_reader = csv.DictReader(StringIO(res.body))
+        csv_reader = tuple(csv_reader)
+        assert_that(csv_reader, has_length(len(all_course_admins)))
+        assert_that(csv_reader, has_items(has_entries('username', instructor_username,
+                                                      'username', editor_username,
+                                                      'username', instructor_and_editor_username)))
+
         #Remove some of the instructors and editors
         roles['instructors'] = list(['jmadden', 'harp4162'])
         roles['editors'] = list(['jmadden', 'harp4162'])
