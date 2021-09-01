@@ -13,6 +13,8 @@ from zope import interface
 
 from zope.container.contained import Contained
 
+from zope.component.hooks import getSite
+
 from zope.intid.interfaces import IIntIds
 
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
@@ -32,9 +34,9 @@ class CourseAdminsContainer(Contained):
     __parent__ = None
     __site__ = None
 
-    def __init__(self, course_catalog, request):
+    def __init__(self, course_catalog):
         self.__parent__ = course_catalog
-        self.__site__ = request.params.get('site')
+        self.__site__ = getSite()
         
     @property
     def course_catalog(self):
