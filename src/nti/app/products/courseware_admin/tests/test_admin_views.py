@@ -59,9 +59,13 @@ from nti.coremetadata.interfaces import IDeactivatedUser
 
 from nti.dataserver.authorization import ROLE_SITE_ADMIN
 
+from nti.dataserver.metadata.index import IX_CREATEDTIME
+
 from nti.dataserver.tests import mock_dataserver
 
 from nti.dataserver.users import User
+
+from nti.dataserver.users.index import IX_DISPLAYNAME
 
 from nti.dataserver.users.interfaces import IUserProfile
 
@@ -284,6 +288,26 @@ class TestCourseAdminView(ApplicationLayerTest):
                                                    'toshinori.yagi',
                                                    'tenya.ida'))
         
+        #Save list of all course admins in site to compare for sorting
+        with mock_dataserver.mock_db_trans(self.ds):
+            all_course_admins = [User.get_user(x) for x in usernames]
+            all_course_admins.sort(key=lambda x: getattr(x, IX_CREATEDTIME, 0)) #Sorts list of all course admin user objects in this site by createdTime
+        
+        #Test Sorting
+        sorted_usernames = sorted(usernames) #Sorts usernames alphabetically; equivalent to sortOn: displayName, sortOrder: ascending
+        params = {"sortOn": IX_DISPLAYNAME}
+        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        res = course_admins.json_body
+        for x in range(len(res['Items'])):
+            assert_that(res['Items'][x]['username'], is_(sorted_usernames[x]))
+        
+        params = {"sortOn": IX_CREATEDTIME}
+        course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
+        res = course_admins.json_body
+        with mock_dataserver.mock_db_trans(self.ds):
+            for x in range(len(res['Items'])):
+                assert_that(res['Items'][x]['username'], is_(all_course_admins[x].username))
+                
         #Test for just instructors
         params = {"filterEditors": True}
         course_admins = self.testapp.get(course_admins_href, params, extra_environ=site_admin_environ)
