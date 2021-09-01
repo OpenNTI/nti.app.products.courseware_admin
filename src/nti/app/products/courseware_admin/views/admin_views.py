@@ -22,7 +22,6 @@ from zope import interface
 from zope.cachedescriptors.property import Lazy
 
 from zope.component.hooks import site as current_site
-from zope.component.hooks import getSite
 
 from zope.event import notify
 
@@ -373,7 +372,16 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
             yield doc_id
     
     def _batch_selector(self, user):
-        return CourseAdminSummary(user.username)
+        return CourseAdminSummary(user)
+    
+    def _post_numeric_sorting(self, ext_res, sort_on, reverse):
+        """
+        Sorts the `Items` in the result dict in-place, using the sort_on
+        and reverse params.
+        """
+        ext_res[ITEMS] = sorted(ext_res[ITEMS],
+                                key=lambda x: getattr(x._user, sort_on, 0),
+                                reverse=reverse)
 
     def __call__(self):
         return self._do_call()
