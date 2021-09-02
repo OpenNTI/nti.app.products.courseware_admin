@@ -15,6 +15,8 @@ from zope import interface
 
 from zope.cachedescriptors.property import Lazy
 
+from zope.component.hooks import getSite
+
 from zope.location.interfaces import ILocation
 
 from nti.app.products.courseware.interfaces import ICoursesWorkspace
@@ -26,6 +28,7 @@ from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_COURSE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_INSTRUCTORS
+from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 from nti.app.products.courseware_admin import VIEW_ASSESSMENT_POLICIES
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
@@ -156,7 +159,11 @@ class _CourseWorkspaceDecorator(AbstractAuthenticatedRequestAwareDecorator):
         link.__name__ = ''
         link.__parent__ = context
         _links.append(link)
-
+        
+        link = Link(getSite().getSiteManager(),
+                        rel=VIEW_COURSE_ADMINS,
+                        elements=(VIEW_COURSE_ADMINS,))
+        _links.append(link)
 
 @component.adapter(ICourseInstance)
 @interface.implementer(IExternalMappingDecorator)

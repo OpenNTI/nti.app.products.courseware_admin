@@ -19,6 +19,8 @@ from zope import component
 
 from zope import interface
 
+from zope.cachedescriptors.property import Lazy
+
 from zope.component.hooks import site as current_site
 
 from zope.event import notify
@@ -35,6 +37,13 @@ from nti.app.externalization.error import raise_json_error
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
+
+from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
+from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
+
+from nti.app.users.views.view_mixins import AbstractEntityViewMixin
+
+from nti.common.string import is_true
 
 from nti.contenttypes.courses.common import get_course_packages
 
@@ -54,12 +63,22 @@ from nti.contenttypes.courses.sharing import update_package_permissions
 from nti.contenttypes.courses.utils import get_course_instructors
 
 from nti.coremetadata.interfaces import IDeactivatedUser
+from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
 
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
 
 from nti.dataserver.interfaces import IUser
+
+from nti.dataserver.metadata.index import IX_CREATEDTIME
+from nti.dataserver.metadata.index import get_metadata_catalog
+
+from nti.dataserver.users.index import IX_ALIAS
+from nti.dataserver.users.index import IX_REALNAME
+from nti.dataserver.users.index import IX_DISPLAYNAME
+
+from nti.dataserver.users.index import get_entity_catalog
 
 from nti.dataserver.users.users import User
 
@@ -312,3 +331,57 @@ class SyncCourseInstructorsView(AbstractAuthenticatedView):
                permission=nauth.ACT_NTI_ADMIN)
 class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
     pass
+
+@view_config(context=ICourseAdminsContainer)
+@view_defaults(route_name='objects.generic.traversal',
+             renderer='rest',
+             request_method='GET',
+             permission=nauth.ACT_CONTENT_EDIT)
+class CourseAdminsGetView(AbstractEntityViewMixin):
+    """
+    Return all course admins (instructors and editors of any course in the site)
+    Filter by only instructors or only editors if requested
+    """
+    
+    _ALLOWED_SORTING = AbstractEntityViewMixin._ALLOWED_SORTING + (IX_LASTSEEN_TIME,)
+    _NUMERIC_SORTING = AbstractEntityViewMixin._NUMERIC_SORTING + (IX_LASTSEEN_TIME,)
+    
+    @Lazy
+    def filterInstructors(self):
+        # pylint: disable=no-member
+        return is_true(self.params.get('filterInstructors', 'False'))
+    
+    @Lazy
+    def filterEditors(self):
+        # pylint: disable=no-member
+        return is_true(self.params.get('filterEditors', 'False'))
+
+    @Lazy
+    def sortMap(self):
+        return {
+            IX_ALIAS: get_entity_catalog(),
+            IX_REALNAME: get_entity_catalog(),
+            IX_DISPLAYNAME: get_entity_catalog(),
+            IX_CREATEDTIME: get_metadata_catalog(),
+            IX_LASTSEEN_TIME: get_metadata_catalog(),
+        }
+
+    def get_entity_intids(self, site=None):
+        course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors)
+        for doc_id in course_admin_intids:
+            yield doc_id
+    
+    def _batch_selector(self, user):
+        return CourseAdminSummary(user)
+    
+    def _post_numeric_sorting(self, ext_res, sort_on, reverse):
+        """
+        Sorts the `Items` in the result dict in-place, using the sort_on
+        and reverse params.
+        """
+        ext_res[ITEMS] = sorted(ext_res[ITEMS],
+                                key=lambda x: getattr(x.user, sort_on, 0),
+                                reverse=reverse)
+
+    def __call__(self):
+        return self._do_call()
