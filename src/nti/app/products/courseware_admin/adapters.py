@@ -35,12 +35,6 @@ class CourseAdminsContainer(Contained):
     __site__ = None
 
     def __init__(self, context):
-        """
-        Traversal requires __parent__ to be not None, so we set one here;
-        We only want course admins for this site, not all the sites in the heirarchy,
-        so we explicitly pass it to the util functions instead of using their default
-        method (which goes up the heirarchy to find all of the sites therein) 
-        """
         self.__parent__ = context
         self.__site__ = getSite()
         

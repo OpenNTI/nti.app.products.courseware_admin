@@ -385,7 +385,7 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
         and reverse params.
         """
         ext_res[ITEMS] = sorted(ext_res[ITEMS],
-                                key=lambda x: getattr(x.user, sort_on, 0),
+                                key=lambda x: getattr(x._user, sort_on, 0),
                                 reverse=reverse)
 
     def __call__(self):
