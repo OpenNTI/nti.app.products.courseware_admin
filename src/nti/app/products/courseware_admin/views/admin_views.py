@@ -25,6 +25,8 @@ from zope.component.hooks import site as current_site
 
 from zope.event import notify
 
+from zope.intid.interfaces import IIntIds
+
 from zope.security.interfaces import IPrincipal
 
 from zope.securitypolicy.interfaces import Allow
@@ -33,6 +35,8 @@ from zope.securitypolicy.interfaces import IPrincipalRoleManager
 from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.error import raise_json_error
+
+from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
 
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 

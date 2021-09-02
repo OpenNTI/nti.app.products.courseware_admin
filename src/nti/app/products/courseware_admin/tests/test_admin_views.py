@@ -20,6 +20,9 @@ from hamcrest import is_
 import shutil
 
 from six.moves import urllib_parse
+from six.moves import StringIO
+
+import csv
 
 from zope import interface
 from zope import component
