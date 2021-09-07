@@ -359,7 +359,40 @@ class TestCourseAdminView(ApplicationLayerTest):
         assert_that(csv_reader, has_length(len(all_course_admins)))
         assert_that(csv_reader, has_items(has_entries('username', instructor_username,
                                                       'username', editor_username,
-                                                      'username', instructor_and_editor_username)))
+                                                      'username', instructor_and_editor_username,
+                                                      'email', '%s@gmail.com' % instructor_username,
+                                                      'email', '%s@gmail.com' % editor_username,
+                                                      'email', '%s@gmail.com' % instructor_and_editor_username)))
+        
+        res = self.testapp.post('%s?format=text/csv&sortOn=createdTime' % course_admins_href,
+                                extra_environ=site_admin_environ)
+        csv_reader = csv.DictReader(StringIO(res.body))
+        csv_reader = tuple(csv_reader)
+        assert_that(csv_reader, has_length(len(all_course_admins)))
+        assert_that(csv_reader, has_items(has_entries('username', instructor_username,
+                                                      'username', editor_username,
+                                                      'username', instructor_and_editor_username,
+                                                      'email', '%s@gmail.com' % instructor_username,
+                                                      'email', '%s@gmail.com' % editor_username,
+                                                      'email', '%s@gmail.com' % instructor_and_editor_username)))
+        
+        usernames = {'usernames': [instructor_username, 'dneusername']}
+        res = self.testapp.post_json('%s?format=text/csv&sortOn=createdTime' % course_admins_href,
+                                     usernames,
+                                     extra_environ=site_admin_environ)
+        csv_reader = csv.DictReader(StringIO(res.body))
+        csv_reader = tuple(csv_reader)
+        assert_that(csv_reader, has_length(1))
+        assert_that(csv_reader[0], has_entries('username', instructor_username))
+        
+        res = self.testapp.post('%s?format=text/csv&sortOn=createdTime' % course_admins_href,
+                                params=usernames,
+                                content_type='application/x-www-form-urlencoded',
+                                extra_environ=site_admin_environ)
+        csv_reader = csv.DictReader(StringIO(res.body))
+        csv_reader = tuple(csv_reader)
+        assert_that(csv_reader, has_length(1))
+        assert_that(csv_reader[0], has_entries('username', instructor_username))
 
         #Remove some of the instructors and editors
         roles['instructors'] = list(['jmadden', 'harp4162'])

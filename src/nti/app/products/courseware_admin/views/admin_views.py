@@ -401,7 +401,7 @@ class CourseAdminsCSVView(CourseAdminsGetView,
                        UsersCSVExportMixin):
 
     def _get_filename(self):
-        return u'users_export.csv'
+        return u'course_admins.csv'
 
     def __call__(self):
         self.check_access()
@@ -414,7 +414,7 @@ class CourseAdminsCSVView(CourseAdminsGetView,
                renderer='rest',
                permission=nauth.ACT_CONTENT_EDIT,
                request_param='format=text/csv')
-class CourseAdminsCSVPOSTView(CourseAdminsGetView, 
+class CourseAdminsCSVPOSTView(CourseAdminsCSVView, 
                            ModeledContentUploadRequestUtilsMixin):
     
     def readInput(self):
