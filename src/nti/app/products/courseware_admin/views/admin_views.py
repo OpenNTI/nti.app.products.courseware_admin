@@ -22,8 +22,11 @@ from zope import interface
 from zope.cachedescriptors.property import Lazy
 
 from zope.component.hooks import site as current_site
+from zope.component.hooks import getSite
 
 from zope.event import notify
+
+from zope.intid.interfaces import IIntIds
 
 from zope.security.interfaces import IPrincipal
 
@@ -34,14 +37,17 @@ from nti.app.base.abstract_views import AbstractAuthenticatedView
 
 from nti.app.externalization.error import raise_json_error
 
+from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
+
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
 
-from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
-from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
+from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer,\
+    CourseAdminSummary
 
 from nti.app.users.views.view_mixins import AbstractEntityViewMixin
+from nti.app.users.views.view_mixins import UsersCSVExportMixin
 
 from nti.common.string import is_true
 
@@ -385,3 +391,59 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
 
     def __call__(self):
         return self._do_call()
+    
+@view_config(context=ICourseAdminsContainer)
+@view_defaults(route_name='objects.generic.traversal',
+               request_method='GET',
+               accept='text/csv',
+               permission=nauth.ACT_CONTENT_EDIT)
+class CourseAdminsCSVView(CourseAdminsGetView,
+                       UsersCSVExportMixin):
+
+    def _get_filename(self):
+        return u'course_admins.csv'
+
+    def __call__(self):
+        self.check_access()
+        return self._create_csv_response()
+
+
+@view_config(context=ICourseAdminsContainer)
+@view_defaults(route_name='objects.generic.traversal',
+               request_method='POST',
+               renderer='rest',
+               permission=nauth.ACT_CONTENT_EDIT,
+               request_param='format=text/csv')
+class CourseAdminsCSVPOSTView(CourseAdminsCSVView, 
+                           ModeledContentUploadRequestUtilsMixin):
+    
+    def readInput(self):
+        if self.request.POST:
+            result = {'usernames': self.request.params.getall('usernames') or []}
+        elif self.request.body:
+            result = super(CourseAdminsCSVPOSTView, self).readInput()
+        else:
+            result = self.request.params
+        return CaseInsensitiveDict(result)
+    
+    @Lazy
+    def _params(self):
+        return self.readInput()
+
+    def _get_result_iter(self):
+        usernames = self._params.get('usernames', ())
+        if not usernames:
+            return super(CourseAdminsCSVPOSTView, self)._get_result_iter()
+        intids = component.getUtility(IIntIds)
+        result = []
+        for username in usernames:
+            user = User.get_user(username)
+            if user is None:
+                continue
+            user_intid = intids.queryId(user)
+            if user_intid is None:
+                continue
+            # Validate the user is in the original result set
+            if user_intid in self.filtered_intids:
+                result.append(user) 
+        return result
