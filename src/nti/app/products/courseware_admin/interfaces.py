@@ -46,6 +46,8 @@ class ICourseAdminSummary(interface.Interface):
 @interface.implementer(ICourseAdminSummary)
 class CourseAdminSummary(object):
     
+    mime_type = mimeType = "application/vnd.nextthought.courseadminsummary"
+    
     def __init__(self, user):
         self.user = user
         self.username = user.username
