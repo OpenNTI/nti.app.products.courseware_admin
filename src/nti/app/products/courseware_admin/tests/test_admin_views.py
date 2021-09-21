@@ -306,10 +306,9 @@ class TestCourseAdminView(ApplicationLayerTest):
                                                    editor_username))
         
         #Check mimetype and user objects
-        with mock_dataserver.mock_db_trans(self.ds):
-            for item in res['Items']:
-                assert_that(item['MimeType'], is_("application/vnd.nextthought.courseadminsummary"))
-                assert_that(item['user']['NTIID'], is_(User.get_user(item['username']).NTIID))        
+        for item in res['Items']:
+            assert_that(item['MimeType'], is_("application/vnd.nextthought.courseadminsummary"))
+            assert_that(item['user']['Username'], is_(item['username']))        
         
         #Save list of all course admins in site to compare for sorting
         with mock_dataserver.mock_db_trans(self.ds):
