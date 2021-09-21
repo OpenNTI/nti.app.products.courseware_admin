@@ -42,10 +42,11 @@ class ICourseAdminSummary(interface.Interface):
                            description=u'The username for this course admin',
                            required=True)
     
-    user.setTaggedValue('_ext_excluded_out', True)
     
 @interface.implementer(ICourseAdminSummary)
 class CourseAdminSummary(object):
+    
+    mime_type = mimeType = "application/vnd.nextthought.courseadminsummary"
     
     def __init__(self, user):
         self.user = user

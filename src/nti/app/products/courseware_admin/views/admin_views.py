@@ -361,6 +361,9 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
     def filterEditors(self):
         # pylint: disable=no-member
         return is_true(self.params.get('filterEditors', 'False'))
+    
+    def get_externalizer(self, unused_entity):
+        return 'admin-summary'
 
     @Lazy
     def sortMap(self):
