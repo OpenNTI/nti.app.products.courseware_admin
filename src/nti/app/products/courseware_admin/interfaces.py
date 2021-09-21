@@ -16,6 +16,7 @@ from nti.dataserver.interfaces import IUser
 
 from nti.schema.field import TextLine
 from nti.schema.field import Object
+from nti.externalization.persistence import NoPickle
 
 class ICourseAdminsContainer(IContained):
     """
@@ -42,7 +43,8 @@ class ICourseAdminSummary(interface.Interface):
                            description=u'The username for this course admin',
                            required=True)
     
-    
+ 
+@NoPickle   
 @interface.implementer(ICourseAdminSummary)
 class CourseAdminSummary(object):
     
