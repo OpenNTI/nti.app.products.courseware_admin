@@ -11,6 +11,7 @@ from hamcrest import contains
 from hamcrest import has_length
 from hamcrest import has_entries
 from hamcrest import has_items
+from hamcrest import has_item
 from hamcrest import assert_that
 from hamcrest import contains_inanyorder
 from hamcrest import none
@@ -200,7 +201,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         with mock_dataserver.mock_db_trans(self.ds):
             user = self._create_user(username)
             IUserProfile(user).email = '%s@gmail.com' % username
-            set_user_creation_site(user, 'janux.ou.edu')
+            set_user_creation_site(user, 'platform.ou.edu')
             
     def _get_admin_href(self):
         service_res = self.fetch_service_doc()
@@ -255,11 +256,16 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Instructor/Editor
         instructor_and_editor_username = u'toshinori.yagi'
         
+        #Instructor created outside site
+        outside_site_instructor_username = u'vlad.king'
+        
         with mock_dataserver.mock_db_trans(self.ds):
             site_admin = self._create_user(test_site_admin_username)
             normal_user = self._create_user(normal_user_username)
+            outside_site_instructor = self._create_user(outside_site_instructor_username)
             set_user_creation_site(site_admin, 'platform.ou.edu')
             set_user_creation_site(normal_user, 'platform.ou.edu')
+            set_user_creation_site(outside_site_instructor, 'janux.ou.edu')
             
         with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
             principal_role_manager = IPrincipalRoleManager(getSite())
@@ -305,6 +311,24 @@ class TestCourseAdminView(ApplicationLayerTest):
                                                    instructor_and_editor_username,
                                                    editor_username))
         
+        #Test filtering and not filtering instructors not created in site
+        roles['instructors'].append(outside_site_instructor_username)
+        self.testapp.put_json(course_roles_href, data)
+        
+        params = {"createdInSite": False}
+        course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=nt_admin_environ)
+        res = course_admins.json_body
+        usernames = [x['username'] for x in res['Items']]
+        assert_that(usernames, has_items(instructor_username,
+                                                   instructor_and_editor_username,
+                                                   editor_username,
+                                                   outside_site_instructor_username))
+        
+        course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=nt_admin_environ)
+        res = course_admins.json_body
+        usernames = [x['username'] for x in res['Items']]
+        assert_that(usernames, not(has_item(outside_site_instructor_username)))
+        
         #Check mimetype and user objects
         for item in res['Items']:
             assert_that(item['MimeType'], is_("application/vnd.nextthought.courseadminsummary"))
@@ -317,6 +341,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         
         #Test Sorting
         sorted_usernames = sorted(usernames) #Sorts usernames alphabetically; equivalent to sortOn: displayName, sortOrder: ascending
+        
         params = {"sortOn": IX_DISPLAYNAME}
         course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body

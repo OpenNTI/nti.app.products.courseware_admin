@@ -21,6 +21,8 @@ from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 
 from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
 
+from nti.app.users.utils import get_user_creation_site
+
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 
 from nti.contenttypes.courses.utils import get_instructors
@@ -48,7 +50,7 @@ class CourseAdminsContainer(Contained):
     def course_catalog(self):
         return self.__parent__
     
-    def course_admin_intids(self, filterInstructors=False, filterEditors=False):
+    def course_admin_intids(self, filterInstructors=False, filterEditors=False, createdInSite=True):
         intids = component.getUtility(IIntIds)
         users = []
         userIntids =[]
@@ -61,8 +63,14 @@ class CourseAdminsContainer(Contained):
         else:
             users = get_instructors_and_editors(self.__site__)
             
-        for user in users:
-            doc_id = intids.getId(user)
-            userIntids.append(doc_id)
+        if createdInSite:
+            for user in users:
+                if (self.__site__ == get_user_creation_site(user)):
+                    doc_id = intids.getId(user)
+                    userIntids.append(doc_id)
+        else:
+            for user in users:
+                doc_id = intids.getId(user)
+                userIntids.append(doc_id)
             
         return userIntids

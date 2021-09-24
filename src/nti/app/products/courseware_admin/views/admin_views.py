@@ -362,6 +362,11 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
         # pylint: disable=no-member
         return is_true(self.params.get('filterEditors', 'False'))
     
+    @Lazy
+    def createdInSite(self):
+        # pylint: disable=no-member
+        return is_true(self.params.get('createdInSite', 'True'))
+    
     def get_externalizer(self, unused_entity):
         return 'admin-summary'
 
@@ -376,7 +381,7 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
         }
 
     def get_entity_intids(self, site=None):
-        course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors)
+        course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors, createdInSite=self.createdInSite)
         for doc_id in course_admin_intids:
             yield doc_id
     
