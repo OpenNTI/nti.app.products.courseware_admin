@@ -50,7 +50,7 @@ class CourseAdminsContainer(Contained):
     def course_catalog(self):
         return self.__parent__
     
-    def course_admin_intids(self, filterInstructors=False, filterEditors=False, createdInSite=True):
+    def course_admin_intids(self, filterInstructors=False, filterEditors=False):
         intids = component.getUtility(IIntIds)
         users = []
         userIntids =[]
@@ -63,13 +63,8 @@ class CourseAdminsContainer(Contained):
         else:
             users = get_instructors_and_editors(self.__site__)
             
-        if createdInSite:
-            for user in users:
-                if (self.__site__ == get_user_creation_site(user)):
-                    doc_id = intids.getId(user)
-                    userIntids.append(doc_id)
-        else:
-            for user in users:
+        for user in users:
+            if (self.__site__ == get_user_creation_site(user)):
                 doc_id = intids.getId(user)
                 userIntids.append(doc_id)
             

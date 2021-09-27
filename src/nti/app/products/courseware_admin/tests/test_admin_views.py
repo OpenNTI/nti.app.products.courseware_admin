@@ -314,16 +314,6 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Test filtering and not filtering instructors not created in site
         roles['instructors'].append(outside_site_instructor_username)
         self.testapp.put_json(course_roles_href, data)
-        
-        params = {"createdInSite": False}
-        course_admins = self.testapp.get(course_admins_href, params, headers=headers, extra_environ=nt_admin_environ)
-        res = course_admins.json_body
-        usernames = [x['username'] for x in res['Items']]
-        assert_that(usernames, has_items(instructor_username,
-                                                   instructor_and_editor_username,
-                                                   editor_username,
-                                                   outside_site_instructor_username))
-        
         course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=nt_admin_environ)
         res = course_admins.json_body
         usernames = [x['username'] for x in res['Items']]
