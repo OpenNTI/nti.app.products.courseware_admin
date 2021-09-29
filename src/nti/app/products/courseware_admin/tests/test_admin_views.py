@@ -41,6 +41,7 @@ from nti.app.products.courseware.tests import PersistentInstructedCourseApplicat
 from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
+from nti.app.products.courseware_admin import VIEW_ADMINISTERED_COURSES
 
 from nti.app.testing.application_webtest import ApplicationLayerTest
 
@@ -173,6 +174,8 @@ class TestCourseAdminView(ApplicationLayerTest):
     default_origin = 'http://janux.ou.edu'
 
     course_ntiid = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2013_CLC3403_LawAndJustice'
+    
+    course_ntiid2 = u'tag:nextthought.com,2011-10:NTI-CourseInfo-Fall2015_CS_1323'
         
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def tearDown(self):
@@ -222,20 +225,8 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_admins_href = self.require_link_href_with_rel(courses_workspace,
                                                      VIEW_COURSE_ADMINS)
         return course_admins_href
-    """
-    def _create_course(self):
-        admin_href = self._get_admin_href()
-        test_admin_key = 'CourseAdminTestKey'
-        admin_res = self.testapp.post_json(admin_href, {'key': test_admin_key}).json_body
-        new_admin_href = admin_res['href']
-        new_course = self.testapp.post_json(new_admin_href,
-                                            {'ProviderUniqueID': 'CourseAdminTestCourse',
-                                             'title': 'CourseAdminTestCourse',
-                                             'RichDescription': 'CourseAdminTestCourse'})
 
-        new_course = new_course.json_body
-        return new_course
-    """   
+ 
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_get_course_admins(self):
         """
@@ -310,7 +301,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         assert_that(usernames, has_items(instructor_username,
                                                    instructor_and_editor_username,
                                                    editor_username))
-        
+        from IPython.terminal.debugger import set_trace;set_trace()
         #Test filtering and not filtering instructors not created in site
         roles['instructors'].append(outside_site_instructor_username)
         self.testapp.put_json(course_roles_href, data)
@@ -417,4 +408,58 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Remove some of the instructors and editors
         roles['instructors'] = list(['jmadden', 'harp4162'])
         roles['editors'] = list(['jmadden', 'harp4162'])
+        self.testapp.put_json(course_roles_href, data)
+        
+        
+    @WithSharedApplicationMockDS(testapp=True, users=True)
+    def test_get_courses_administered(self):
+        
+        #Site Admin
+        test_site_admin_username = u'test_site_admin'
+        
+        #Course Admin
+        course_admin_username = u'seto.kaiba'
+        
+        with mock_dataserver.mock_db_trans(self.ds):
+            site_admin = self._create_user(test_site_admin_username)
+            set_user_creation_site(site_admin, 'platform.ou.edu')
+        
+        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+            principal_role_manager = IPrincipalRoleManager(getSite())
+            principal_role_manager.assignRoleToPrincipal(ROLE_SITE_ADMIN.id,
+                                                         test_site_admin_username)
+            
+            entry = find_object_with_ntiid(self.course_ntiid)
+            course_oid = to_external_ntiid_oid(ICourseInstance(entry))
+            
+            entry2 = find_object_with_ntiid(self.course_ntiid2)
+            course_oid2 = to_external_ntiid_oid(ICourseInstance(entry2))
+        
+        site_admin_environ = self._make_extra_environ(user=test_site_admin_username)
+        site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu' 
+           
+        self.create_user(course_admin_username)
+        
+        # Admin links
+        course = self.testapp.get('/dataserver2/Objects/%s' % course_oid)
+        course2 = self.testapp.get('/dataserver2/Objects/%s' % course_oid2)
+        course_ext = course.json_body
+        course_ext2 = course2.json_body
+        course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
+        course_roles_href2 = self.require_link_href_with_rel(course_ext2, VIEW_COURSE_ROLES)
+        course_admins_href = self._get_course_admins_href()
+        
+        headers = {'accept': str('application/json')}
+        data = dict()
+        data['roles'] = roles = dict()
+        roles['instructors'] = list([course_admin_username])
+        roles['editors'] = list([])
+        
+        #No courses administered yet
+        self.testapp.put_json(course_roles_href, data)
+        course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=site_admin_environ)
+        res = course_admins.json_body
+        from IPython.terminal.debugger import set_trace;set_trace()
+        #courses_administered_href = self.require_link_href_with_rel(res['Items'][0], VIEW_ADMINISTERED_COURSES)
+        #from IPython.terminal.debugger import set_trace;set_trace()
         self.testapp.put_json(course_roles_href, data)

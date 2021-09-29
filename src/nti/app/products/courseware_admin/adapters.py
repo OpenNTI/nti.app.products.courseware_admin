@@ -11,8 +11,6 @@ from __future__ import absolute_import
 from zope import component
 from zope import interface
 
-from zope.container.contained import Contained
-
 from zope.component.hooks import getSite
 
 from zope.intid.interfaces import IIntIds
@@ -20,8 +18,11 @@ from zope.intid.interfaces import IIntIds
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 
 from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
+from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
 
 from nti.app.users.utils import get_user_creation_site
+
+from nti.containers.containers import CaseInsensitiveCheckingLastModifiedBTreeContainer
 
 from nti.contenttypes.courses.interfaces import ICourseCatalog
 
@@ -29,9 +30,11 @@ from nti.contenttypes.courses.utils import get_instructors
 from nti.contenttypes.courses.utils import get_editors
 from nti.contenttypes.courses.utils import get_instructors_and_editors
 
+from nti.dataserver.users.users import User
+
 @component.adapter(ICourseCatalog)
 @interface.implementer(ICourseAdminsContainer)
-class CourseAdminsContainer(Contained):
+class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer):
     __name__ = VIEW_COURSE_ADMINS
     __parent__ = None
     __site__ = None
@@ -45,6 +48,13 @@ class CourseAdminsContainer(Contained):
         """
         self.__parent__ = context
         self.__site__ = getSite()
+        
+    def __getitem__(self, key):
+        from IPython.terminal.debugger import set_trace;set_trace()
+        user = User.get_user(key)
+        if user is None:
+            raise KeyError(key)
+        return CourseAdminSummary(user, self)
         
     @property
     def course_catalog(self):

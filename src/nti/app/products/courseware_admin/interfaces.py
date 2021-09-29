@@ -10,14 +10,14 @@ from __future__ import absolute_import
 
 from zope import interface
 
-from zope.container.interfaces import IContained
+from zope.container.interfaces import IContainer
 
 from nti.dataserver.interfaces import IUser
 
 from nti.schema.field import TextLine
 from nti.schema.field import Object
 
-class ICourseAdminsContainer(IContained):
+class ICourseAdminsContainer(IContainer):
     """
     Assets associated with a course.
     """
@@ -48,7 +48,12 @@ class CourseAdminSummary(object):
     
     mime_type = mimeType = "application/vnd.nextthought.courseadminsummary"
     
-    def __init__(self, user):
+    __name__ = None
+    __parent__ = None 
+    
+    def __init__(self, user, container):
+        self.__name__ = user.username
+        self.__parent__ = container
         self.user = user
         self.username = user.username
         

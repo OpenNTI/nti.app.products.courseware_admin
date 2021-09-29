@@ -22,7 +22,6 @@ from zope import interface
 from zope.cachedescriptors.property import Lazy
 
 from zope.component.hooks import site as current_site
-from zope.component.hooks import getSite
 
 from zope.event import notify
 
@@ -38,13 +37,16 @@ from nti.app.base.abstract_views import AbstractAuthenticatedView
 from nti.app.externalization.error import raise_json_error
 
 from nti.app.externalization.view_mixins import ModeledContentUploadRequestUtilsMixin
+from nti.app.externalization.view_mixins import BatchingUtilsMixin
 
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
+from nti.app.products.courseware_admin import VIEW_ADMINISTERED_COURSES
 
-from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer,\
-    CourseAdminSummary
+from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
+from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
+from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
 
 from nti.app.users.views.view_mixins import AbstractEntityViewMixin
 from nti.app.users.views.view_mixins import UsersCSVExportMixin
@@ -67,6 +69,7 @@ from nti.contenttypes.courses.interfaces import IGlobalCourseCatalog
 from nti.contenttypes.courses.sharing import update_package_permissions
 
 from nti.contenttypes.courses.utils import get_course_instructors
+from nti.contenttypes.courses.utils import get_instructed_and_edited_courses
 
 from nti.coremetadata.interfaces import IDeactivatedUser
 from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
@@ -74,8 +77,11 @@ from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
+from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_site_admin
 
 from nti.dataserver.interfaces import IUser
+from nti.dataserver.interfaces import ISiteAdminUtility
 
 from nti.dataserver.metadata.index import IX_CREATEDTIME
 from nti.dataserver.metadata.index import get_metadata_catalog
@@ -381,7 +387,7 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
             yield doc_id
     
     def _batch_selector(self, user):
-        return CourseAdminSummary(user)
+        return CourseAdminSummary(user, self.context)
     
     def _post_numeric_sorting(self, ext_res, sort_on, reverse):
         """
@@ -449,4 +455,54 @@ class CourseAdminsCSVPOSTView(CourseAdminsCSVView,
             # Validate the user is in the original result set
             if user_intid in self.filtered_intids:
                 result.append(user) 
+        return result
+    
+@view_config(route_name='objects.generic.traversal',
+             renderer='rest',
+             context=ICourseAdminSummary,
+             name=VIEW_ADMINISTERED_COURSES,
+             request_method='GET')
+class CoursesAdministeredView(AbstractAuthenticatedView,
+                              BatchingUtilsMixin):    
+    """
+    A view that returns the courses a user administers (instructs/edits).
+    """
+
+    _DEFAULT_BATCH_START = 0
+    _DEFAULT_BATCH_SIZE = None
+
+    @Lazy
+    def _is_admin(self):
+        return is_admin_or_site_admin(self.remoteUser)
+
+    def _can_admin_user(self):
+        # Verify a site admin is administering a user in their site.
+        result = False
+        if (is_admin(self.remoteUser)):
+            result = True
+            
+        elif is_site_admin(self.remoteUser):
+            admin_utility = component.getUtility(ISiteAdminUtility)
+            result = admin_utility.can_administer_user(self.remoteUser, self.context)
+            
+        return result
+
+    def _predicate(self):
+        # 403 if not self or someone who can administer self
+        return (   self._can_admin_user() \
+                or self.remoteUser == self.context)
+
+    def __call__(self):
+        if not self._predicate():
+            raise_json_error(self.request,
+                             hexc.HTTPForbidden,
+                             {
+                                 'message': _(u"Cannot view user's administered courses"),
+                             },
+                             None)
+        result = LocatedExternalDict()
+        courses = get_instructed_and_edited_courses(self.user)
+        courses = sorted(courses, key=lambda x:x.title)
+        result[TOTAL] = len(courses)
+        self._batch_items_iterable(result, courses)
         return result

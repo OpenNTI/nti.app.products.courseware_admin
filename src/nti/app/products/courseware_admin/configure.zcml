@@ -77,6 +77,11 @@
                 provides="nti.externalization.interfaces.IExternalMappingDecorator"
                 for="nti.contenttypes.courses.interfaces.ICourseCatalogEntry
                      pyramid.interfaces.IRequest" />
+                     
+    <subscriber factory=".decorators._CourseAdminSummaryCoursesLinkDecorator"
+                provides="nti.externalization.interfaces.IExternalObjectDecorator"
+                for="nti.app.products.courseware_admin.interfaces.ICourseAdminSummary
+                     pyramid.interfaces.IRequest" />
 
 	<!-- Subscribers -->
 	<subscriber handler=".subscribers._on_course_instance_created" />
