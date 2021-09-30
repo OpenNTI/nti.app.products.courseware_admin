@@ -41,7 +41,7 @@ from nti.app.products.courseware.tests import PersistentInstructedCourseApplicat
 from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
-from nti.app.products.courseware_admin import VIEW_ADMINISTERED_COURSES
+from nti.app.products.courseware_admin import VIEW_EXPLICTLY_ADMINISTERED_COURSES
 
 from nti.app.testing.application_webtest import ApplicationLayerTest
 
@@ -301,7 +301,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         assert_that(usernames, has_items(instructor_username,
                                                    instructor_and_editor_username,
                                                    editor_username))
-        from IPython.terminal.debugger import set_trace;set_trace()
+        
         #Test filtering and not filtering instructors not created in site
         roles['instructors'].append(outside_site_instructor_username)
         self.testapp.put_json(course_roles_href, data)
@@ -459,7 +459,8 @@ class TestCourseAdminView(ApplicationLayerTest):
         self.testapp.put_json(course_roles_href, data)
         course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body
+        courses_administered_href = self.require_link_href_with_rel(res['Items'][0], VIEW_EXPLICTLY_ADMINISTERED_COURSES)
         from IPython.terminal.debugger import set_trace;set_trace()
-        #courses_administered_href = self.require_link_href_with_rel(res['Items'][0], VIEW_ADMINISTERED_COURSES)
-        #from IPython.terminal.debugger import set_trace;set_trace()
+        courses_administered = self.testapp.get(courses_administered_href, extra_environ=site_admin_environ)
+        from IPython.terminal.debugger import set_trace;set_trace()
         self.testapp.put_json(course_roles_href, data)

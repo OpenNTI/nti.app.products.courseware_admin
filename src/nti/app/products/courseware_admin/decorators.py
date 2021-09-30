@@ -23,7 +23,7 @@ from nti.app.products.courseware.interfaces import ICoursesWorkspace
 from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
 
 from nti.app.products.courseware_admin import VIEW_VENDOR_INFO
-from nti.app.products.courseware_admin import VIEW_ADMINISTERED_COURSES
+from nti.app.products.courseware_admin import VIEW_EXPLICTLY_ADMINISTERED_COURSES
 from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
@@ -320,14 +320,14 @@ class _CourseCatalogCollectionDecorator(AbstractRequestAwareDecorator):
 @interface.implementer(IExternalObjectDecorator)
 class _CourseAdminSummaryCoursesLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
-    Decorate the :class:``ICourseAdminSummary`` with a `CoursesAdministered` rel.
+    Decorate the :class:``ICourseAdminSummary`` with a `CoursesExplicitlyAdministered` rel.
     """
 
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])
         link = Link(context,
-                    rel=VIEW_ADMINISTERED_COURSES,
-                    elements=(context.username, '@@%s' % VIEW_ADMINISTERED_COURSES,))
+                    rel=VIEW_EXPLICTLY_ADMINISTERED_COURSES,
+                    elements=('@@%s' % VIEW_EXPLICTLY_ADMINISTERED_COURSES,))
         interface.alsoProvides(link, ILocation)
         link.__name__ = ''
         link.__parent__ = context

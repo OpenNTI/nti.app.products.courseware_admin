@@ -42,7 +42,7 @@ from nti.app.externalization.view_mixins import BatchingUtilsMixin
 from nti.app.products.courseware.views import CourseAdminPathAdapter
 
 from nti.app.products.courseware_admin import MessageFactory as _
-from nti.app.products.courseware_admin import VIEW_ADMINISTERED_COURSES
+from nti.app.products.courseware_admin import VIEW_EXPLICTLY_ADMINISTERED_COURSES
 
 from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
 from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
@@ -459,10 +459,10 @@ class CourseAdminsCSVPOSTView(CourseAdminsCSVView,
     
 @view_config(route_name='objects.generic.traversal',
              renderer='rest',
-             context=ICourseAdminSummary,
-             name=VIEW_ADMINISTERED_COURSES,
+             context=ICourseAdminsContainer,
+             name=VIEW_EXPLICTLY_ADMINISTERED_COURSES,
              request_method='GET')
-class CoursesAdministeredView(AbstractAuthenticatedView,
+class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
                               BatchingUtilsMixin):    
     """
     A view that returns the courses a user administers (instructs/edits).
@@ -483,14 +483,14 @@ class CoursesAdministeredView(AbstractAuthenticatedView,
             
         elif is_site_admin(self.remoteUser):
             admin_utility = component.getUtility(ISiteAdminUtility)
-            result = admin_utility.can_administer_user(self.remoteUser, self.context)
+            result = admin_utility.can_administer_user(self.remoteUser, self.context.user)
             
         return result
 
     def _predicate(self):
         # 403 if not self or someone who can administer self
         return (   self._can_admin_user() \
-                or self.remoteUser == self.context)
+                or self.remoteUser == self.context.user)
 
     def __call__(self):
         if not self._predicate():

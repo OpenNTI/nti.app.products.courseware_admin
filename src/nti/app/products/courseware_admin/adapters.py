@@ -11,6 +11,8 @@ from __future__ import absolute_import
 from zope import component
 from zope import interface
 
+from zope.container.contained import Contained
+
 from zope.component.hooks import getSite
 
 from zope.intid.interfaces import IIntIds
@@ -34,7 +36,8 @@ from nti.dataserver.users.users import User
 
 @component.adapter(ICourseCatalog)
 @interface.implementer(ICourseAdminsContainer)
-class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer):
+class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer,
+                            Contained):
     __name__ = VIEW_COURSE_ADMINS
     __parent__ = None
     __site__ = None

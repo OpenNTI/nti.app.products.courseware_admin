@@ -11,6 +11,7 @@
 	<include package="zope.security" />
 
 	<include package="nti.contenttypes.courses" />
+	<include package="nti.app.products.courseware_admin" />
 
 	<!-- Decorators -->
 	<subscriber factory=".decorators._EntryTagDecorator"
@@ -100,6 +101,8 @@
 		modules="" />
 				
 	<!-- Traversal -->
+	<adapter factory=".traversal.CourseAdminsTraversable" />
+	
 	<adapter name="CourseAdmins"
     		 factory=".traversal.course_admins_path_adapter"
 		 	 for="nti.site.interfaces.IHostPolicySiteManager pyramid.interfaces.IRequest"

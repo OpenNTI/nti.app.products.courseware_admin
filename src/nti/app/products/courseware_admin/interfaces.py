@@ -10,14 +10,18 @@ from __future__ import absolute_import
 
 from zope import interface
 
+from zope.container.contained import Contained
+
 from zope.container.interfaces import IContainer
+from zope.container.interfaces import IContained
 
 from nti.dataserver.interfaces import IUser
 
 from nti.schema.field import TextLine
 from nti.schema.field import Object
 
-class ICourseAdminsContainer(IContainer):
+class ICourseAdminsContainer(IContainer,
+                             IContained):
     """
     Assets associated with a course.
     """
@@ -29,7 +33,7 @@ class ICourseAdminsContainer(IContainer):
         """
         pass
     
-class ICourseAdminSummary(interface.Interface):
+class ICourseAdminSummary(IContained):
     """
     Wrapper object for course admins that contains their username and
     other useful information
@@ -44,7 +48,7 @@ class ICourseAdminSummary(interface.Interface):
     
     
 @interface.implementer(ICourseAdminSummary)
-class CourseAdminSummary(object):
+class CourseAdminSummary(Contained):
     
     mime_type = mimeType = "application/vnd.nextthought.courseadminsummary"
     
