@@ -100,9 +100,7 @@
 		root_interfaces=".interfaces.ICourseAdminSummary"
 		modules="" />
 				
-	<!-- Traversal -->
-	<adapter factory=".traversal.CourseAdminsTraversable" />
-	
+	<!-- Traversal -->	
 	<adapter name="CourseAdmins"
     		 factory=".traversal.course_admins_path_adapter"
 		 	 for="nti.site.interfaces.IHostPolicySiteManager pyramid.interfaces.IRequest"

@@ -22,15 +22,9 @@ from nti.contenttypes.courses.interfaces import ICourseCatalog
 from nti.site.interfaces import IHostPolicySiteManager
 
 from nti.traversal.traversal import ContainerAdapterTraversable
+from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
 
 @interface.implementer(IPathAdapter)
 @component.adapter(IHostPolicySiteManager, IRequest)
 def course_admins_path_adapter(host_site_manager, request):
-    course_catalog = component.queryUtility(ICourseCatalog)
-    course_admins_container = CourseAdminsContainer(course_catalog)
-    return course_admins_container
-
-@component.adapter(ICourseCatalog, IRequest)
-class CourseAdminsTraversable(ContainerAdapterTraversable):
-    def traverse(self, key, remaining_path):
-        return super(CourseAdminsTraversable, self).traverse(key, remaining_path)
+    return CourseAdminsContainer(host_site_manager)

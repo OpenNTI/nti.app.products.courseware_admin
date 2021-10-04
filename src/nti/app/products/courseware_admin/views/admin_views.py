@@ -459,7 +459,7 @@ class CourseAdminsCSVPOSTView(CourseAdminsCSVView,
     
 @view_config(route_name='objects.generic.traversal',
              renderer='rest',
-             context=ICourseAdminsContainer,
+             context=ICourseAdminSummary,
              name=VIEW_EXPLICTLY_ADMINISTERED_COURSES,
              request_method='GET')
 class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
@@ -501,7 +501,7 @@ class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
                              },
                              None)
         result = LocatedExternalDict()
-        courses = get_instructed_and_edited_courses(self.user)
+        courses = get_instructed_and_edited_courses(self.context.user)
         courses = sorted(courses, key=lambda x:x.title)
         result[TOTAL] = len(courses)
         self._batch_items_iterable(result, courses)

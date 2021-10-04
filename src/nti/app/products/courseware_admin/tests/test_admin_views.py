@@ -204,18 +204,8 @@ class TestCourseAdminView(ApplicationLayerTest):
         with mock_dataserver.mock_db_trans(self.ds):
             user = self._create_user(username)
             IUserProfile(user).email = '%s@gmail.com' % username
-            set_user_creation_site(user, 'platform.ou.edu')
-            
-    def _get_admin_href(self):
-        service_res = self.fetch_service_doc()
-        workspaces = service_res.json_body['Items']
-        courses_workspace = next(
-            x for x in workspaces if x['Title'] == 'Courses'
-        )
-        admin_href = self.require_link_href_with_rel(courses_workspace,
-                                                     VIEW_COURSE_ADMIN_LEVELS)
-        return admin_href
-            
+            set_user_creation_site(user, 'janux.ou.edu')
+                       
     def _get_course_admins_href(self):
         service_res = self.fetch_service_doc()
         workspaces = service_res.json_body['Items']
@@ -254,25 +244,25 @@ class TestCourseAdminView(ApplicationLayerTest):
             site_admin = self._create_user(test_site_admin_username)
             normal_user = self._create_user(normal_user_username)
             outside_site_instructor = self._create_user(outside_site_instructor_username)
-            set_user_creation_site(site_admin, 'platform.ou.edu')
-            set_user_creation_site(normal_user, 'platform.ou.edu')
+            set_user_creation_site(site_admin, 'janux.ou.edu')
+            set_user_creation_site(normal_user, 'janux.ou.edu')
             set_user_creation_site(outside_site_instructor, 'janux.ou.edu')
             
-        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+        with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
             principal_role_manager = IPrincipalRoleManager(getSite())
             principal_role_manager.assignRoleToPrincipal(ROLE_SITE_ADMIN.id,
                                                          test_site_admin_username)
             
-        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+        with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
             entry = find_object_with_ntiid(self.course_ntiid)
             course_oid = to_external_ntiid_oid(ICourseInstance(entry))
             
         nt_admin_environ = self._make_extra_environ()
-        nt_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'
+        #nt_admin_environ['HTTP_ORIGIN'] = 'http://janux.ou.edu'
         site_admin_environ = self._make_extra_environ(user=test_site_admin_username)
-        site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu' 
+        #site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu' 
         normal_user_environ = self._make_extra_environ(user=normal_user_username)   
-        normal_user_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'    
+        #normal_user_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'    
         
         self.create_user(instructor_username)
         self.create_user(editor_username)
@@ -283,7 +273,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_ext = course.json_body
         course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
         course_admins_href = self._get_course_admins_href()
-
+        from IPython.terminal.debugger import set_trace;set_trace()
         headers = {'accept': str('application/json')}
         data = dict()
         data['roles'] = roles = dict()
@@ -291,10 +281,10 @@ class TestCourseAdminView(ApplicationLayerTest):
         roles['editors'] = list(['jmadden', 'harp4162', editor_username, instructor_and_editor_username])
         self.testapp.put_json(course_roles_href, data)
         
-        #Test permissioning
+        #Test permissions
         self.testapp.get(course_admins_href, extra_environ=normal_user_environ, status=403)
-        
-        #Test for all course admins
+
+        #Test for all course admins using nt super admin
         course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=nt_admin_environ)
         res = course_admins.json_body
         usernames = [x['username'] for x in res['Items']]
@@ -351,7 +341,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         res = course_admins.json_body
         usernames = [x['username'] for x in res['Items']]
         assert_that(usernames, has_items(editor_username,
-                                                   instructor_and_editor_username))
+                                                    instructor_and_editor_username))
         assert_that(usernames, not(has_items(instructor_username)))
         
         #Test for filtering everything
@@ -414,6 +404,9 @@ class TestCourseAdminView(ApplicationLayerTest):
     @WithSharedApplicationMockDS(testapp=True, users=True)
     def test_get_courses_administered(self):
         
+        #Normal user
+        normal_user_username = u'yugi.moto'
+        
         #Site Admin
         test_site_admin_username = u'test_site_admin'
         
@@ -421,10 +414,12 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_admin_username = u'seto.kaiba'
         
         with mock_dataserver.mock_db_trans(self.ds):
+            normal_user = self._create_user(normal_user_username)
             site_admin = self._create_user(test_site_admin_username)
             set_user_creation_site(site_admin, 'platform.ou.edu')
+            set_user_creation_site(normal_user, 'platform.ou.edu')
         
-        with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
+        with mock_dataserver.mock_db_trans(self.ds, site_name='janux.ou.edu'):
             principal_role_manager = IPrincipalRoleManager(getSite())
             principal_role_manager.assignRoleToPrincipal(ROLE_SITE_ADMIN.id,
                                                          test_site_admin_username)
@@ -435,8 +430,10 @@ class TestCourseAdminView(ApplicationLayerTest):
             entry2 = find_object_with_ntiid(self.course_ntiid2)
             course_oid2 = to_external_ntiid_oid(ICourseInstance(entry2))
         
+        normal_user_environ = self._make_extra_environ(user=normal_user_username)
+        #normal_user_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu'
         site_admin_environ = self._make_extra_environ(user=test_site_admin_username)
-        site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu' 
+        #site_admin_environ['HTTP_ORIGIN'] = 'http://platform.ou.edu' 
            
         self.create_user(course_admin_username)
         
@@ -455,12 +452,23 @@ class TestCourseAdminView(ApplicationLayerTest):
         roles['instructors'] = list([course_admin_username])
         roles['editors'] = list([])
         
-        #No courses administered yet
+        #Set up instructor
         self.testapp.put_json(course_roles_href, data)
         course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=site_admin_environ)
         res = course_admins.json_body
         courses_administered_href = self.require_link_href_with_rel(res['Items'][0], VIEW_EXPLICTLY_ADMINISTERED_COURSES)
-        from IPython.terminal.debugger import set_trace;set_trace()
+        
+        #Test permissions
+        self.testapp.get(courses_administered_href, extra_environ=normal_user_environ, status=403)
+        
+        #Test Courses Administered
         courses_administered = self.testapp.get(courses_administered_href, extra_environ=site_admin_environ)
-        from IPython.terminal.debugger import set_trace;set_trace()
+        res = courses_administered.json_body
+        assert_that(len(res['Items']), is_(1))
+        assert_that(res['Items'], has_item(has_entries('Links', has_item(has_entries('ntiid', self.course_ntiid)))))
+        
+        #Remove instructor from course and make sure no courses are administered
+        roles['instructors'] = list([])
+        self.testapp.put_json(course_roles_href, data)
+        courses_administered = self.testapp.get(courses_administered_href, extra_environ=site_admin_environ)
         self.testapp.put_json(course_roles_href, data)

@@ -34,7 +34,9 @@ from nti.contenttypes.courses.utils import get_instructors_and_editors
 
 from nti.dataserver.users.users import User
 
-@component.adapter(ICourseCatalog)
+from nti.site.interfaces import IHostPolicySiteManager
+
+@component.adapter(IHostPolicySiteManager)
 @interface.implementer(ICourseAdminsContainer)
 class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer,
                             Contained):
@@ -52,11 +54,11 @@ class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer,
         self.__parent__ = context
         self.__site__ = getSite()
         
-    def __getitem__(self, key):
-        from IPython.terminal.debugger import set_trace;set_trace()
+    def get(self, key, default=None):
         user = User.get_user(key)
         if user is None:
             raise KeyError(key)
+            return default
         return CourseAdminSummary(user, self)
         
     @property
