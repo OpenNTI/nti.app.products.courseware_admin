@@ -410,11 +410,16 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Course Admin
         course_admin_username = u'seto.kaiba'
         
+        #Outside site Course Admin
+        outside_site_course_admin_username = u'gary.oak'
+        
         with mock_dataserver.mock_db_trans(self.ds):
             normal_user = self._create_user(normal_user_username)
             site_admin = self._create_user(test_site_admin_username)
+            outside_site_course_admin = self._create_user(outside_site_course_admin_username)
             set_user_creation_site(site_admin, 'platform.ou.edu')
             set_user_creation_site(normal_user, 'platform.ou.edu')
+            set_user_creation_site(outside_site_course_admin, 'janux.ou.edu')
         
         with mock_dataserver.mock_db_trans(self.ds, site_name='platform.ou.edu'):
             principal_role_manager = IPrincipalRoleManager(getSite())
@@ -480,6 +485,12 @@ class TestCourseAdminView(ApplicationLayerTest):
         assert_that(len(res['Items']), is_(2))
         assert_that(res['Items'], has_item(has_entries('Links', has_item(has_entries('ntiid', self.course_ntiid)),
                                                        'Links', has_item(has_entries('ntiid', self.course_ntiid2)))))
+        
+        #Test trying to get course admin from outside site
+        roles['instructors'] = list([outside_site_course_admin_username])
+        self.testapp.put_json(course_roles_href, data)
+        self.testapp.get('/dataserver2/++etc++hostsites/platform.ou.edu/++etc++site/CourseAdmins/%s/@@CoursesExplicitlyAdministered' % outside_site_course_admin_username,
+                          extra_environ=site_admin_environ, status=404)
         
         #Restore original instructors and editors
         roles['instructors'] = list(['jmadden', 'harp4162'])

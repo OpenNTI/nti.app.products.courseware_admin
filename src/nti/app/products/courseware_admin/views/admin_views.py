@@ -461,6 +461,7 @@ class CourseAdminsCSVPOSTView(CourseAdminsCSVView,
              renderer='rest',
              context=ICourseAdminSummary,
              name=VIEW_EXPLICTLY_ADMINISTERED_COURSES,
+             permission=nauth.ACT_CONTENT_EDIT,
              request_method='GET')
 class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
                               BatchingUtilsMixin):    
@@ -471,35 +472,7 @@ class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
     _DEFAULT_BATCH_START = 0
     _DEFAULT_BATCH_SIZE = None
 
-    @Lazy
-    def _is_admin(self):
-        return is_admin_or_site_admin(self.remoteUser)
-
-    def _can_admin_user(self):
-        # Verify a site admin is administering a user in their site.
-        result = False
-        if (is_admin(self.remoteUser)):
-            result = True
-            
-        elif is_site_admin(self.remoteUser):
-            admin_utility = component.getUtility(ISiteAdminUtility)
-            result = admin_utility.can_administer_user(self.remoteUser, self.context.user)
-            
-        return result
-
-    def _predicate(self):
-        # 403 if not self or someone who can administer self
-        return (   self._can_admin_user() \
-                or self.remoteUser == self.context.user)
-
     def __call__(self):
-        if not self._predicate():
-            raise_json_error(self.request,
-                             hexc.HTTPForbidden,
-                             {
-                                 'message': _(u"Cannot view user's administered courses"),
-                             },
-                             None)
         result = LocatedExternalDict()
         courses = get_instructed_and_edited_courses(self.context.user)
         courses = sorted(courses, key=lambda x:x.title)

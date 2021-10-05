@@ -17,12 +17,7 @@ from zope.traversing.interfaces import IPathAdapter
 
 from nti.app.products.courseware_admin.adapters import CourseAdminsContainer
 
-from nti.contenttypes.courses.interfaces import ICourseCatalog
-
 from nti.site.interfaces import IHostPolicySiteManager
-
-from nti.traversal.traversal import ContainerAdapterTraversable
-from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
 
 @interface.implementer(IPathAdapter)
 @component.adapter(IHostPolicySiteManager, IRequest)

@@ -26,8 +26,6 @@ from nti.app.users.utils import get_user_creation_site
 
 from nti.containers.containers import CaseInsensitiveCheckingLastModifiedBTreeContainer
 
-from nti.contenttypes.courses.interfaces import ICourseCatalog
-
 from nti.contenttypes.courses.utils import get_instructors
 from nti.contenttypes.courses.utils import get_editors
 from nti.contenttypes.courses.utils import get_instructors_and_editors
@@ -56,8 +54,7 @@ class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer,
         
     def get(self, key, default=None):
         user = User.get_user(key)
-        if user is None:
-            raise KeyError(key)
+        if user is None or self.__site__ is not get_user_creation_site(user):
             return default
         return CourseAdminSummary(user, self)
         
