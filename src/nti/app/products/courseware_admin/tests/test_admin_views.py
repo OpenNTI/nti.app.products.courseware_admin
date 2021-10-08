@@ -40,7 +40,6 @@ from nti.app.products.courseware.tests import PersistentInstructedCourseApplicat
 
 from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
-from nti.app.products.courseware_admin import VIEW_COURSE_ADMIN_LEVELS
 from nti.app.products.courseware_admin import VIEW_EXPLICTLY_ADMINISTERED_COURSES
 
 from nti.app.testing.application_webtest import ApplicationLayerTest
@@ -70,9 +69,13 @@ from nti.dataserver.users.interfaces import IUserProfile
 from nti.dataserver.metadata.index import IX_CREATEDTIME
 from nti.dataserver.users.index import IX_DISPLAYNAME
 
+from nti.externalization.interfaces import StandardExternalFields
+
 from nti.ntiids.ntiids import find_object_with_ntiid
 
 from nti.ntiids.oids import to_external_ntiid_oid
+
+ITEMS = StandardExternalFields.ITEMS
 
 
 class TestAdminViews(ApplicationLayerTest):
@@ -434,8 +437,10 @@ class TestCourseAdminView(ApplicationLayerTest):
         
         normal_user_environ = self._make_extra_environ(user=normal_user_username)
         site_admin_environ = self._make_extra_environ(user=test_site_admin_username)
+        nt_admin_environ = self._make_extra_environ()
            
         self.create_user(course_admin_username)
+        course_admin_environ = self._make_extra_environ(user=course_admin_username)
         
         # Admin links
         course = self.testapp.get('/dataserver2/Objects/%s' % course_oid)
@@ -444,9 +449,9 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_ext2 = course2.json_body
         course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
         course_roles_href2 = self.require_link_href_with_rel(course_ext2, VIEW_COURSE_ROLES)
-        course_admins_href = self._get_course_admins_href()
+        #course_admins_href = self._get_course_admins_href()
         
-        headers = {'accept': str('application/json')}
+        #headers = {'accept': str('application/json')}
         data = dict()
         data['roles'] = roles = dict()
         roles['instructors'] = list([course_admin_username])
@@ -454,12 +459,17 @@ class TestCourseAdminView(ApplicationLayerTest):
         
         #Set up instructor
         self.testapp.put_json(course_roles_href, data)
-        course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=site_admin_environ)
-        res = course_admins.json_body
-        courses_administered_href = self.require_link_href_with_rel(res['Items'][0], VIEW_EXPLICTLY_ADMINISTERED_COURSES)
+        #course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=site_admin_environ)
+        #res = course_admins.json_body
+        course_admin_href = '/dataserver2/ResolveUser/%s' % course_admin_username
+        course_admin_ext = self.testapp.get(course_admin_href)
+        course_admin_ext = course_admin_ext.json_body[ITEMS][0]
+        courses_administered_href = self.require_link_href_with_rel(course_admin_ext, VIEW_EXPLICTLY_ADMINISTERED_COURSES)
         
         #Test permissions
         self.testapp.get(courses_administered_href, extra_environ=normal_user_environ, status=403)
+        self.testapp.get(courses_administered_href, extra_environ=nt_admin_environ)
+        self.testapp.get(courses_administered_href, extra_environ=course_admin_environ)
         
         #Test Courses Administered
         courses_administered = self.testapp.get(courses_administered_href, extra_environ=site_admin_environ)
@@ -467,13 +477,11 @@ class TestCourseAdminView(ApplicationLayerTest):
         assert_that(len(res['Items']), is_(1))
         assert_that(res['Items'], has_item(has_entries('Links', has_item(has_entries('ntiid', self.course_ntiid)))))
         
-        #Remove instructor from course and make sure no courses are administered
+        #Remove instructor from course and make sure no courses are administered (should 404)
         roles['instructors'] = list([])
         self.testapp.put_json(course_roles_href, data)
         
-        courses_administered = self.testapp.get(courses_administered_href, extra_environ=site_admin_environ)
-        res = courses_administered.json_body
-        assert_that(len(res['Items']), is_(0))
+        courses_administered = self.testapp.get(courses_administered_href, extra_environ=site_admin_environ, status=404)
         
         #Add instructor back to course, plus a second one
         roles['instructors'] = list([course_admin_username])

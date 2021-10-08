@@ -78,9 +78,9 @@
                 for="nti.contenttypes.courses.interfaces.ICourseCatalogEntry
                      pyramid.interfaces.IRequest" />
                      
-    <subscriber factory=".decorators._CourseAdminSummaryCoursesLinkDecorator"
+    <subscriber factory=".decorators._CoursesExplicitlyAdministeredLinkDecorator"
                 provides="nti.externalization.interfaces.IExternalObjectDecorator"
-                for="nti.app.products.courseware_admin.interfaces.ICourseAdminSummary
+                for="nti.app.products.courseware_admin.interfaces.IUser
                      pyramid.interfaces.IRequest" />
 
 	<!-- Subscribers -->

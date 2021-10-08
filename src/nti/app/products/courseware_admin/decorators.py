@@ -59,7 +59,12 @@ from nti.contenttypes.courses.utils import filter_hidden_tags
 
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
+from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_site_admin
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
+
+from nti.dataserver.interfaces import IUser
+from nti.dataserver.interfaces import ISiteAdminUtility
 
 from nti.externalization.interfaces import StandardExternalFields
 from nti.externalization.interfaces import IExternalObjectDecorator
@@ -316,12 +321,22 @@ class _CourseCatalogCollectionDecorator(AbstractRequestAwareDecorator):
                     elements=('@@%s' % VIEW_COURSE_SUGGESTED_TAGS,))
         _links.append(link)
    
-@component.adapter(ICourseAdminSummary)     
+@component.adapter(IUser) 
 @interface.implementer(IExternalObjectDecorator)
-class _CourseAdminSummaryCoursesLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
+class _CoursesExplicitlyAdministeredLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
-    Decorate the :class:``ICourseAdminSummary`` with a `CoursesExplicitlyAdministered` rel.
+    Decorate the :class:``IUser`` with a `CoursesExplicitlyAdministered` rel.
     """
+    
+    def _predicate(self, user_context, unused_result):
+        if not self._is_authenticated:
+            return False
+        result = is_admin(self.remoteUser) or self.remoteUser == user_context
+        if not result and is_site_admin(self.remoteUser):
+            site_admin_utility = component.getUtility(ISiteAdminUtility)
+            result = site_admin_utility.can_administer_user(self.remoteUser,
+                                                            user_context)
+        return result
 
     def _do_decorate_external(self, context, result):
         _links = result.setdefault(LINKS, [])

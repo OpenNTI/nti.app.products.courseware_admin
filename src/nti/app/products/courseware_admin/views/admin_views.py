@@ -459,9 +459,8 @@ class CourseAdminsCSVPOSTView(CourseAdminsCSVView,
     
 @view_config(route_name='objects.generic.traversal',
              renderer='rest',
-             context=ICourseAdminSummary,
+             context=IUser,
              name=VIEW_EXPLICTLY_ADMINISTERED_COURSES,
-             permission=nauth.ACT_CONTENT_EDIT,
              request_method='GET')
 class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
                               BatchingUtilsMixin):    
@@ -472,9 +471,42 @@ class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
     _DEFAULT_BATCH_START = 0
     _DEFAULT_BATCH_SIZE = None
 
+    def _can_admin_user(self):
+        # Verify a site admin is administering a user in their site.
+        result = False
+        if is_site_admin(self.remoteUser):
+            admin_utility = component.getUtility(ISiteAdminUtility)
+            result = admin_utility.can_administer_user(self.remoteUser, self.context)
+        return result
+
+    def _predicate(self):
+        # 403 if not super admin or site admin or self
+        return (   is_admin(self.remoteUser) \
+                or self.remoteUser == self.context \
+                or self._can_admin_user())
+
     def __call__(self):
+        if not self._predicate():
+            raise_json_error(self.request,
+                             hexc.HTTPForbidden,
+                             {
+                                 'message': _(u"Cannot administered courses."),
+                                 'code': 'CannotAccessUserExplicitlyAdministeredCourses'
+                             },
+                             None)
+            
         result = LocatedExternalDict()
-        courses = get_instructed_and_edited_courses(self.context.user)
+        courses = get_instructed_and_edited_courses(self.context)
+        
+        if len(courses) is 0:
+            raise_json_error(self.request,
+                             hexc.HTTPNotFound,
+                             {
+                                 'message': _(u"User has no administered courses."),
+                                 'code': 'NoUserExplicitlyAdministeredCourses'
+                             },
+                             None) 
+        
         courses = sorted(courses, key=lambda x:x.title)
         result[TOTAL] = len(courses)
         self._batch_items_iterable(result, courses)
