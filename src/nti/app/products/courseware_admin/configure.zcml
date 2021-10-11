@@ -80,7 +80,7 @@
                      
     <subscriber factory=".decorators._CoursesExplicitlyAdministeredLinkDecorator"
                 provides="nti.externalization.interfaces.IExternalObjectDecorator"
-                for="nti.app.products.courseware_admin.interfaces.IUser
+                for="nti.dataserver.interfaces.IUser
                      pyramid.interfaces.IRequest" />
 
 	<!-- Subscribers -->
@@ -98,6 +98,11 @@
 	<ext:registerAutoPackageIO
 		root_interfaces=".interfaces.ICourseAdminSummary"
 		modules="" />
+		
+	<!-- Adapters -->
+	<adapter factory=".adapters._user_to_course_admin_summary"
+             provides="nti.app.products.courseware_admin.interfaces.ICourseAdminSummary"
+             for="nti.dataserver.interfaces.IUser" />
 				
 	<!-- Traversal -->	
 	<adapter name="CourseAdmins"

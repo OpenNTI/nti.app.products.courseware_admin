@@ -59,6 +59,7 @@ from nti.contenttypes.courses.interfaces import ICourseInstance
 from nti.coremetadata.interfaces import IDeactivatedUser
 
 from nti.dataserver.authorization import ROLE_SITE_ADMIN
+from nti.dataserver.authorization import ROLE_CONTENT_EDITOR
 
 from nti.dataserver.tests import mock_dataserver
 
@@ -416,6 +417,8 @@ class TestCourseAdminView(ApplicationLayerTest):
         #Outside site Course Admin
         outside_site_course_admin_username = u'gary.oak'
         
+        self.create_user(course_admin_username)
+        
         with mock_dataserver.mock_db_trans(self.ds):
             normal_user = self._create_user(normal_user_username)
             site_admin = self._create_user(test_site_admin_username)
@@ -428,6 +431,8 @@ class TestCourseAdminView(ApplicationLayerTest):
             principal_role_manager = IPrincipalRoleManager(getSite())
             principal_role_manager.assignRoleToPrincipal(ROLE_SITE_ADMIN.id,
                                                          test_site_admin_username)
+            principal_role_manager.assignRoleToPrincipal(ROLE_CONTENT_EDITOR.id,
+                                                         course_admin_username)
             
             entry = find_object_with_ntiid(self.course_ntiid)
             course_oid = to_external_ntiid_oid(ICourseInstance(entry))
@@ -435,12 +440,10 @@ class TestCourseAdminView(ApplicationLayerTest):
             entry2 = find_object_with_ntiid(self.course_ntiid2)
             course_oid2 = to_external_ntiid_oid(ICourseInstance(entry2))
         
+        course_admin_environ = self._make_extra_environ(user=course_admin_username)
         normal_user_environ = self._make_extra_environ(user=normal_user_username)
         site_admin_environ = self._make_extra_environ(user=test_site_admin_username)
         nt_admin_environ = self._make_extra_environ()
-           
-        self.create_user(course_admin_username)
-        course_admin_environ = self._make_extra_environ(user=course_admin_username)
         
         # Admin links
         course = self.testapp.get('/dataserver2/Objects/%s' % course_oid)
@@ -449,9 +452,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         course_ext2 = course2.json_body
         course_roles_href = self.require_link_href_with_rel(course_ext, VIEW_COURSE_ROLES)
         course_roles_href2 = self.require_link_href_with_rel(course_ext2, VIEW_COURSE_ROLES)
-        #course_admins_href = self._get_course_admins_href()
         
-        #headers = {'accept': str('application/json')}
         data = dict()
         data['roles'] = roles = dict()
         roles['instructors'] = list([course_admin_username])
@@ -459,8 +460,7 @@ class TestCourseAdminView(ApplicationLayerTest):
         
         #Set up instructor
         self.testapp.put_json(course_roles_href, data)
-        #course_admins = self.testapp.get(course_admins_href, headers=headers, extra_environ=site_admin_environ)
-        #res = course_admins.json_body
+
         course_admin_href = '/dataserver2/ResolveUser/%s' % course_admin_username
         course_admin_ext = self.testapp.get(course_admin_href)
         course_admin_ext = course_admin_ext.json_body[ITEMS][0]

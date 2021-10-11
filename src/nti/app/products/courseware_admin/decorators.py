@@ -321,26 +321,17 @@ class _CourseCatalogCollectionDecorator(AbstractRequestAwareDecorator):
                     elements=('@@%s' % VIEW_COURSE_SUGGESTED_TAGS,))
         _links.append(link)
    
-@component.adapter(IUser) 
+@component.adapter(IUser)
 @interface.implementer(IExternalObjectDecorator)
 class _CoursesExplicitlyAdministeredLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
     """
-    Decorate the :class:``IUser`` with a `CoursesExplicitlyAdministered` rel.
+    Decorate the :class:``IUser`` with a `CoursesExplicitlyAdministered` rel. 
+    The context on this link is a :class:``ICourseAdminSummary`` adapted from the user.
     """
-    
-    def _predicate(self, user_context, unused_result):
-        if not self._is_authenticated:
-            return False
-        result = is_admin(self.remoteUser) or self.remoteUser == user_context
-        if not result and is_site_admin(self.remoteUser):
-            site_admin_utility = component.getUtility(ISiteAdminUtility)
-            result = site_admin_utility.can_administer_user(self.remoteUser,
-                                                            user_context)
-        return result
-
     def _do_decorate_external(self, context, result):
+        adapted_summary = ICourseAdminSummary(context)
         _links = result.setdefault(LINKS, [])
-        link = Link(context,
+        link = Link(adapted_summary,
                     rel=VIEW_EXPLICTLY_ADMINISTERED_COURSES,
                     elements=('@@%s' % VIEW_EXPLICTLY_ADMINISTERED_COURSES,))
         interface.alsoProvides(link, ILocation)

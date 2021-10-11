@@ -20,6 +20,7 @@ from zope.intid.interfaces import IIntIds
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 
 from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
+from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
 from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
 
 from nti.app.users.utils import get_user_creation_site
@@ -29,6 +30,8 @@ from nti.containers.containers import CaseInsensitiveCheckingLastModifiedBTreeCo
 from nti.contenttypes.courses.utils import get_instructors
 from nti.contenttypes.courses.utils import get_editors
 from nti.contenttypes.courses.utils import get_instructors_and_editors
+
+from nti.dataserver.interfaces import IUser
 
 from nti.dataserver.users.users import User
 
@@ -81,3 +84,10 @@ class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer,
                 userIntids.append(doc_id)
             
         return userIntids
+    
+@component.adapter(IUser)
+@interface.implementer(ICourseAdminSummary)
+def _user_to_course_admin_summary(user):
+    parent = CourseAdminsContainer(getSite().getSiteManager())
+    return CourseAdminSummary(user, parent)
+    
