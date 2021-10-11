@@ -23,6 +23,7 @@ from nti.app.products.courseware.interfaces import ICoursesWorkspace
 from nti.app.products.courseware.interfaces import ICoursesCatalogCollection
 
 from nti.app.products.courseware_admin import VIEW_VENDOR_INFO
+from nti.app.products.courseware_admin import VIEW_EXPLICTLY_ADMINISTERED_COURSES
 from nti.app.products.courseware_admin import VIEW_COURSE_ROLES
 from nti.app.products.courseware_admin import VIEW_EXPORT_COURSE
 from nti.app.products.courseware_admin import VIEW_IMPORT_COURSE
@@ -35,6 +36,8 @@ from nti.app.products.courseware_admin import VIEW_PRESENTATION_ASSETS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_EDITORS
 from nti.app.products.courseware_admin import VIEW_COURSE_SUGGESTED_TAGS
 from nti.app.products.courseware_admin import VIEW_COURSE_REMOVE_INSTRUCTORS
+
+from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
 
 from nti.app.products.courseware_admin.mixins import RoleManageMixin
 from nti.app.products.courseware_admin.mixins import EditorManageMixin
@@ -56,7 +59,12 @@ from nti.contenttypes.courses.utils import filter_hidden_tags
 
 from nti.dataserver.authorization import ACT_CONTENT_EDIT
 
+from nti.dataserver.authorization import is_admin
+from nti.dataserver.authorization import is_site_admin
 from nti.dataserver.authorization import is_admin_or_content_admin_or_site_admin
+
+from nti.dataserver.interfaces import IUser
+from nti.dataserver.interfaces import ISiteAdminUtility
 
 from nti.externalization.interfaces import StandardExternalFields
 from nti.externalization.interfaces import IExternalObjectDecorator
@@ -311,4 +319,22 @@ class _CourseCatalogCollectionDecorator(AbstractRequestAwareDecorator):
         link = Link(context,
                     rel=VIEW_COURSE_SUGGESTED_TAGS,
                     elements=('@@%s' % VIEW_COURSE_SUGGESTED_TAGS,))
+        _links.append(link)
+   
+@component.adapter(IUser)
+@interface.implementer(IExternalObjectDecorator)
+class _CoursesExplicitlyAdministeredLinkDecorator(AbstractAuthenticatedRequestAwareDecorator):
+    """
+    Decorate the :class:``IUser`` with a `CoursesExplicitlyAdministered` rel. 
+    The context on this link is a :class:``ICourseAdminSummary`` adapted from the user.
+    """
+    def _do_decorate_external(self, context, result):
+        adapted_summary = ICourseAdminSummary(context)
+        _links = result.setdefault(LINKS, [])
+        link = Link(adapted_summary,
+                    rel=VIEW_EXPLICTLY_ADMINISTERED_COURSES,
+                    elements=('@@%s' % VIEW_EXPLICTLY_ADMINISTERED_COURSES,))
+        interface.alsoProvides(link, ILocation)
+        link.__name__ = ''
+        link.__parent__ = context
         _links.append(link)

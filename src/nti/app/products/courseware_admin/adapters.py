@@ -20,18 +20,27 @@ from zope.intid.interfaces import IIntIds
 from nti.app.products.courseware_admin import VIEW_COURSE_ADMINS
 
 from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
+from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
+from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
 
 from nti.app.users.utils import get_user_creation_site
 
-from nti.contenttypes.courses.interfaces import ICourseCatalog
+from nti.containers.containers import CaseInsensitiveCheckingLastModifiedBTreeContainer
 
 from nti.contenttypes.courses.utils import get_instructors
 from nti.contenttypes.courses.utils import get_editors
 from nti.contenttypes.courses.utils import get_instructors_and_editors
 
-@component.adapter(ICourseCatalog)
+from nti.dataserver.interfaces import IUser
+
+from nti.dataserver.users.users import User
+
+from nti.site.interfaces import IHostPolicySiteManager
+
+@component.adapter(IHostPolicySiteManager)
 @interface.implementer(ICourseAdminsContainer)
-class CourseAdminsContainer(Contained):
+class CourseAdminsContainer(CaseInsensitiveCheckingLastModifiedBTreeContainer,
+                            Contained):
     __name__ = VIEW_COURSE_ADMINS
     __parent__ = None
     __site__ = None
@@ -45,6 +54,12 @@ class CourseAdminsContainer(Contained):
         """
         self.__parent__ = context
         self.__site__ = getSite()
+        
+    def get(self, key, default=None):
+        user = User.get_user(key)
+        if user is None or self.__site__ is not get_user_creation_site(user):
+            return default
+        return CourseAdminSummary(user, self)
         
     @property
     def course_catalog(self):
@@ -69,3 +84,10 @@ class CourseAdminsContainer(Contained):
                 userIntids.append(doc_id)
             
         return userIntids
+    
+@component.adapter(IUser)
+@interface.implementer(ICourseAdminSummary)
+def _user_to_course_admin_summary(user):
+    parent = CourseAdminsContainer(getSite().getSiteManager())
+    return CourseAdminSummary(user, parent)
+    
