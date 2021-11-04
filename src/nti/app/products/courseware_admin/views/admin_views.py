@@ -48,8 +48,8 @@ from nti.app.products.courseware_admin.interfaces import ICourseAdminsContainer
 from nti.app.products.courseware_admin.interfaces import ICourseAdminSummary
 from nti.app.products.courseware_admin.interfaces import CourseAdminSummary
 
-from nti.app.users.views.view_mixins import AbstractEntityViewMixin
 from nti.app.users.views.view_mixins import UsersCSVExportMixin
+from nti.app.users.views.view_mixins import AbstractUserViewMixin
 
 from nti.common.string import is_true
 
@@ -72,25 +72,12 @@ from nti.contenttypes.courses.utils import get_course_instructors
 from nti.contenttypes.courses.utils import get_instructed_and_edited_courses
 
 from nti.coremetadata.interfaces import IDeactivatedUser
-from nti.coremetadata.interfaces import IX_LASTSEEN_TIME
 
 from nti.dataserver import authorization as nauth
 
 from nti.dataserver.authorization import is_admin_or_site_admin
-from nti.dataserver.authorization import is_admin
-from nti.dataserver.authorization import is_site_admin
 
 from nti.dataserver.interfaces import IUser
-from nti.dataserver.interfaces import ISiteAdminUtility
-
-from nti.dataserver.metadata.index import IX_CREATEDTIME
-from nti.dataserver.metadata.index import get_metadata_catalog
-
-from nti.dataserver.users.index import IX_ALIAS
-from nti.dataserver.users.index import IX_REALNAME
-from nti.dataserver.users.index import IX_DISPLAYNAME
-
-from nti.dataserver.users.index import get_entity_catalog
 
 from nti.dataserver.users.users import User
 
@@ -349,14 +336,11 @@ class SyncCatalogEntryInstructorsView(SyncCourseInstructorsView):
              renderer='rest',
              request_method='GET',
              permission=nauth.ACT_CONTENT_EDIT)
-class CourseAdminsGetView(AbstractEntityViewMixin):
+class CourseAdminsGetView(AbstractUserViewMixin):
     """
     Return all course admins (instructors and editors of any course in the site)
     Filter by only instructors or only editors if requested
     """
-    
-    _ALLOWED_SORTING = AbstractEntityViewMixin._ALLOWED_SORTING + (IX_LASTSEEN_TIME,)
-    _NUMERIC_SORTING = AbstractEntityViewMixin._NUMERIC_SORTING + (IX_LASTSEEN_TIME,)
     
     @Lazy
     def filterInstructors(self):
@@ -370,16 +354,6 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
     
     def get_externalizer(self, unused_entity):
         return 'admin-summary'
-
-    @Lazy
-    def sortMap(self):
-        return {
-            IX_ALIAS: get_entity_catalog(),
-            IX_REALNAME: get_entity_catalog(),
-            IX_DISPLAYNAME: get_entity_catalog(),
-            IX_CREATEDTIME: get_metadata_catalog(),
-            IX_LASTSEEN_TIME: get_metadata_catalog(),
-        }
 
     def get_entity_intids(self, site=None):
         course_admin_intids = self.context.course_admin_intids(filterInstructors=self.filterInstructors, filterEditors=self.filterEditors)
@@ -397,9 +371,10 @@ class CourseAdminsGetView(AbstractEntityViewMixin):
         ext_res[ITEMS] = sorted(ext_res[ITEMS],
                                 key=lambda x: getattr(x.user, sort_on, 0),
                                 reverse=reverse)
-
+        
     def __call__(self):
         return self._do_call()
+
     
 @view_config(context=ICourseAdminsContainer)
 @view_defaults(route_name='objects.generic.traversal',
@@ -424,7 +399,7 @@ class CourseAdminsCSVView(CourseAdminsGetView,
                permission=nauth.ACT_CONTENT_EDIT,
                request_param='format=text/csv')
 class CourseAdminsCSVPOSTView(CourseAdminsCSVView, 
-                           ModeledContentUploadRequestUtilsMixin):
+                              ModeledContentUploadRequestUtilsMixin):
     
     def readInput(self):
         if self.request.POST:
@@ -464,7 +439,7 @@ class CourseAdminsCSVPOSTView(CourseAdminsCSVView,
              permission=nauth.ACT_CONTENT_EDIT,
              request_method='GET')
 class CoursesExplicitlyAdministeredView(AbstractAuthenticatedView,
-                              BatchingUtilsMixin):    
+                                        BatchingUtilsMixin):    
     """
     A view that returns the courses a user administers (instructs/edits).
     """
